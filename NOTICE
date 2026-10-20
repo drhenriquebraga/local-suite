@@ -1,0 +1,593 @@
+Radioterapia.AI · Local Suite
+Copyright 2026 Henrique Braga
+
+Licenciado sob a Apache License, Version 2.0. Ver o arquivo LICENSE.
+
+================================================================================
+  O QUE E NOSSO, E O QUE NAO E
+================================================================================
+
+NAO SOMOS AUTORES DOS MODELOS DE SEGMENTACAO.
+
+Quem faz o trabalho clinico -- reconhecer um orgao numa tomografia -- e software
+de terceiro, listado abaixo. O que este projeto constroi e a CAMADA DE
+ACESSIBILIDADE: um aplicativo de pos-processamento e compilacao de modelos que
+ja existem, que poe um modelo de pesquisa ao alcance de quem nao instala Python,
+nao roda linha de comando e nao tem privilegio de administrador na estacao. Nao
+treinamos modelo com os nossos casos, e a proposta e de ensino e pesquisa.
+
+Isso e modesto e e exato. E nao e neutro: tornar alcancavel e o ato que
+transforma "modelo de pesquisa" em "usado na clinica". Os avisos, o rascunho
+obrigatorio e o humano no laco sao responsabilidade nossa por causa disso.
+
+================================================================================
+  COMPONENTES DE TERCEIROS
+================================================================================
+
+O nome e o endereco da licenca de cada componente estao aqui -- de cada
+modelo, na linha "Licenca" da secao dele, e de cada biblioteca que o pacote
+fixa em build/requirements-demo.txt, mais o Python e o pip que
+build/artefatos.py fixa, na tabela das bibliotecas de apoio e no fim dela --,
+e este arquivo e mostrado inteiro na tela "Creditos e licencas" do programa. O texto integro da licenca dos pesos do NV-Segment-CT viaja
+tambem na pasta do modelo.
+
+As dependencias que essas bibliotecas trazem consigo (as transitivas, que o
+pip resolve na montagem) nao estao listadas uma a uma: a licenca de cada uma
+viaja com ela, no metadado do pacote instalado (a pasta `*.dist-info` do
+Python do programa).
+
+--------------------------------------------------------------------------------
+TotalSegmentator
+--------------------------------------------------------------------------------
+  Autoria   Wasserthal J. et al., Department of Research and Analysis,
+            University Hospital Basel
+  Licenca   Apache License 2.0
+            https://www.apache.org/licenses/LICENSE-2.0
+  Versao    2.18.0
+  Origem    https://github.com/wasserth/TotalSegmentator
+  Tarefas   abdominal_muscles, breasts, craniofacial_structures,
+            head_glands_cavities, head_muscles, headneck_bones_vessels,
+            headneck_muscles, hip_implant, liver_lesions, liver_lesions_mr,
+            liver_segments, liver_segments_mr, lung_nodules, lung_vessels,
+            lung_vessels_LEGACY, oculomotor_muscles,
+            pleural_pericard_effusion, teeth, total, total_mr, total_v3,
+            trunk_cavities, vertebrae_body, vertebrae_mr
+
+  DECLARACAO DOS PROPRIOS AUTORES: nao e dispositivo medico e nao se destina a
+  uso clinico. Consta como componente certificado dentro de produtos aprovados
+  pelo FDA -- o que nao se estende a este uso.
+
+  COMO ELE RODA AQUI. Com o recorte no corpo (a opcao `body_seg` da
+  biblioteca): um modelo grosseiro, a 6 mm, localiza o corpo, e a tarefa roda
+  so dentro dele, na resolucao dela -- o ar em volta do paciente nao e
+  processado. Ligado de fabrica (chave RECORTE_NO_CORPO do arquivo de
+  configuracao). Nas tarefas de RM, e nas que ja recortam por conta propria, a
+  biblioteca nao usa esse recorte.
+
+  A ESTATISTICA DE USO DA BIBLIOTECA FICA DESLIGADA. De fabrica, ela envia a
+  stats.totalsegmentator.com um relatorio de uso a cada predicao. Este
+  programa grava `send_usage_stats: false` no arquivo de configuracao dela e,
+  no processo que a executa, troca a funcao de envio por uma que nao envia
+  nada.
+
+  AS TAREFAS DE ACHADO (lung_nodules, liver_lesions, liver_lesions_mr) vem
+  no pacote e nao rodam de fabrica: rodam por ato declarado de quem opera, e o
+  log anuncia com a palavra ACHADO. O derrame pleural e pericardico
+  (pleural_pericard_effusion) e anatomia do torax: alimenta o conjunto
+  completo e o entregue.
+
+  Citacao pedida pelos autores:
+    Wasserthal J., Breit H.-C., Meyer M.T., et al. TotalSegmentator: Robust
+    Segmentation of 104 Anatomic Structures in CT Images.
+    Radiology: Artificial Intelligence, 2023.
+
+--------------------------------------------------------------------------------
+nnU-Net
+--------------------------------------------------------------------------------
+  Autoria   Isensee F. et al., Division of Medical Image Computing,
+            German Cancer Research Center (DKFZ)
+  Licenca   Apache License 2.0
+            https://www.apache.org/licenses/LICENSE-2.0
+  Versao    2.7.0
+  Origem    https://github.com/MIC-DKFZ/nnUNet
+
+  Os autores do TotalSegmentator pedem que o nnU-Net seja citado tambem, por o
+  modelo ser fortemente baseado nele.
+
+    Isensee F., Jaeger P.F., Kohl S.A.A., Petersen J., Maier-Hein K.H.
+    nnU-Net: a self-configuring method for deep learning-based biomedical
+    image segmentation. Nature Methods, 2021.
+
+--------------------------------------------------------------------------------
+NV-Segment-CT (NVIDIA)
+--------------------------------------------------------------------------------
+  Autoria   NVIDIA
+  Licenca   NVIDIA Open Model License Agreement (pesos do modelo)
+            https://huggingface.co/nvidia/NV-Segment-CT/blob/main/LICENSE
+            Apache License 2.0 (codigo de inferencia, do bundle MONAI)
+            https://www.apache.org/licenses/LICENSE-2.0
+  Versao    vista3d_pretrained_model · monai 1.4.0
+  Origem    https://huggingface.co/nvidia/NV-Segment-CT
+            https://github.com/Project-MONAI/VISTA  (codigo de inferencia)
+
+  DECLARACAO DO PROPRIO AUTOR: destinado a fins de pesquisa, nao a uso clinico.
+
+  O PESO E O MESMO DO MONAI VISTA-3D: o `model.pt` dos dois tem o mesmo
+  sha256 (c92bab26..., 871.970.895 bytes, medido nos dois arquivos). A NVIDIA
+  o publica sob dois contratos, e este pacote usa o que permite uso comercial
+  ("Models are commercially usable"). O outro -- a NVIDIA License, clausula
+  3.3, "research or evaluation purposes only" -- nao entra aqui.
+
+  O CAVEAT CLINICO NAO SAI JUNTO COM O COMERCIAL. O cartao do modelo diz que
+  ele e para pesquisa e nao para uso clinico. Ler "comercialmente usavel" como
+  "liberado para rotina" e a leitura que esta linha impede.
+
+  O CODIGO DE INFERENCIA VEM DO BUNDLE MONAI, e por isso a atribuicao Apache
+  acima: a NVIDIA nao publica o `configs/inference.json`, e o programa o baixa
+  do repositorio do MONAI. E codigo permissivo; o peso e o mapa de rotulos sao
+  da NVIDIA.
+
+  A inferencia roda LOCALMENTE, a partir dos pesos que vem no pacote. Nao ha
+  chamada a API hospedada, e ha teste na bateria que quebra se alguem
+  acrescentar uma. A rotina pede so as classes de anatomia; as de achado
+  (tumores, lesao ossea, cistos renais) ficam fora do pedido.
+
+--------------------------------------------------------------------------------
+CADS (variante `open`)
+--------------------------------------------------------------------------------
+  Autoria   Xu M. et al., CADS: A Comprehensive Anatomical Dataset and
+            Segmentation for Whole-Body Anatomy in Computed Tomography
+  Licenca   Apache License 2.0 (codigo)
+            https://www.apache.org/licenses/LICENSE-2.0
+            CC BY-SA 4.0 (PESOS da variante `open`)
+            https://creativecommons.org/licenses/by-sa/4.0/
+  Versao    cads-model-open_v1.0.0 - Dataset556_GC256
+  Origem    https://github.com/murong-xu/CADS  (codigo)
+            https://github.com/murong-xu/CADS/releases/tag/cads-model-open_v1.0.0
+            (os pesos: a publicacao da variante `open`, que e a baixada)
+
+  O PESO TEM LICENCA PROPRIA, e nao a do codigo. O projeto publica TRES
+  variantes com licencas diferentes -- `reference` (licenca customizada),
+  `research` (CC BY-NC-SA, nao comercial E viral) e `open` (CC BY-SA 4.0).
+  E a `open` que viaja neste pacote, de proposito: existe uma livre que serve,
+  entao levar a restrita seria escolher a restricao a toa.
+
+  O SHAREALIKE TEM CAUDA, e vale escreve-la: rodar o modelo e usar o contorno
+  que sai dele NAO produz obra derivada. Fazer fine-tune com dado da casa
+  produz, e esse peso teria de ser redistribuido sob CC BY-SA 4.0.
+
+--------------------------------------------------------------------------------
+Niveis linfonodais de cabeca e pescoco
+--------------------------------------------------------------------------------
+  Autoria   Weissmann T., Huang Y., Fischer S., et al. (ultimo autor:
+            Putz F.), Universitatsklinikum Erlangen
+  Licenca   CC0 1.0 Universal (dominio publico)
+            https://creativecommons.org/publicdomain/zero/1.0/
+  Versao    Task110_HNLNFixed - nnU-Net v1
+  Origem    https://github.com/putzfn/HNLNL_autosegmentation_trained_models
+
+  CC0 NAO EXIGE ATRIBUICAO, e a citacao esta aqui assim mesmo: o trabalho e o
+  unico do pacote que entrega os vinte compartimentos do consenso, e nao
+  credita-lo seria apagar de onde ele veio. O repositorio dos pesos nao traz
+  secao de citacao; o artigo que os descreve e este:
+
+    Weissmann T., Huang Y., Fischer S., Roesch J., Mansoorian S.,
+    Ayala Gaona H., Gostian A.-O., Hecht M., Lettmaier S., Deloch L.,
+    Frey B., Gaipl U.S., Distel L.V., Maier A., Iro H., Semrau S., Bert C.,
+    Fietkau R., Putz F. Deep learning for automatic head and neck lymph node
+    level delineation provides expert-level accuracy. Frontiers in Oncology,
+    2023;13:1115258. doi:10.3389/fonc.2023.1115258
+
+  OS NOMES SAO OS DO CONSENSO DE GREGOIRE (Lvl_Ia a Lvl_VIII_R), pelo mapa
+  entre o rotulo do modelo e o nivel que os autores publicaram com os pesos.
+  O mapa vale para aquela versao dos pesos (Task110_HNLNFixed_MirrorBest), e
+  o programa a confere antes de usar os nomes: com pesos de outra versao, os
+  vinte voltam a sair como LNL01..LNL20, e a uniao como LNL_Union. Sai tambem
+  a uniao dos niveis Ia a VIIb (LNL_UNION, sem o nivel VIII). Cada nivel sai
+  com o tipo CONTROL: compartimento anatomico, e nao orgao nem CTV.
+
+  QUANDO RODA: no modo AUTO -- o vigia e o "Rodar agora" -- quando o pescoco
+  e detectado (as vertebras cervicais C2, C3 e C4 no campo, medidas na base),
+  e no PERSONALIZADO pelo protocolo Cabeca e Pescoco avancado ou pela chave
+  dele; nunca no FAST. E so em serie de TC em que a cabeca aparece. Quando
+  roda, os niveis entram no conjunto completo (FULL); ao entregue (OAR) vao
+  so a uniao (LNL_UNION_ai, que NAO E OAR NEM CTV) e a parotida do nivel VIII
+  menos o esternocleidomastoideo, quando o lado se confirma e ela e
+  plausivel como a glandula; sem ela, o entregue sai sem parotida, e a do
+  TotalSegmentator nunca vai ao entregue (fica no FULL como Parotid_L_ts e
+  Parotid_R_ts). O arquivo proprio deles (RS_RadAI_HNL_*) so sai no
+  PERSONALIZADO.
+
+--------------------------------------------------------------------------------
+MOOSE (ENHANCE.PET)
+--------------------------------------------------------------------------------
+  Autoria   Shiyam Sundar L.K. et al., QIMP Team / ENHANCE.PET initiative,
+            Medical University of Vienna
+  Licenca   Apache License 2.0 (codigo)
+            https://www.apache.org/licenses/LICENSE-2.0
+            CC BY 4.0 (PESOS dos modelos)
+            https://creativecommons.org/licenses/by/4.0/
+  Versao    moosez-v.3.1.3 - Dataset888_Cardiac e Dataset778_Body_composition
+  Origem    https://github.com/ENHANCE-PET/MOOSE
+
+  ATRIBUICAO E CONDICAO DA LICENCA, e e por isso que esta secao existe. A
+  CC BY 4.0 permite uso comercial e nao tem ShareAlike -- o que ela exige e
+  credito, e credito omitido e descumprimento, nao descuido.
+
+  A LICENCA DO PESO FOI LIDA NO ARQUIVO `MODEL_LICENSE` do repositorio (567
+  bytes, separado do LICENSE Apache-2.0 do codigo), e nao num badge: badge e
+  cartaz, nao ato de licenciamento.
+
+    Shiyam Sundar L.K., Yu J., Muzik O. et al. Fully automated, semantic
+    segmentation of whole-body 18F-FDG PET/CT images based on data-centric
+    artificial intelligence. Journal of Nuclear Medicine, 2022.
+
+  DOIS MODELOS, DEZESSEIS ESTRUTURAS. As quatro camaras do coracao, o
+  miocardio e a arteria pulmonar; o musculo esqueletico e as gorduras
+  subcutanea e visceral; mais aorta, iliacas, cava e porta+esplenica, que ja
+  vem da base de anatomia do TotalSegmentator e saem junto por serem a
+  referencia de comparacao.
+
+  O PROTOCOLO DE DELINEAMENTO DELES E DE MEDICINA NUCLEAR (PET/CT de corpo
+  inteiro), e nao de radioterapia. Por isso o conjunto sai em arquivo proprio
+  (RS_RadAI_MSE_*), com o sufixo `_mse`, e NAO entra no RTSTRUCT entregue.
+
+--------------------------------------------------------------------------------
+CT Brain Segmentation Radiotherapy (estruturas do encefalo em TC)
+--------------------------------------------------------------------------------
+  Autoria   Buti G., Giovenco M., Yilmaz T., Ajdari A., Bridge C.P., Sharp G.C.,
+            Lofman F., Shih H.A., Bortfeld T.
+  Licenca   MIT (PESOS)
+            https://spdx.org/licenses/MIT.html
+  Versao    nnUNetTrainer__nnUNetPlans__3d_fullres, fold_all (nnU-Net v2),
+            revisao d3f8bc7248ac9138e03be7e6a839d7844599b8a1
+  Origem    https://huggingface.co/GregoryButi/CT_Brain_Segmentation_Radiotherapy
+
+    Buti G., Giovenco M., Yilmaz T., Ajdari A., Bridge C.P., Sharp G.C.,
+    Lofman F., Shih H.A., Bortfeld T. Clinical target volumes for glioma -
+    Automated delineation to improve neuroanatomic consistency. Physics and
+    Imaging in Radiation Oncology, 2025;36:100865.
+    doi:10.1016/j.phro.2025.100865
+
+  O modelo foi treinado no conjunto GLIS-RT da The Cancer Imaging Archive,
+  que pede a citacao do conjunto e do artigo que o descreve:
+
+    Shusharina N., Bortfeld T. Glioma Image Segmentation for Radiotherapy: RT
+    targets, barriers to cancer spread, and organs at risk (GLIS-RT). The
+    Cancer Imaging Archive, 2021. doi:10.7937/TCIA.T905-ZQ20
+    Shusharina N., Bortfeld T., Cardenas C., et al. Cross-Modality Brain
+    Structures Image Segmentation for the Radiotherapy Target Definition and
+    Plan Optimization. Lecture Notes in Computer Science, 2021, pp. 3-15.
+    doi:10.1007/978-3-030-71827-5_1
+
+  SO TC. Entram o tronco encefalico e o quiasma optico (conjunto completo e
+  entregue) e o cerebelo, os ventriculos e a linha media (so o conjunto
+  completo). O encefalo e os nervos opticos continuam os do TotalSegmentator.
+
+  A origem no Hugging Face declara a licenca MIT no cartao do modelo e nao
+  publica arquivo LICENSE nem linha de copyright; os detentores sao os
+  autores listados acima. O texto da licenca MIT, que acompanha os pesos:
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice shall be included
+    in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+--------------------------------------------------------------------------------
+Bibliotecas de apoio
+--------------------------------------------------------------------------------
+  Cada biblioteca que build/requirements-demo.txt fixa esta nesta tabela,
+  com a licenca que o metadado do proprio pacote declara (lido na montagem
+  em 23/09/2026). TotalSegmentator e nnU-Net (nnunetv2) tem secao propria
+  acima, e aparecem aqui so pela versao; o MONAI, que executa o NV-Segment-CT,
+  aparece tambem na secao dele. As duas ultimas linhas nao vem do
+  requirements: sao o Python portatil e o pip que build/artefatos.py fixa e
+  confere por SHA-256 -- o pip e extraido dentro do Python do programa.
+
+  PyTorch 2.5.1          BSD-3-Clause        https://pytorch.org
+  SimpleITK 2.5.6        Apache-2.0          https://simpleitk.org
+  pydicom 3.0.2          MIT                 https://pydicom.github.io
+  pylibjpeg 2.1.0        MIT                 https://github.com/pydicom/pylibjpeg
+  pylibjpeg-openjpeg     MIT                 https://github.com/pydicom/pylibjpeg-openjpeg
+    2.2.1
+  rt-utils 1.2.7         MIT                 https://github.com/qurit/rt-utils
+  nibabel 5.4.2          MIT                 https://nipy.org/nibabel
+  NumPy 1.26.4           BSD-3-Clause        https://numpy.org
+  SciPy 1.15.3           BSD-3-Clause        https://scipy.org
+  matplotlib 3.10.9      Matplotlib License  https://matplotlib.org
+                         (derivada da PSF License)
+  dipy 1.11.0            BSD-3-Clause        https://dipy.org
+  xgboost 3.2.0          Apache-2.0          https://xgboost.ai
+  MONAI 1.4.0            Apache-2.0          https://monai.io
+  fire 0.7.1             Apache-2.0          https://github.com/google/python-fire
+  pytorch-ignite 0.5.5   BSD-3-Clause        https://pytorch.org/ignite
+  FastAPI 0.141.1        MIT                 https://fastapi.tiangolo.com
+  uvicorn 0.52.1         BSD-3-Clause        https://www.uvicorn.org
+  python-multipart       Apache-2.0          https://github.com/Kludex/python-multipart
+    0.0.32
+  setuptools 80.10.2     MIT                 https://github.com/pypa/setuptools
+  TotalSegmentator 2.18.0                    (secao propria, acima)
+  nnunetv2 2.7.0                             (nnU-Net; secao propria, acima)
+  Python 3.10.11         PSF License         https://python.org
+  pip 26.2.1             MIT                 https://pip.pypa.io
+
+  O endereco de cada licenca desta tabela:
+    Apache-2.0          https://www.apache.org/licenses/LICENSE-2.0
+    BSD-3-Clause        https://spdx.org/licenses/BSD-3-Clause.html
+    MIT                 https://spdx.org/licenses/MIT.html
+    PSF License         https://docs.python.org/3.10/license.html
+    Matplotlib License  https://matplotlib.org/stable/project/license.html
+
+--------------------------------------------------------------------------------
+Componentes da porta (interface no navegador)
+--------------------------------------------------------------------------------
+  A porta da suite (app/porta/) leva um script gerado em build/porta a
+  partir de app.mjs e beam-renderer.mjs, com as bibliotecas abaixo
+  embutidas, a imagem dos vidros e a fonte do titulo. O esbuild 0.28.2
+  (MIT, Copyright (c) 2020 Evan Wallace) so prepara o arquivo na maquina
+  de desenvolvimento e nao viaja para a estacao.
+
+  motion 14.1.0          MIT                 https://motion.dev
+    Copyright (c) 2024 Motion B.V.
+  framer-motion 14.1.0   MIT                 https://github.com/motiondivision/motion
+    Copyright (c) 2018 Framer B.V.
+  motion-dom 14.1.0      MIT                 https://github.com/motiondivision/motion
+    Copyright (c) 2024 Motion B.V.
+  motion-utils 14.1.0    MIT                 https://github.com/motiondivision/motion
+    Copyright (c) 2024 Motion B.V.
+  tslib 2.8.1            0BSD                https://github.com/microsoft/tslib
+    Copyright (c) Microsoft Corporation.
+  Anton (fonte)          OFL-1.1             https://github.com/googlefonts/AntonFont
+    Copyright 2020 The Anton Project Authors (https://github.com/googlefonts/AntonFont.git)
+
+  O endereco de cada licenca:
+    MIT                 https://spdx.org/licenses/MIT.html
+    0BSD                https://spdx.org/licenses/0BSD.html
+    OFL-1.1             https://spdx.org/licenses/OFL-1.1.html
+
+  O texto da licenca MIT (motion, framer-motion, motion-dom, motion-utils):
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice shall be included
+    in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+  O texto da licenca 0BSD (tslib):
+
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose with or without fee is hereby granted.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+  O texto da SIL Open Font License 1.1, que acompanha a fonte Anton:
+
+    Copyright 2020 The Anton Project Authors (https://github.com/googlefonts/AntonFont.git)
+
+    This Font Software is licensed under the SIL Open Font License, Version 1.1.
+    This license is copied below, and is also available with a FAQ at:
+    http://scripts.sil.org/OFL
+
+
+    -----------------------------------------------------------
+    SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+    -----------------------------------------------------------
+
+    PREAMBLE
+    The goals of the Open Font License (OFL) are to stimulate worldwide
+    development of collaborative font projects, to support the font creation
+    efforts of academic and linguistic communities, and to provide a free and
+    open framework in which fonts may be shared and improved in partnership
+    with others.
+
+    The OFL allows the licensed fonts to be used, studied, modified and
+    redistributed freely as long as they are not sold by themselves. The
+    fonts, including any derivative works, can be bundled, embedded,
+    redistributed and/or sold with any software provided that any reserved
+    names are not used by derivative works. The fonts and derivatives,
+    however, cannot be released under any other type of license. The
+    requirement for fonts to remain under this license does not apply
+    to any document created using the fonts or their derivatives.
+
+    DEFINITIONS
+    "Font Software" refers to the set of files released by the Copyright
+    Holder(s) under this license and clearly marked as such. This may
+    include source files, build scripts and documentation.
+
+    "Reserved Font Name" refers to any names specified as such after the
+    copyright statement(s).
+
+    "Original Version" refers to the collection of Font Software components as
+    distributed by the Copyright Holder(s).
+
+    "Modified Version" refers to any derivative made by adding to, deleting,
+    or substituting -- in part or in whole -- any of the components of the
+    Original Version, by changing formats or by porting the Font Software to a
+    new environment.
+
+    "Author" refers to any designer, engineer, programmer, technical
+    writer or other person who contributed to the Font Software.
+
+    PERMISSION & CONDITIONS
+    Permission is hereby granted, free of charge, to any person obtaining
+    a copy of the Font Software, to use, study, copy, merge, embed, modify,
+    redistribute, and sell modified and unmodified copies of the Font
+    Software, subject to the following conditions:
+
+    1) Neither the Font Software nor any of its individual components,
+    in Original or Modified Versions, may be sold by itself.
+
+    2) Original or Modified Versions of the Font Software may be bundled,
+    redistributed and/or sold with any software, provided that each copy
+    contains the above copyright notice and this license. These can be
+    included either as stand-alone text files, human-readable headers or
+    in the appropriate machine-readable metadata fields within text or
+    binary files as long as those fields can be easily viewed by the user.
+
+    3) No Modified Version of the Font Software may use the Reserved Font
+    Name(s) unless explicit written permission is granted by the corresponding
+    Copyright Holder. This restriction only applies to the primary font name as
+    presented to the users.
+
+    4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+    Software shall not be used to promote, endorse or advertise any
+    Modified Version, except to acknowledge the contribution(s) of the
+    Copyright Holder(s) and the Author(s) or with their explicit written
+    permission.
+
+    5) The Font Software, modified or unmodified, in part or in whole,
+    must be distributed entirely under this license, and must not be
+    distributed under any other license. The requirement for fonts to
+    remain under this license does not apply to any document created
+    using the Font Software.
+
+    TERMINATION
+    This license becomes null and void if any of the above conditions are
+    not met.
+
+    DISCLAIMER
+    THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+    OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+    COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+    DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+    OTHER DEALINGS IN THE FONT SOFTWARE.
+
+--------------------------------------------------------------------------------
+Codigo portado do DeFace RT (do mesmo autor)
+--------------------------------------------------------------------------------
+  Autoria   Henrique Braga -- o mesmo autor deste projeto
+  Origem    projeto DeFace RT, src/js/60_render.js (versao 1.3.0)
+  Destino   app/radai_bolus_screen.py, no repositorio 3d-printed-bolus --
+            a reconstrucao 3D do modulo 3D Printed Bolus
+  O que     o lancamento de raios em canvas 2D que para na primeira
+            superficie, a normal pelo gradiente do mapa de profundidade, a
+            rampa fria do sombreamento com a luz de borda e o fundo com os
+            aneis -- adaptados para dois volumes (o paciente, opaco, e o
+            bolus, translucido) e para a caixa desenhada por raio.
+  Licenca   o porte foi autorizado pelo autor, titular dos dois projetos, em
+            24/09/2026; o trecho adaptado e distribuido aqui sob a licenca
+            deste projeto (Apache License 2.0).
+
+--------------------------------------------------------------------------------
+Listas copiadas do Workstation RT (do mesmo autor)
+--------------------------------------------------------------------------------
+  Autoria   Henrique Braga -- o mesmo autor deste projeto
+  Origem    projeto Workstation RT, Arquivo_KitSuporteRT.ps1 (copia de
+            27/09/2026)
+  Destino   app/radai_cleaner.py -- o botao "Otimizar" da tela de
+            configuracoes
+  O que     as listas de processos que o kit de otimizacao da estacao usa:
+            o que nunca se encerra (protegidos, preservados, acesso remoto,
+            raizes clinicas) e o que pode ser fechado (o catalogo), mais o
+            mapa de reabertura do "Restaurar". A linha de origem de cada
+            lista esta ao lado dela, no codigo.
+  Licenca   a copia foi pedida pelo autor, titular dos dois projetos, em
+            26/09/2026; as listas sao distribuidas aqui sob a licenca deste
+            projeto (Apache License 2.0).
+
+================================================================================
+  O QUE NAO VEM NO PACOTE
+================================================================================
+
+  nnInteractive (DKFZ) -- pesos CC BY-NC-SA 4.0, nao comercial. Fica fora: o
+  preparador nao o baixa, nenhuma tela o chama, e o programa recusa roda-lo.
+  Nenhum componente deste pacote e de uso nao comercial.
+
+================================================================================
+  DOIS ARTEFATOS, DOIS REGIMES
+================================================================================
+
+O mesmo codigo, publicado e implantado, responde a regimes diferentes:
+
+  CODIGO PUBLICADO           Material educacional. NAO e dispositivo medico e
+                             nao foi validado para uso clinico. Quem baixa,
+                             modifica e usa responde pelo proprio build.
+
+  BUILD INTERNO DA CLINICA   Software desenvolvido internamente e de uso
+                             exclusivo do servico (RDC ANVISA 657/2022, Art.
+                             5o). Exige registro de validacao e historico de
+                             alteracoes, com retencao de dez anos apos o
+                             descarte. Responsabilidade da clinica. Em outra
+                             jurisdicao, a regra e a de la.
+
+A distincao e por quem implanta e para que, nao por qual codigo. O precedente e
+o proprio TotalSegmentator: declara nao ser dispositivo medico, e e componente
+certificado dentro de produtos aprovados pelo FDA.
+
+================================================================================
+  A FRONTEIRA CLINICA
+================================================================================
+
+Toda estrutura gerada entra no sistema de planejamento como SUGESTAO NAO
+APROVADA (`ApprovalStatus = UNAPPROVED`), com sufixo de procedencia no nome:
+
+  _ai    pipeline deste projeto (TotalSegmentator + pos-processamento)
+  _ts    TotalSegmentator sem pos-processamento (so o indice 26 fundido
+         ao sacro)
+  _nv    NV-Segment-CT (NVIDIA)
+  _cds   CADS (variante `open`)
+  _mse   MOOSE (ENHANCE.PET)
+  _lnl   niveis linfonodais cervicais (Weissmann et al., 2023)
+
+  E cada PLUGIN -- uma tarefa opcional do TotalSegmentator que nao alimenta o
+  conjunto completo -- grava o seu arquivo (rotulo STUDY_ e o codigo dele),
+  com o nosso pos-processamento e um sufixo proprio de tres letras:
+
+  _orb   orbita: musculos extraoculares, globos e nervos opticos
+  _tth   dentes
+  _lvs   vasos e vias aereas do pulmao
+  _lvl   vasos do pulmao, modelo de 2023
+  _nod   nodulos pulmonares (ACHADO)
+  _lsg   segmentos hepaticos
+  _lls   lesoes hepaticas (ACHADO)
+  _vbd   corpo vertebral e disco intervertebral
+  _hip   protese de quadril
+  _vmr   vertebras e discos na RM
+  _lsm   segmentos hepaticos na RM
+  _llm   lesoes hepaticas na RM (ACHADO)
+
+  A FONTE E `app/radai_sets.py`, no repositorio contourlab (o campo `sufixo`
+  de cada conjunto e de cada plugin). Conjunto ou plugin novo = linha nova aqui, no mesmo commit: sufixo
+  de procedencia que nao esta declarado aqui e uma marca que o fisico
+  encontra no sistema de planejamento e nao tem onde consultar.
+
+Revisao e aprovacao continuam sendo ato medico, dentro do sistema de
+planejamento. Nada e aprovado automaticamente, e nenhuma alteracao pode remover
+essa fronteira.
