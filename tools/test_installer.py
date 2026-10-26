@@ -88,12 +88,28 @@ def montar_fantoma(base, projeto="AUTO_CONTORNO"):
 def empacotar(oficina, saida, projeto="AUTO_CONTORNO", versao="9.9"):
     import configurar_ambiente as ca
     ca.LOG = open(os.path.join(oficina, "log.txt"), "a", encoding="utf-8")
-    ctx = {"raiz": ca.RAIZ, "destino": _P(oficina), "bundle": _P(os.path.join(oficina, projeto)),
-           "cache": _P(os.path.join(oficina, "cache")), "saida": _P(saida),
-           "projeto": projeto, "versao": versao, "cuda": "cu121", "so_cpu": False}
-    ca.etapa_empacotar(ctx)
-    ca.etapa_distribuir(ctx)
-    return ctx["pacote"]
+    try:
+        ctx = {"raiz": ca.RAIZ, "destino": _P(oficina), "bundle": _P(os.path.join(oficina, projeto)),
+               "cache": _P(os.path.join(oficina, "cache")), "saida": _P(saida),
+               "projeto": projeto, "versao": versao, "cuda": "cu121", "so_cpu": False}
+        ca.etapa_empacotar(ctx)
+        ca.etapa_distribuir(ctx)
+        return ctx["pacote"]
+    finally:
+        # GUARDA: log aberto ate o fim do processo prende a pasta temporaria no Windows.
+        aberto, ca.LOG = ca.LOG, None
+        try:
+            aberto.close()
+        except Exception:
+            pass
+
+
+def _apagavel(caminho):
+    try:
+        os.remove(caminho)
+        return True
+    except OSError:
+        return False
 
 
 def _P(s):
@@ -133,6 +149,13 @@ def teste_pacote_e_um_arquivo_so():
     of, sa = temp("of"), temp("sa")
     montar_fantoma(of)
     pacote = empacotar(of, sa)
+    checar("o log do empacotamento fica fechado (a pasta temporaria sai no fim)",
+           _apagavel(os.path.join(of, "log.txt")))
+    if os.name == "nt":
+        preso = os.path.join(of, "preso.txt")
+        with open(preso, "w") as _f:
+            checar("  (isca) arquivo ainda aberto nao se apaga no Windows",
+                   not _apagavel(preso))
 
     checar("o nome e <PRODUTO>_BUNDLE_v<VERSAO>.zip",
            pacote.name == "AUTO_CONTORNO_BUNDLE_v9.9.zip", pacote.name)

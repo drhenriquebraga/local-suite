@@ -9,6 +9,11 @@ import time
 
 from urllib.parse import urlsplit
 
+# GUARDA: o Python embeddable da estacao nao poe a pasta do script no caminho; os import radai_* das funcoes dependem desta linha.
+_PASTA_DO_LANCADOR = os.path.dirname(os.path.abspath(__file__))
+if _PASTA_DO_LANCADOR not in sys.path:
+    sys.path.insert(0, _PASTA_DO_LANCADOR)
+
 CREATE_NO_WINDOW = 0x08000000
 CREATE_BREAKAWAY_FROM_JOB = 0x01000000
 CREATE_NEW_PROCESS_GROUP = 0x00000200
@@ -39,6 +44,11 @@ ROTA_REABRIR = "/api/reabrir"
 NOMES_DO_PYTHON = ("python.exe", "pythonw.exe")
 RC_ABRIR_PELO_LOTE = 90
 RC_NAO_ENCERROU = 2
+ROTA_TENTAR = "/tentar"
+TETO_DA_NOVA_TENTATIVA_S = 600.0
+GIF_DE_UM_PIXEL = (b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff"
+                   b"\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01"
+                   b"\x00\x01\x00\x00\x02\x02D\x01\x00;")
 
 NO_AR, SAIU, DEMOROU = "no_ar", "saiu", "demorou"
 PERGUNTOU, EM_CURSO = "perguntou", "em_curso"
@@ -471,7 +481,7 @@ def abrir_navegador(alvo, arquivo=None, ambiente=None, popen=None,
     for exe in candidatos_de_navegador(amb):
         if not existe(exe):
             continue
-        cmd = [exe, "--app=" + alvo, "--start-maximized",
+        cmd = [exe, "--app=" + alvo, "--start-fullscreen",
                "--user-data-dir=" + perfil_da_janela(amb),
                "--no-first-run", "--no-default-browser-check"]
         kw = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
@@ -505,12 +515,77 @@ def pagina_de_carregamento(porta, url):
         return None
 
 
-def informar_a_pagina(porta, estado, rc=None):
+def informar_a_pagina(porta, estado, rc=None, tentar=None):
     try:
         import radai_carregando
-        return radai_carregando.gravar_estado(porta, estado, rc)
+        return radai_carregando.gravar_estado(porta, estado, rc,
+                                              tentar=tentar)
     except Exception:
         return False
+
+
+def _responder(conexao, codigo, corpo, tipo):
+    cab = (u"HTTP/1.0 %d %s\r\nContent-Type: %s\r\nContent-Length: %d\r\n"
+           u"Cache-Control: no-store\r\nConnection: close\r\n\r\n"
+           % (codigo, u"OK" if codigo == 200 else u"Not Found", tipo,
+              len(corpo)))
+    conexao.sendall(cab.encode("ascii") + corpo)
+
+
+def esperar_nova_tentativa(porta, rc, escrever, informar=None,
+                           teto_s=TETO_DA_NOVA_TENTATIVA_S,
+                           relogio=time.monotonic):
+    informar = informar or informar_a_pagina
+    import secrets
+    ficha = secrets.token_hex(12)
+    try:
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(4)
+        srv.settimeout(0.5)
+    except Exception:
+        informar(porta, SAIU, rc)
+        return False
+    caminho = u"%s/%s" % (ROTA_TENTAR, ficha)
+    try:
+        url = u"http://127.0.0.1:%d%s" % (srv.getsockname()[1], caminho)
+        # GUARDA: a ficha no caminho impede que outra pagina aberta no
+        # navegador peca para subir o motor de novo.
+        informar(porta, SAIU, rc, tentar=url)
+        escrever(u" To try again, use Try again on the loading page; this "
+                 u"window waits up to %d min." % int(float(teto_s) // 60))
+        fim = relogio() + float(teto_s)
+        while relogio() < fim:
+            try:
+                c, _ = srv.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            try:
+                c.settimeout(3.0)
+                pedido = c.recv(4096).decode("latin-1", "replace")
+                linha = pedido.split(u"\r\n", 1)[0].split(u" ")
+                alvo = linha[1].split(u"?", 1)[0] if len(linha) > 1 else u""
+                if linha[0] == u"GET" and alvo == caminho:
+                    informar(porta, u"subindo", None)
+                    _responder(c, 200, GIF_DE_UM_PIXEL, u"image/gif")
+                    return True
+                _responder(c, 404, b"", u"text/plain")
+            except Exception:
+                pass
+            finally:
+                try:
+                    c.close()
+                except Exception:
+                    pass
+        informar(porta, SAIU, rc)
+        return False
+    finally:
+        try:
+            srv.close()
+        except Exception:
+            pass
 
 
 def _uri(caminho):
@@ -686,7 +761,8 @@ def lancar(url, python=None, pasta=None, teto_s=TETO_DA_ESPERA_S,
            instancia=estado_da_instancia, encerrar=encerrar_instancia,
            abrir=abrir_navegador, carregando=pagina_de_carregamento,
            informar=informar_a_pagina, travar=trava_do_lancador,
-           sucessor=None, motor=None, aguardar=aguardar_a_saida_do_antigo):
+           sucessor=None, motor=None, aguardar=aguardar_a_saida_do_antigo,
+           tentar=None):
     escrever = escrever or _escrever_no_console
     porta = porta_da_url(url)
 
@@ -742,10 +818,29 @@ def lancar(url, python=None, pasta=None, teto_s=TETO_DA_ESPERA_S,
         for linha in cauda(console, 15):
             escrever(u"   " + linha)
     aberto = False if sucessor else abrir_a_pagina()
-    proc = subir(comando_do_motor(python, pasta, motor), console,
-                 ambiente_do_motor(ambiente, console))
-    escrever(u" Starting the engine in the background (no window)...")
-    estado_m, rc = esperar(proc, porta, teto_s)
+    while True:
+        proc = subir(comando_do_motor(python, pasta, motor), console,
+                     ambiente_do_motor(ambiente, console))
+        escrever(u" Starting the engine in the background (no window)...")
+        estado_m, rc = esperar(proc, porta, teto_s)
+        if estado_m != SAIU:
+            break
+        escrever(u"")
+        escrever(u" THE ENGINE STOPPED BEFORE THE PANEL CAME UP (code %s)."
+                 % rc)
+        for linha in cauda(console):
+            escrever(u"   " + linha)
+        com_botao = bool(aberto and tentar is not None)
+        if com_botao and tentar(porta, rc, escrever):
+            escrever(u" Trying again, as asked on the loading page.")
+            continue
+        if not com_botao:
+            informar(porta, SAIU, rc)
+        try:
+            os.remove(console)
+        except OSError:
+            pass
+        return SAIU, rc
     if estado_m == NO_AR:
         escrever(u" Panel is up at %s - this window closes by itself." % url)
         escrever(u" To quit, use CLOSE APP in the panel, or close the "
@@ -753,18 +848,6 @@ def lancar(url, python=None, pasta=None, teto_s=TETO_DA_ESPERA_S,
     elif estado_m == DEMOROU:
         escrever(u" The panel did not answer in %d s; opening the browser "
                  u"anyway." % int(teto_s))
-    else:
-        escrever(u"")
-        escrever(u" THE ENGINE STOPPED BEFORE THE PANEL CAME UP (code %s)."
-                 % rc)
-        for linha in cauda(console):
-            escrever(u"   " + linha)
-        informar(porta, SAIU, rc)
-        try:
-            os.remove(console)
-        except OSError:
-            pass
-        return SAIU, rc
     return estado_m, (0 if (aberto or sucessor) else RC_ABRIR_PELO_LOTE)
 
 
@@ -812,7 +895,8 @@ def main(argv=None):
     if "--encerrar" in args:
         return encerrar_para_atualizar(url, escrever)
     estado, rc = lancar(url, escrever=escrever, sucessor=sucessor,
-                        motor=_valor(args, "--motor"))
+                        motor=_valor(args, "--motor"),
+                        tentar=esperar_nova_tentativa)
     if estado == SAIU:
         return int(rc) if rc else 1
     return int(rc or 0)

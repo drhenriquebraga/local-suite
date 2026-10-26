@@ -1,5 +1,6 @@
 ﻿param([string]$Destino = "", [string]$Python = "", [switch]$SemPerguntar,
-      [switch]$SoEncerrar)
+      [switch]$SoEncerrar, [switch]$SoDecidir, [int]$EsperarPid = 0,
+      [switch]$Reabrir)
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
@@ -33,9 +34,126 @@ function PareCom($t, $codigo) {
     foreach ($l in ($t -split "`n")) { Diga ("  " + $l) }
     Diga "============================================================"
     Diga ""
-    exit $codigo
+    Sair $codigo
 }
 function Pare($t) { PareCom $t 1 }
+function Anote($txt) { }
+
+function CriarAtalhos($DESTINO, $RAIZ) {
+    # GUARDA: a mesma no INSTALL.ps1 e no UPDATE.ps1, letra a letra; o
+    # atalho que a pessoa apagou volta, e o nome antigo sai.
+    $alvo = Join-Path $DESTINO "RADIOTERAPIA_AI_LOCAL_SUITE.cmd"
+    if (-not (Test-Path -LiteralPath $alvo)) {
+        $alvo = Join-Path $DESTINO "ABRIR_AUTO_CONTORNO.cmd"
+    }
+    if (-not (Test-Path -LiteralPath $alvo)) {
+        $alvo = Join-Path $DESTINO "start_watcher.cmd"
+    }
+    if (-not (Test-Path -LiteralPath $alvo)) {
+        Diga "   AVISO: start_watcher.cmd nao veio no pacote; sem atalhos."
+        return 0
+    }
+    $icone = ""
+    foreach ($n in @("favicon.ico", "radioterapia_ai.ico")) {
+        $c = Join-Path $DESTINO $n
+        if (Test-Path -LiteralPath $c) { $icone = $c; break }
+    }
+    $temIcone = [bool]$icone
+
+    if ($env:RADAI_ATALHOS_NA_RAIZ) {
+        $menu = Join-Path $RAIZ "_atalhos_menu"
+        $destinos = @(
+            @{ pasta = (Join-Path $RAIZ "_atalhos_desktop"); rotulo = "area de trabalho (modo de teste)" },
+            @{ pasta = $menu;                                rotulo = "menu Iniciar (modo de teste)" }
+        )
+    } else {
+        $menu = Join-Path ([Environment]::GetFolderPath("Programs")) "Radioterapia.AI"
+        $destinos = @(
+            @{ pasta = [Environment]::GetFolderPath("Desktop"); rotulo = "area de trabalho" },
+            @{ pasta = $menu;                                   rotulo = "menu Iniciar" }
+        )
+    }
+
+    $feitos = 0
+    foreach ($d in $destinos) {
+        try {
+            if (-not (Test-Path -LiteralPath $d.pasta)) {
+                New-Item -ItemType Directory -Path $d.pasta -Force | Out-Null
+            }
+            $lnk = Join-Path $d.pasta "Radioterapia.ai Local Suite.lnk"
+
+            $antigo = Join-Path $d.pasta "Auto Contorno - Radioterapia.ai.lnk"
+            if (Test-Path -LiteralPath $antigo) {
+                try { Remove-Item -LiteralPath $antigo -Force } catch { }
+            }
+            $ws = New-Object -ComObject WScript.Shell
+            $s = $ws.CreateShortcut($lnk)
+            $s.TargetPath       = $alvo
+            $s.WorkingDirectory = $DESTINO
+            $s.Description      = "Radioterapia.ai Local Suite (abre em http://127.0.0.1:8777/)"
+            if ($temIcone) { $s.IconLocation = ($icone + ',0') }
+            $s.Save()
+            $feitos++
+            Diga ("   " + $d.rotulo + ": " + $lnk)
+        } catch {
+            Diga ("   AVISO: nao consegui criar o atalho em " + $d.rotulo + ".")
+            Anote ("atalho " + $d.rotulo + " falhou: " + $_.Exception.Message)
+        }
+    }
+    if (-not $temIcone) {
+        Diga "   (nenhum .ico no pacote: atalhos com o icone padrao)"
+        Anote "icone ausente"
+    }
+    if ($feitos -eq 0) {
+        Diga ("   Abra direto: " + $alvo)
+    }
+    return $feitos
+}
+
+$script:PastaAlvo = $Destino
+$script:JaReabriu = $false
+function ReabrirOApp {
+    # GUARDA: so no modo do botao Atualizar agora; o app que pediu a
+    # atualizacao fechou e a janela dele espera o motor novo pelo PID.
+    if (-not $Reabrir -or $script:JaReabriu) { return }
+    $script:JaReabriu = $true
+    $pasta = $script:PastaAlvo
+    if (-not $pasta) { return }
+    $pyA = $Python
+    if (-not $pyA) { $pyA = Join-Path $pasta "python\python.exe" }
+    $lanc = Join-Path $pasta "radai_lancador.py"
+    if (-not (Test-Path -LiteralPath $pyA) -or -not (Test-Path -LiteralPath $lanc)) {
+        Diga "  nao achei o lancador para reabrir o app: abra pelo atalho da area de trabalho"
+        return
+    }
+    $pR = PortaDaInstalacao $pasta
+    $lista = @(('"' + $lanc + '"'), "--url", ("http://127.0.0.1:" + $pR + "/"),
+               "--log", ('"' + (Join-Path $pasta "radai_lancador.log") + '"'))
+    if ($EsperarPid -gt 0) { $lista += @("--sucessor", [string]$EsperarPid) }
+    try {
+        Start-Process -FilePath $pyA -ArgumentList $lista -WorkingDirectory $pasta -WindowStyle Hidden | Out-Null
+        Diga "  reabrindo o app: a janela dele volta sozinha"
+    } catch {
+        Diga ("  nao consegui reabrir o app (" + $_.Exception.Message + "): abra pelo atalho da area de trabalho")
+    }
+}
+function Sair($codigo) {
+    if ($Reabrir) {
+        ReabrirOApp
+        if ($codigo -eq 0) {
+            Diga "  esta janela fecha sozinha em 5 s"
+            Start-Sleep -Seconds 5
+        } else {
+            try { [void](Read-Host "  Pressione Enter para fechar esta janela") } catch { }
+        }
+    }
+    exit $codigo
+}
+trap {
+    Diga ""
+    Diga ("  ERRO: " + $_.Exception.Message)
+    Sair 1
+}
 
 function PortaDaInstalacao($pasta) {
     $p = 8777
@@ -228,6 +346,19 @@ if ($SoEncerrar) {
     exit 0
 }
 
+if ($Reabrir) {
+    try { $Host.UI.RawUI.WindowTitle = "Radioterapia.ai Local Suite - atualizando" } catch { }
+    if ($Destino -and (Test-Path -LiteralPath $Destino -PathType Container)) {
+        $logA = Join-Path $Destino "radai_atualizar.log"
+        try {
+            if ((Test-Path -LiteralPath $logA) -and ((Get-Item -LiteralPath $logA).Length -gt 1MB)) {
+                Remove-Item -LiteralPath $logA -Force
+            }
+            Start-Transcript -Path $logA -Append | Out-Null
+        } catch { }
+    }
+}
+
 Diga "============================================================"
 Diga "  Radioterapia.ai Local Suite - atualizar"
 Diga "============================================================"
@@ -294,6 +425,7 @@ if ($achados.Count -eq 0) {
           "erro so apareceria na primeira serie da noite.")
 }
 $INST = $achados[0]
+$script:PastaAlvo = $INST
 if ($achados.Count -gt 1) {
     Diga "  achei mais de uma instalacao:"
     foreach ($a in $achados) { Diga ("    " + $a) }
@@ -360,6 +492,15 @@ try {
     Pare ("A resposta do decisor nao e JSON valido:" + [char]10 + $linha)
 }
 
+if ($SoDecidir) {
+    # GUARDA: contrato com o botao Atualizar agora do app: 0 so o codigo,
+    # 3 precisa de pacote novo; nada e encerrado nem copiado neste modo.
+    if ($pode) { Diga "DECISAO=codigo" } else { Diga "DECISAO=pacote" }
+    foreach ($m in $motivos) { Diga ("MOTIVO=" + $m) }
+    if ($pode) { exit 0 }
+    exit 3
+}
+
 if (-not $pode) {
     Diga "  ESTA ATUALIZACAO PRECISA DE INTERNET"
     Diga ""
@@ -378,7 +519,7 @@ if (-not $pode) {
     Diga ""
     Diga "  A instalacao atual continua funcionando. Nada foi alterado."
     Diga ""
-    exit 3
+    Sair 3
 }
 
 Diga "  Da para atualizar AQUI: so o codigo mudou."
@@ -449,6 +590,20 @@ if (-not $SemPerguntar) {
 }
 
 $porta = PortaDaInstalacao $INST
+if ($EsperarPid -gt 0) {
+    # GUARDA: o app que pediu a atualizacao fecha sozinho, sem o Fechar tudo;
+    # so se ele nao fechar em 2 min o encerramento abaixo entra.
+    Diga ("  esperando o app fechar (PID " + $EsperarPid + ")...")
+    $fimEspera = (Get-Date).AddSeconds(120)
+    while ((Get-Process -Id $EsperarPid -ErrorAction SilentlyContinue) -and ((Get-Date) -lt $fimEspera)) {
+        Start-Sleep -Milliseconds 300
+    }
+    if (Get-Process -Id $EsperarPid -ErrorAction SilentlyContinue) {
+        Diga "  o app nao fechou sozinho em 2 min: sigo pelo encerramento"
+    } else {
+        Diga "  o app fechou"
+    }
+}
 while ($true) {
     $enc = EncerrarOApp $INST
     if ($enc -ne "resistiu") { break }
@@ -656,6 +811,9 @@ try {
     }
 } catch { Diga ("  AVISO: nao consegui atualizar o " + $REG + " (" + $_.Exception.Message + ")") }
 
+Diga ""
+Diga "  Atalhos: area de trabalho e menu Iniciar"
+[void](CriarAtalhos $INST $RAIZ)
 $icoNovo = Join-Path $INST "favicon.ico"
 if (Test-Path -LiteralPath $icoNovo) {
     if ($env:RADAI_ATALHOS_NA_RAIZ) {
@@ -700,6 +858,10 @@ Diga "============================================================"
 Diga ("  ATUALIZADO. versao " + $VERSAO_VELHA + " -> " + $VERSAO_NOVA)
 Diga "============================================================"
 Diga ""
-Diga "  Abra pelo atalho da area de trabalho, como sempre."
+if ($Reabrir) {
+    Diga "  O app reabre sozinho, com a sua configuracao."
+} else {
+    Diga "  Abra pelo atalho da area de trabalho, como sempre."
+}
 Diga ""
-exit 0
+Sair 0

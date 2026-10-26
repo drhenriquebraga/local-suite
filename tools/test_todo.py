@@ -9,6 +9,11 @@ APP = os.path.join(os.path.dirname(AQUI), "app")
 sys.path.insert(0, APP)
 
 os.environ["RADAI_CALIB_DIR"] = tempfile.mkdtemp(prefix="radai_tarefas_")
+os.environ["RADAI_CONFIG"] = os.path.join(os.environ["RADAI_CALIB_DIR"],
+                                          "radai_watcher.config")
+_CONFIG_DO_APP = os.path.join(APP, "radai_watcher.config")
+_CONFIG_DO_APP_ANTES = (os.path.getmtime(_CONFIG_DO_APP)
+                        if os.path.exists(_CONFIG_DO_APP) else None)
 
 import radai_archive as A
 import radai_todo as TF
@@ -338,8 +343,10 @@ def teste_todo_cartao_leva_a_algum_lugar():
     mem = [c for c in cartoes if c["id"] == "recurso:mem"]
     if mem:
         h = mem[0].get("href") or ""
-        checar(u"o de memoria leva ao bloco de otimizar, e nao so a /config",
+        checar(u"o de memoria leva ao Diagnosticar, e nao so a /config",
                h.startswith("/config#"), h)
+        checar(u"  e nao oferece mais o Otimizar",
+               (mem[0].get("botao") or "") != u"Otimizar", mem[0].get("botao"))
         checar(u"  e o botao diz o que ele faz",
                (mem[0].get("botao") or "").lower() != "abrir",
                mem[0].get("botao"))
@@ -443,10 +450,14 @@ def teste_a_fila_na_altura_inteira_e_os_quatro_botoes():
     checar(u"o pedido de avisar mora na aba da Fila, e nasce oculto",
            i_fila < so.find(u'id="radai_notif_pede" hidden') < i_fim)
     for rota in (u"/api/pipeline/iniciar", u"/api/pipeline/pausar",
-                 u"/api/pipeline/cancelar", u"/api/fila/limpar",
-                 u"/api/lote/otimizacao", u"/api/lote/otimizar"):
+                 u"/api/pipeline/cancelar", u"/api/fila/limpar"):
         checar(u"  e a rota `%s` esta escrita por inteiro" % rota,
                (u"'%s'" % rota) in so)
+    for rota in (u"/api/lote/otimizacao", u"/api/lote/otimizar"):
+        checar(u"  e a rota `%s` do Otimizar saiu da barra" % rota,
+               rota not in so)
+    checar(u"  e o alerta de estacao nao otimizada tambem",
+           u"radai_pipe_otm" not in so and u"radaiOtimSugerir" not in so)
     i = so.index(u"function radaiPipe(")
     corpo = so[i:so.index(u"function radaiPipeMandar(", i)]
     checar(u"cancelar pergunta antes de mandar",
@@ -605,6 +616,7 @@ _CARD_TURNO_RODA_JS = u"""
 var T = function(est, m){ return {tipo: 'overnight', estado: est,
                                    rotulo: 'Turno da noite', motivo: m} };
 var R = {feito: radaiFilaCard(T('pronto', 'turno aberto as 22:10'), 0, 1),
+         rodando: radaiFilaCard(T('rodando', 'turno aberto as 23:40'), 0, 1),
          falhou: radaiFilaCard(T('falhou', 'o ROOT <b>vazio</b>'), 0, 1),
          espera: radaiFilaCard(T('esperando', 'motivo velho'), 0, 1)};
 console.log('JSON:' + JSON.stringify(R));
@@ -626,6 +638,10 @@ def teste_o_card_do_turno_diz_o_motivo():
     checar(u"o turno ABERTO diz quando abriu, na linha de baixo do card",
            u'class="cd-motivo"' in res["feito"]
            and u"turno aberto as 22:10" in res["feito"], res["feito"][:240])
+    checar(u"o turno RODANDO (aberto agora) diz quando abriu, com o giro",
+           u'class="cd-motivo"' in res["rodando"]
+           and u"turno aberto as 23:40" in res["rodando"]
+           and u"ui-gira" in res["rodando"], res["rodando"][:240])
     checar(u"o turno que FALHOU diz por que, com o texto escapado",
            u"o ROOT &lt;b&gt;vazio&lt;/b&gt;" in res["falhou"]
            and u"<b>vazio" not in res["falhou"], res["falhou"][:240])
@@ -1041,6 +1057,13 @@ def main():
             checar("%s (excecao inesperada)" % t.__name__, False,
                    "%s: %s" % (type(e).__name__, e))
             traceback.print_exc()
+    secao("a bateria nao grava o config da pasta app")
+    depois = (os.path.getmtime(_CONFIG_DO_APP)
+              if os.path.exists(_CONFIG_DO_APP) else None)
+    checar("app/radai_watcher.config continua como estava (o config vai para "
+           "RADAI_CONFIG, no temporario da bateria)",
+           depois == _CONFIG_DO_APP_ANTES, "%r -> %r" % (_CONFIG_DO_APP_ANTES,
+                                                         depois))
     print()
     if FALHAS:
         print("FALHOU: %d de %d checagens" % (FALHAS, OK + FALHAS))

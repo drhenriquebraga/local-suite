@@ -1451,7 +1451,7 @@ def teste_texto_repintado_por_js_perde_a_marca():
         return u"uiHTML(" in corpo or u"uiTexto(" in corpo
 
     _cfg = radai_panel.PAGINA_CONFIG
-    for _fn in (u"cfBarra", u"cfPintar", u"msgLimp", u"limpCarregar"):
+    for _fn in (u"cfBarra", u"cfPintar"):
         _c = _corpo_fn(_cfg, _fn)
         checar(u"radai_panel: `%s` repinta pelo tradutor" % _fn,
                bool(_c) and _pelo_tradutor(_c), _c[:120] or u"(ausente)")
@@ -1794,13 +1794,15 @@ def teste_os_atributos_e_as_frases_montadas():
 
     montadas = [
         (u"Voltar para Radioterapia.AI Local", u"Radioterapia.AI Local"),
-        (u"tirar Heart_ai do OAR desta série", u"Heart_ai"),
-        (u"devolver Bag_Bowel_ai ao OAR", u"Bag_Bowel_ai"),
+        (u"tirar Heart_ai do STUDY desta série", u"Heart_ai"),
+        (u"devolver Bag_Bowel_ai ao STUDY", u"Bag_Bowel_ai"),
         (u"opacidade de Liver_ai", u"Liver_ai"),
         (u"abrir a ajuda de total_v3", u"total_v3"),
-        (u"1 série(s) com contorno", u"1"),
+        (u"1 série(s) achada(s)", u"1"),
+        (u"Nenhuma série contornada em C:\\EXAMES\\PAC. Séries sem RTSTRUCT ao "
+         u"lado não aparecem aqui — processe antes.", u"C:\\EXAMES\\PAC"),
         (u"2 conjunto(s) de contorno nesta pasta", u"2"),
-        (u"43 estruturas no OAR, 0 fora", u"43"),
+        (u"43 estruturas no STUDY, 0 fora", u"43"),
         (u"3 série(s) que esta máquina contornou já não estão no lugar — "
          u"a pasta foi movida ou apagada.", u"3"),
         (u"O «Rodar agora» está segmentando agora (desde 22:10).", u"22:10"),

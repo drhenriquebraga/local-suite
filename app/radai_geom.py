@@ -408,10 +408,12 @@ def suavizar_poligono(pontos, passos=TAUBIN_PASSOS, lam=TAUBIN_LAMBDA,
     p = np.asarray(pontos, dtype=np.float64)
     if p.ndim != 2 or p.shape[0] < MIN_PONTOS_SUAVIZAR:
         return np.asarray(pontos, dtype=np.float64)
+    ordem = np.arange(p.shape[0])
+    ant, prox = np.roll(ordem, 1), np.roll(ordem, -1)
     for _ in range(int(passos)):
         for fator in (lam, mu):
             if fechado:
-                viz = (np.roll(p, 1, axis=0) + np.roll(p, -1, axis=0)) / 2.0
+                viz = (p[ant] + p[prox]) / 2.0
                 p = p + fator * (viz - p)
             else:
                 viz = p.copy()
@@ -454,9 +456,10 @@ def expandir_meio_pixel(pontos, dx, dy, fechado=True, furo=False):
     n = np.zeros_like(d)
     n[bom, 0] = fora * d[bom, 1] / comp[bom]
     n[bom, 1] = -fora * d[bom, 0] / comp[bom]
-    for i in range(len(n)):
-        if not bom[i]:
-            n[i] = n[i - 1]
+    if not bom.all():
+        for i in range(len(n)):
+            if not bom[i]:
+                n[i] = n[i - 1]
 
     ant = np.roll(n, 1, axis=0)
     soma = ant + n

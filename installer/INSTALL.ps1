@@ -6,7 +6,9 @@ $PRESERVAR = @(
     "_bundle.txt",
     "calibracao",
     "registro",
-    "radai_status.json"
+    "radai_status.json",
+    "nomes_proprios.json",
+    "protocolos_proprios.json"
 )
 $PRESERVAR_PADRAO = @("*.log")
 
@@ -209,6 +211,77 @@ function EncerrarOApp($pasta) {
     }
     Diga ("  app encerrado (PID " + ($ids -join ", ") + "); sigo")
     return "encerrado"
+}
+
+function CriarAtalhos($DESTINO, $RAIZ) {
+    # GUARDA: a mesma no INSTALL.ps1 e no UPDATE.ps1, letra a letra; o
+    # atalho que a pessoa apagou volta, e o nome antigo sai.
+    $alvo = Join-Path $DESTINO "RADIOTERAPIA_AI_LOCAL_SUITE.cmd"
+    if (-not (Test-Path -LiteralPath $alvo)) {
+        $alvo = Join-Path $DESTINO "ABRIR_AUTO_CONTORNO.cmd"
+    }
+    if (-not (Test-Path -LiteralPath $alvo)) {
+        $alvo = Join-Path $DESTINO "start_watcher.cmd"
+    }
+    if (-not (Test-Path -LiteralPath $alvo)) {
+        Diga "   AVISO: start_watcher.cmd nao veio no pacote; sem atalhos."
+        return 0
+    }
+    $icone = ""
+    foreach ($n in @("favicon.ico", "radioterapia_ai.ico")) {
+        $c = Join-Path $DESTINO $n
+        if (Test-Path -LiteralPath $c) { $icone = $c; break }
+    }
+    $temIcone = [bool]$icone
+
+    if ($env:RADAI_ATALHOS_NA_RAIZ) {
+        $menu = Join-Path $RAIZ "_atalhos_menu"
+        $destinos = @(
+            @{ pasta = (Join-Path $RAIZ "_atalhos_desktop"); rotulo = "area de trabalho (modo de teste)" },
+            @{ pasta = $menu;                                rotulo = "menu Iniciar (modo de teste)" }
+        )
+    } else {
+        $menu = Join-Path ([Environment]::GetFolderPath("Programs")) "Radioterapia.AI"
+        $destinos = @(
+            @{ pasta = [Environment]::GetFolderPath("Desktop"); rotulo = "area de trabalho" },
+            @{ pasta = $menu;                                   rotulo = "menu Iniciar" }
+        )
+    }
+
+    $feitos = 0
+    foreach ($d in $destinos) {
+        try {
+            if (-not (Test-Path -LiteralPath $d.pasta)) {
+                New-Item -ItemType Directory -Path $d.pasta -Force | Out-Null
+            }
+            $lnk = Join-Path $d.pasta "Radioterapia.ai Local Suite.lnk"
+
+            $antigo = Join-Path $d.pasta "Auto Contorno - Radioterapia.ai.lnk"
+            if (Test-Path -LiteralPath $antigo) {
+                try { Remove-Item -LiteralPath $antigo -Force } catch { }
+            }
+            $ws = New-Object -ComObject WScript.Shell
+            $s = $ws.CreateShortcut($lnk)
+            $s.TargetPath       = $alvo
+            $s.WorkingDirectory = $DESTINO
+            $s.Description      = "Radioterapia.ai Local Suite (abre em http://127.0.0.1:8777/)"
+            if ($temIcone) { $s.IconLocation = ($icone + ',0') }
+            $s.Save()
+            $feitos++
+            Diga ("   " + $d.rotulo + ": " + $lnk)
+        } catch {
+            Diga ("   AVISO: nao consegui criar o atalho em " + $d.rotulo + ".")
+            Anote ("atalho " + $d.rotulo + " falhou: " + $_.Exception.Message)
+        }
+    }
+    if (-not $temIcone) {
+        Diga "   (nenhum .ico no pacote: atalhos com o icone padrao)"
+        Anote "icone ausente"
+    }
+    if ($feitos -eq 0) {
+        Diga ("   Abra direto: " + $alvo)
+    }
+    return $feitos
 }
 
 $AQUI = $env:RADAI_PASTA_PACOTE
@@ -709,71 +782,7 @@ Diga ("   " + $ESSENCIAIS.Count + " arquivos essenciais no lugar")
 if ($guardados.Count -gt 0) { Diga ("   " + $guardados.Count + " item(ns) de dado local intactos") }
 
 Passo "Atalhos: area de trabalho e menu Iniciar"
-$alvo = Join-Path $DESTINO "RADIOTERAPIA_AI_LOCAL_SUITE.cmd"
-if (-not (Test-Path -LiteralPath $alvo)) {
-    $alvo = Join-Path $DESTINO "ABRIR_AUTO_CONTORNO.cmd"
-}
-if (-not (Test-Path -LiteralPath $alvo)) {
-    $alvo = Join-Path $DESTINO "start_watcher.cmd"
-}
-if (Test-Path -LiteralPath $alvo) {
-    $icone = ""
-    foreach ($n in @("favicon.ico", "radioterapia_ai.ico")) {
-        $c = Join-Path $DESTINO $n
-        if (Test-Path -LiteralPath $c) { $icone = $c; break }
-    }
-    $temIcone = [bool]$icone
-
-    if ($env:RADAI_ATALHOS_NA_RAIZ) {
-        $menu = Join-Path $RAIZ "_atalhos_menu"
-        $destinos = @(
-            @{ pasta = (Join-Path $RAIZ "_atalhos_desktop"); rotulo = "area de trabalho (modo de teste)" },
-            @{ pasta = $menu;                                rotulo = "menu Iniciar (modo de teste)" }
-        )
-    } else {
-        $menu = Join-Path ([Environment]::GetFolderPath("Programs")) "Radioterapia.AI"
-        $destinos = @(
-            @{ pasta = [Environment]::GetFolderPath("Desktop"); rotulo = "area de trabalho" },
-            @{ pasta = $menu;                                   rotulo = "menu Iniciar" }
-        )
-    }
-
-    $feitos = 0
-    foreach ($d in $destinos) {
-        try {
-            if (-not (Test-Path -LiteralPath $d.pasta)) {
-                New-Item -ItemType Directory -Path $d.pasta -Force | Out-Null
-            }
-            $lnk = Join-Path $d.pasta "Radioterapia.ai Local Suite.lnk"
-
-            $antigo = Join-Path $d.pasta "Auto Contorno - Radioterapia.ai.lnk"
-            if (Test-Path -LiteralPath $antigo) {
-                try { Remove-Item -LiteralPath $antigo -Force } catch { }
-            }
-            $ws = New-Object -ComObject WScript.Shell
-            $s = $ws.CreateShortcut($lnk)
-            $s.TargetPath       = $alvo
-            $s.WorkingDirectory = $DESTINO
-            $s.Description      = "Radioterapia.ai Local Suite (abre em http://127.0.0.1:8777/)"
-            if ($temIcone) { $s.IconLocation = ($icone + ',0') }
-            $s.Save()
-            $feitos++
-            Diga ("   " + $d.rotulo + ": " + $lnk)
-        } catch {
-            Diga ("   AVISO: nao consegui criar o atalho em " + $d.rotulo + ".")
-            Anote ("atalho " + $d.rotulo + " falhou: " + $_.Exception.Message)
-        }
-    }
-    if (-not $temIcone) {
-        Diga "   (nenhum .ico no pacote: atalhos com o icone padrao)"
-        Anote "icone ausente"
-    }
-    if ($feitos -eq 0) {
-        Diga ("   Abra direto: " + $alvo)
-    }
-} else {
-    Diga "   AVISO: start_watcher.cmd nao veio no pacote; sem atalhos."
-}
+[void](CriarAtalhos $DESTINO $RAIZ)
 
 Passo "Registrando em _instalados.json"
 $ok = $false
@@ -839,13 +848,13 @@ Diga ""
 Diga "  PROXIMOS PASSOS:"
 Diga "    1) Abra a suite pelo atalho 'Radioterapia.ai Local Suite' da"
 Diga "       area de trabalho. Na primeira vez ela pede o aceite."
-Diga "    2) Em Configuracoes, Diagnosticar e otimizar, clique em"
+Diga "    2) Em Configuracoes, Diagnosticos e Registros, clique em"
 Diga "       Diagnosticar: tem de dar 0 faltando."
-Diga "    3) Na primeira abertura, depois do aceite, o programa pede o"
-Diga "       TPS de destino (Eclipse ou Monaco) e a pasta das series que"
-Diga "       o turno varre. Sem a pasta o vigia nao varre nada. Para"
-Diga "       mudar depois: Configuracoes, ou no ContourLab, em Rodar"
-Diga "       agora, Incluir Overnight Run."
+Diga "    3) Na primeira abertura, depois do aceite, o programa pede a"
+Diga "       pasta favorita, que e opcional. A pasta que o turno varre se"
+Diga "       escolhe no ContourLab, em Rodar agora, Incluir Overnight Run:"
+Diga "       sem ela o vigia nao varre nada. Os aneis saem no padrao"
+Diga "       Eclipse / Monaco; para Xio / Focal, Configuracoes, Geral."
 Diga ""
 Diga "  As estruturas entram no TPS como SUGESTAO NAO APROVADA"
 Diga "  (sufixo _ai). Revisar e aprovar continua sendo ato medico."

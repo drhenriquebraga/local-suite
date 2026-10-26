@@ -137,10 +137,10 @@ def teste_a_porta_tem_o_fechar_ao_lado_da_engrenagem():
            u"data-radai-encerrar" not in raiz, raiz[-200:])
     import radai_router
     porta = radai_router.montar_porta()
-    eng = re.search(r'(?s)<details class="ls-engrenagem" data-radai-engrenagem>'
+    pwr = re.search(r'(?s)<details class="ls-ctl ls-power" data-radai-power>'
                     r'(.*?)</details>', porta)
-    checar("a ancora da porta mora dentro da engrenagem (radai_porta)",
-           bool(eng) and u"data-radai-encerrar" in eng.group(1))
+    checar("a ancora da porta mora dentro do power, ao lado da engrenagem (radai_porta)",
+           bool(pwr) and u"data-radai-encerrar" in pwr.group(1))
     for chave in (u"lote", u"autocontorno", u"config", u"recon_anatomia"):
         h = C.cabecalho(chave=chave)
         checar("[%s] NAO tem a ancora do Fechar" % chave,
@@ -442,8 +442,8 @@ _VERSAO_NOVA = {u"estado": u"nova", u"nova": True, u"publicada": u"8.4",
                 u"aqui": u"8.2",
                 u"link": u"https://github.com/radioterapia-ai/local-suite/"
                          u"releases/latest/download/X_SETUP_LATEST.zip"}
-_VERSAO_PRIVADO = {u"estado": u"privado", u"nova": False, u"publicada": u"",
-                   u"aqui": u"8.2", u"link": u""}
+_VERSAO_404 = {u"estado": u"nao_achada", u"nova": False, u"publicada": u"",
+               u"aqui": u"8.2", u"link": u""}
 _ENGRENAGEM = u'[data-radai-engrenagem] summary'
 
 
@@ -512,8 +512,16 @@ def teste_a_engrenagem_acende_com_versao_nova():
             checar("  e o aviso aparece", vis, txt[:80])
             checar("  com as duas versoes", u"8.2" in txt and u"8.4" in txt,
                    txt[:120])
-            lk = pg.locator(u"#rv-aviso a.rv-pri")
-            checar("  e o link permanente do instalador",
+            ag = pg.locator(u"#rv-aviso button.rv-pri")
+            checar("  e o botao principal e o «Atualizar agora»",
+                   ag.count() == 1
+                   and ag.inner_text().strip() == u"Atualizar agora",
+                   ag.inner_text() if ag.count() else u"(sem botao)")
+            checar("  sem a frase de que o programa nao se atualiza sozinho",
+                   u"atualiza sozinho" not in txt and u"reabre sozinho" in txt,
+                   txt[:160])
+            lk = pg.locator(u"#rv-aviso .rv-man a")
+            checar("  e o link permanente do instalador, para quem baixa a mao",
                    lk.count() == 1
                    and lk.get_attribute(u"href") == _VERSAO_NOVA[u"link"]
                    and lk.get_attribute(u"target") == u"_blank",
@@ -541,19 +549,44 @@ def teste_a_engrenagem_acende_com_versao_nova():
                    "versao)", n == 1 and not vis, u"%s %s" % (n, vis))
             ctx.close()
 
-            ctx, pg, ped = _porta_servida(nav, porta, [_VERSAO_PRIVADO])
+            ctx, pg, ped = _porta_servida(nav, porta, [_VERSAO_404])
             n, vis, _t = _estado_da_porta(pg, 1200)
-            checar("repositorio privado: nem ponto nem aviso",
-                   n == 0 and not vis and ped == [u"privado"],
+            checar("o 404 da consulta (endereco ou release que nao "
+                   "existe): nem ponto nem aviso",
+                   n == 0 and not vis and ped == [u"nao_achada"],
                    u"%s %s %s" % (n, vis, ped))
             ctx.close()
 
-            nunca = dict(_VERSAO_PRIVADO, estado=u"nunca")
+            nunca = dict(_VERSAO_404, estado=u"nunca")
             ctx, pg, ped = _porta_servida(nav, porta, [nunca, _VERSAO_NOVA])
             n, vis, _t = _estado_da_porta(pg, 6000)
             checar("com a consulta ainda sem resposta, a porta pergunta de "
                    "novo e acende", n == 1 and vis and len(ped) >= 2,
                    u"%s %s %s" % (n, vis, ped))
+            ctx.close()
+
+            ctx, pg, _ped = _porta_servida(nav, porta, [_VERSAO_NOVA])
+            _estado_da_porta(pg)
+            pg.evaluate(u"window.__chamou = 0; window.radaiAtualizarAgora ="
+                        u" function(){ window.__chamou++ }; true")
+            pg.click(u"#rv-aviso button.rv-pri")
+            pg.wait_for_timeout(450)
+            checar("«Atualizar agora» chama a atualizacao com um clique e tira "
+                   "o aviso", pg.evaluate(u"window.__chamou") == 1
+                   and pg.locator(u"#rv-aviso").count() == 0,
+                   repr(pg.evaluate(u"window.__chamou")))
+            ctx.close()
+
+            sem = re.sub(r'(?s)<script id="radai-atualizar-js">.*?</script>',
+                         u"", porta)
+            ctx, pg, _ped = _porta_servida(nav, sem, [_VERSAO_NOVA])
+            _n, vis, txt = _estado_da_porta(pg)
+            checar("[isca] sem a atualizacao da casca, o aviso oferece so o "
+                   "instalador e nao promete reabrir sozinho",
+                   sem != porta and vis
+                   and pg.locator(u"#rv-aviso button.rv-pri").count() == 0
+                   and pg.locator(u"#rv-aviso a.rv-pri").count() == 1
+                   and u"reabre sozinho" not in txt, txt[:120])
             ctx.close()
 
             ctx, pg, _ped = _porta_servida(nav, isca, [_VERSAO_NOVA])

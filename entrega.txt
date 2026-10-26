@@ -5,7 +5,7 @@
 # GUARDA: sem PRODUTO, ele vale o PROJETO.
 PRODUTO=RADIOTERAPIA_AI_LOCAL_SUITE
 PROJETO=LOCAL_SUITE
-VERSAO=8.6
+VERSAO=8.7
 
 # GUARDA: BUNDLE_MINIMO e a versao mais antiga de pacote de transferencia que o modo 3 aceita: abaixo dela recusa sem extrair; entre ela e a VERSAO, instala o pacote e aplica o codigo desta versao por cima.
 # GUARDA: um pacote serve se a impressao de requisitos da versao dele (build/requisitos.py) e igual a desta e se ele foi montado pelo pipeline unico; mudou a impressao, o BUNDLE_MINIMO sobe para a VERSAO. tools/test_packager.py compara a impressao da tag v<BUNDLE_MINIMO> com a da arvore atual.

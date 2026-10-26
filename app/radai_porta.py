@@ -20,6 +20,9 @@ FRONTEIRA = (u"Ferramenta de apoio, <strong>não validada para uso "
 
 AUTOR = u"Henrique Braga"
 
+FALHA_MINIMIZAR = (u"Não foi possível minimizar a janela daqui. Use Windows + D "
+                   u"para ir à área de trabalho.")
+
 
 def caminho(nome):
     if nome not in ARQUIVOS:
@@ -115,6 +118,15 @@ _ENGRENAGEM = (u'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
                u'<circle cx="12" cy="10.9" r="3"/></svg>')
 
 
+_MINIMIZAR = (u'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+              u'stroke-width="1.5" stroke-linecap="round" aria-hidden="true">'
+              u'<path d="M5 17h14"/></svg>')
+
+_POWER = (u'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+          u'stroke-width="1.5" stroke-linecap="round" aria-hidden="true">'
+          u'<path d="M12 4v8"/><path d="M6.3 7.3a8 8 0 1 0 11.4 0"/></svg>')
+
+
 def icone(chave):
     i = ICONES.get(chave)
     if not i:
@@ -148,8 +160,7 @@ def cartao(chave, i):
     nome, rota = entrada[0], entrada[1]
     if not rota or rota == u"/":
         return u""
-    miolo = (u'%s<span class="ls-nome tool-name" data-radai-frase>%s</span>'
-             % (icone(chave), _esc(nome)))
+    miolo = u'%s%s' % (icone(chave), nome_com_fim(chave, nome))
     estado = _estado(chave)
     if estado:
         return (u'<div class="ls-card tool-card ls-obra" data-tool="%d" '
@@ -157,6 +168,19 @@ def cartao(chave, i):
                 u'</span></div>' % (i, _esc(chave), miolo, _esc(estado)))
     return (u'<a class="ls-card tool-card" href="%s" data-tool="%d" '
             u'data-mod="%s">%s%s</a>' % (_esc(rota), i, _esc(chave), miolo, _SETA))
+
+
+def nome_com_fim(chave, nome):
+    try:
+        import radai_modules
+        m = radai_modules.MODULOS.get(chave) or {}
+    except Exception:
+        m = {}
+    titulo, fim = m.get("titulo") or u"", (m.get("destaque") or u"").strip()
+    if not fim or titulo + m.get("destaque", u"") != nome:
+        return u'<span class="ls-nome tool-name" data-radai-frase>%s</span>' % _esc(nome)
+    return (u'<span class="ls-nome tool-name" data-radai-frase data-ls-fim="%s">%s'
+            u'<span class="ls-fim">%s</span></span>' % (_esc(fim), _esc(titulo), _esc(fim)))
 
 
 def ordem():
@@ -191,16 +215,24 @@ html @S{margin:0;padding-top:0!important;width:100%;min-height:100%;overflow-x:h
 @S .ls-titulo{font:400 clamp(54px,6.5vw,116px)/1.04 Anton,'Arial Narrow',Impact,sans-serif;letter-spacing:-.012em;white-space:nowrap;text-align:center;user-select:none;color:#fafcff}
 @S .ls-local{color:#fafcff}
 @S .ls-grad{color:var(--ls-azul);background:linear-gradient(95deg,#21bbf4 3%,#3c88ff 42%,#a581f4 84%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-@S .ls-engrenagem{position:absolute;top:clamp(17px,3.4vh,34px);right:clamp(20px,2.4vw,42px)}
-@S .ls-engrenagem>summary{list-style:none;display:flex;gap:11px;align-items:center;cursor:pointer;font-size:clamp(11px,.88vw,14px);padding:5px 0;color:#e6edf6;border-radius:8px;transition:color var(--ls-tempo) ease;user-select:none}
-@S .ls-engrenagem>summary::-webkit-details-marker{display:none}
-@S .ls-engrenagem>summary::marker{content:''}
-@S .ls-engrenagem>summary svg{height:25px;width:25px;transition:transform 200ms var(--ls-saida)}
-@S .ls-engrenagem[open]>summary{color:#c0b8ff}
-@S .ls-engrenagem[open]>summary svg{transform:rotate(30deg)}
-@S .ls-menu{position:absolute;right:0;top:calc(100% + 10px);min-width:228px;padding:6px;display:flex;flex-direction:column;gap:4px;border-radius:12px;background:linear-gradient(145deg,rgba(20,40,61,.97),rgba(6,15,32,.98));border:1px solid rgba(191,215,243,.28);box-shadow:0 18px 60px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.09)}
-@S .ls-menu>a{display:block;padding:10px 12px;border-radius:8px;font-size:14px;color:#e6edf6;white-space:nowrap;transition:background-color 140ms ease}
-@S .ls-menu>a:hover{background:rgba(255,255,255,.07)}
+@S .ls-controles{position:absolute;top:clamp(17px,3.2vh,30px);right:clamp(20px,2.4vw,42px);display:flex;align-items:center;gap:13px}
+@S .ls-ctl{position:relative}
+@S .ls-ctl>summary{list-style:none;display:grid;place-items:center;width:35px;height:35px;box-sizing:border-box;border-radius:8px;border:1px solid transparent;color:#c0cee2;cursor:pointer;user-select:none;transition:color var(--ls-tempo) ease,border-color var(--ls-tempo) ease,background-color var(--ls-tempo) ease}
+@S .ls-ctl>summary::-webkit-details-marker{display:none}
+@S .ls-ctl>summary::marker{content:''}
+@S .ls-ctl>summary svg{width:21px;height:21px}
+@S .ls-ctl[open]>summary{border-color:rgba(159,185,220,.2);background:rgba(181,206,238,.024);color:var(--ls-ouro)}
+@S .ls-power[open]>summary{color:#e98d82;border-color:rgba(233,106,92,.3);background:rgba(233,106,92,.024)}
+@S .ls-ctl>summary:focus-visible{outline:2px solid var(--ls-ouro);outline-offset:3px}
+@S .ls-rot{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+@S .ls-menu{position:absolute;right:0;top:calc(100% + 10px);width:max-content;min-width:157px;max-width:min(300px,calc(100vw - 32px));padding:8px;display:flex;flex-direction:column;gap:6px;border-radius:11px;background:rgba(12,25,43,.93);border:1px solid rgba(154,182,217,.23);box-shadow:0 13px 34px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(15px);backdrop-filter:blur(15px)}
+@S .ls-ctl[open]>.ls-menu{animation:lsMenu 160ms var(--ls-saida)}
+@keyframes lsMenu{from{opacity:.3;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@S .ls-menu>a,@S .ls-acao{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;padding:10px 12px;border-radius:7px;border:1px solid rgba(138,168,205,.17);background:#112039;color:#d8e2f0;font:400 12.5px/1.3 system-ui,'Segoe UI',Arial,sans-serif;white-space:nowrap;text-align:start;cursor:pointer;transition:border-color var(--ls-tempo) ease}
+@S .ls-menu>a svg,@S .ls-acao svg{width:17px;height:17px;flex:none}
+@S .ls-menu>a:focus-visible,@S .ls-acao:focus-visible{outline:2px solid var(--ls-ouro);outline-offset:2px}
+@S .ls-falha{margin:2px 2px 0;max-width:236px;white-space:normal;font-size:11.5px;line-height:1.5;color:#f0b3aa}
+@S .ls-fim{background:linear-gradient(100deg,#66c4ff 0%,#7da4f8 48%,#b49aec 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
 @S .ls-encerrar{display:block}
 @S .ls-encerrar .rx-fechar{width:100%;height:38px;justify-content:flex-start;background:#160a08;border-color:#e96a5c;color:#e96a5c}
 @S .ls-encerrar .rx-fechar:hover{background:#e96a5c;color:#0a1120}
@@ -238,43 +270,65 @@ html @S{margin:0;padding-top:0!important;width:100%;min-height:100%;overflow-x:h
 @S .ls-rodape{grid-row:4;margin:0 clamp(22px,2.3vw,42px);display:flex;align-items:center;justify-content:center;gap:clamp(24px,3vw,50px);border-top:1px solid rgba(135,166,197,.28);padding:10px 24px;position:relative;z-index:5;background:var(--ls-noite);font-size:clamp(10.5px,.85vw,14px);color:#b7c2d5;line-height:1.5;text-align:center}
 @S .ls-rodape strong{font-weight:500;color:#eef1fa}
 @S .ls-autor{white-space:nowrap;border-inline-start:1px solid rgba(169,192,219,.42);padding-inline-start:clamp(24px,2.5vw,45px)}
-@media(hover:hover) and (pointer:fine){@S .ls-engrenagem>summary:hover{color:#c0b8ff}@S .ls-engrenagem>summary:hover svg{transform:rotate(30deg)}}
-@media(min-width:801px) and (max-height:700px){@S .ls-titulo{font-size:clamp(54px,7vh,80px)}@S .ls-icone{width:42px;height:42px}@S .ls-cards{padding-bottom:13px;gap:10px 14px}@S .ls-card{border-radius:12px;padding:10px 16px;gap:16px}@S .ls-nome{font-size:16px}@S .ls-rodape{font-size:10.5px;padding:6px 8px}@S .ls-engrenagem{top:15px}}
+@media(hover:hover) and (pointer:fine){@S .ls-ctl>summary:hover{border-color:rgba(159,185,220,.2);background:rgba(181,206,238,.024);color:var(--ls-ouro)}@S .ls-power>summary:hover{color:#e98d82;border-color:rgba(233,106,92,.3);background:rgba(233,106,92,.024)}@S .ls-menu>a:hover,@S .ls-acao:hover{border-color:#c4b08b}}
+@media(min-width:801px) and (max-height:700px){@S .ls-titulo{font-size:clamp(54px,7vh,80px)}@S .ls-icone{width:42px;height:42px}@S .ls-cards{padding-bottom:13px;gap:10px 14px}@S .ls-card{border-radius:12px;padding:10px 16px;gap:16px}@S .ls-nome{font-size:16px}@S .ls-rodape{font-size:10.5px;padding:6px 8px}@S .ls-controles{top:13px}}
 @media(max-width:1100px) and (min-width:801px){@S .ls-cards{padding-left:5vw;padding-right:5vw}@S .ls-card{gap:16px;padding-left:19px;padding-right:19px}@S .ls-icone{width:48px;height:48px}@S .ls-nome{font-size:17px}@S .ls-rodape{gap:20px;padding-left:0;padding-right:0;font-size:10.5px}@S .ls-autor{padding-inline-start:20px}}
-@media(max-width:800px){@S .ls-suite{grid-template-rows:16dvh 35dvh 36dvh minmax(13dvh,auto)}@S .ls-titulo{font-size:clamp(52px,9.5vw,76px)}@S .ls-engrenagem{top:16px;right:19px}@S .ls-engrenagem>summary{gap:7px;font-size:11px}@S .ls-engrenagem>summary svg{width:20px;height:20px}@S .ls-cards{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));padding:0 5vw 16px;gap:12px}@S .ls-card{gap:11px;border-radius:12px;padding:12px}@S .ls-icone{width:38px;height:38px}@S .ls-nome{font-size:clamp(12px,2.15vw,16px)}@S .ls-seta{width:24px;height:24px}@S .ls-seta svg{width:15px;height:15px}@S .ls-rodape{margin:0 5vw;padding:10px 0;flex-direction:column;justify-content:center;gap:8px;font-size:11px}@S .ls-autor{border:0;padding:0;font-size:11px}}
-@media(max-width:420px){@S .ls-icone{width:30px;height:30px}@S .ls-card{gap:8px;padding:9px}@S .ls-nome{font-size:12px}@S .ls-seta{width:21px;height:21px}@S .ls-cards{gap:10px}@S .ls-titulo{font-size:56px}@S .ls-engrenagem>summary>span{display:none}@S .ls-engrenagem{top:21px}@S .ls-rodape{font-size:10.5px}}
-@media(prefers-reduced-motion:reduce){@S .ls-engrenagem>summary svg{transition:none}@S .ls-card,@S .ls-engrenagem>summary,@S .ls-seta{transition:color 160ms ease,border-color 160ms ease,background 160ms ease}@S .ls-drift,@S .ls-icone,@S .ls-card{transform:none!important}@S .ls-luz{transition:none}}
+@media(max-width:800px){@S .ls-suite{grid-template-rows:16dvh 35dvh 36dvh minmax(13dvh,auto)}@S .ls-titulo{font-size:clamp(52px,9.5vw,76px)}@S .ls-controles{top:16px;right:19px;gap:8px}@S .ls-ctl>summary{width:32px;height:32px}@S .ls-ctl>summary svg{width:19px;height:19px}@S .ls-cards{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));padding:0 5vw 16px;gap:12px}@S .ls-card{gap:11px;border-radius:12px;padding:12px}@S .ls-icone{width:38px;height:38px}@S .ls-nome{font-size:clamp(12px,2.15vw,16px)}@S .ls-seta{width:24px;height:24px}@S .ls-seta svg{width:15px;height:15px}@S .ls-rodape{margin:0 5vw;padding:10px 0;flex-direction:column;justify-content:center;gap:8px;font-size:11px}@S .ls-autor{border:0;padding:0;font-size:11px}}
+@media(max-width:420px){@S .ls-icone{width:30px;height:30px}@S .ls-card{gap:8px;padding:9px}@S .ls-nome{font-size:12px}@S .ls-seta{width:21px;height:21px}@S .ls-cards{gap:10px}@S .ls-titulo{font-size:56px}@S .ls-controles{top:21px;right:12px;gap:4px}@S .ls-ctl>summary{width:29px;height:29px}@S .ls-ctl>summary svg{width:18px;height:18px}@S .ls-rodape{font-size:10.5px}}
+@media(prefers-reduced-motion:reduce){@S .ls-ctl[open]>.ls-menu{animation:none}@S .ls-card,@S .ls-ctl>summary,@S .ls-seta{transition:color 160ms ease,border-color 160ms ease,background 160ms ease}@S .ls-drift,@S .ls-icone,@S .ls-card{transform:none!important}@S .ls-luz{transition:none}}
 """.replace(u"@S", ESCOPO)
 
 JS = u"""<script id="radai-porta-menu">
 (function(){
- var m = document.querySelector('[data-radai-engrenagem]');
- if(!m) return;
- var s = m.querySelector('summary');
- function aberto(){ return m.hasAttribute('open') }
- function veuAberto(){
-  var v = document.getElementById('rx-veu');
-  return !!(v && v.classList.contains('on'));
- }
+ var ms = [].slice.call(document.querySelectorAll('details.ls-ctl'));
+ if(!ms.length) return;
+ function veu(){ return document.getElementById('rx-veu') }
+ function veuAberto(){ var v = veu(); return !!(v && v.classList.contains('on')) }
+ function noVeu(n){ var v = veu(); return !!(v && n && v.contains(n)) }
+ function fechar(m){ if(m.open) m.removeAttribute('open') }
+ ms.forEach(function(m){
+  var s = m.querySelector('summary');
+  s.setAttribute('aria-expanded', 'false');
+  m.addEventListener('toggle', function(){
+   s.setAttribute('aria-expanded', m.open ? 'true' : 'false');
+   if(m.open) ms.forEach(function(o){ if(o !== m) fechar(o) });
+  });
+  m.addEventListener('focusout', function(e){
+   if(!m.open || veuAberto()) return;
+   var p = e.relatedTarget;
+   if(!p || m.contains(p) || noVeu(p)) return;
+   fechar(m);
+  });
+ });
  window.addEventListener('keydown', function(e){
-  if(e.key !== 'Escape' || !aberto() || veuAberto()) return;
-  m.removeAttribute('open');
-  try{ if(s) s.focus() }catch(x){}
+  if(e.key !== 'Escape' || veuAberto()) return;
+  ms.forEach(function(m){
+   if(!m.open) return;
+   fechar(m);
+   try{ m.querySelector('summary').focus() }catch(x){}
+  });
  }, true);
  document.addEventListener('click', function(e){
-  if(!aberto() || veuAberto()) return;
-  if(m.contains(e.target)) return;
-  var v = document.getElementById('rx-veu');
-  if(v && v.contains(e.target)) return;
-  m.removeAttribute('open');
+  if(veuAberto()) return;
+  ms.forEach(function(m){ if(m.open && !m.contains(e.target) && !noVeu(e.target)) fechar(m) });
  });
- m.addEventListener('focusout', function(e){
-  if(!aberto() || veuAberto()) return;
-  var p = e.relatedTarget;
-  if(!p || m.contains(p)) return;
-  var v = document.getElementById('rx-veu');
-  if(v && v.contains(p)) return;
-  m.removeAttribute('open');
+ var mz = document.querySelector('[data-radai-minimizar]');
+ function janela(ok){ if(mz) mz.hidden = !ok }
+ if(typeof window.radaiJanelaDoApp === 'boolean') janela(window.radaiJanelaDoApp);
+ document.addEventListener('radai-janela', function(e){ janela(!!(e.detail && e.detail.ok)) });
+ var b = document.querySelector('[data-radai-minimizar-acao]');
+ if(!b) return;
+ var f = document.querySelector('[data-radai-falha]');
+ function falhou(){ if(f) f.hidden = false }
+ b.addEventListener('click', function(){
+  if(f) f.hidden = true;
+  var pedido = window.radaiJanelaMinimizar ? window.radaiJanelaMinimizar()
+   : fetch('/api/janela/minimizar', {method: 'POST'}).then(function(r){
+      return r.ok ? r.json() : {ok: false} });
+  pedido.then(function(d){
+   if(!d || !d.ok) return falhou();
+   ms.forEach(fechar);
+  }, falhou);
  });
 })();
 </script>"""
@@ -291,13 +345,27 @@ PAGINA = u"""<!doctype html><html lang="pt-BR" data-tema-fixo="escuro"><head><me
 <main class="ls-suite" id="suite">
 <header class="ls-topo" data-radai-tela="@RAIZ@">
 <h1 class="ls-titulo"><span class="ls-local">Local</span> <span class="ls-grad">Suite</span></h1>
-<details class="ls-engrenagem" data-radai-engrenagem>
-<summary aria-label="Configurações">@ENGRENAGEM@<span data-radai-frase>Configurações</span></summary>
+<div class="ls-controles">
+<details class="ls-ctl" data-radai-minimizar hidden>
+<summary>@MINIMIZAR@<span class="ls-rot" data-radai-frase>Minimizar</span></summary>
 <div class="ls-menu">
-<a href="/config" data-radai-frase>Configurações</a>
+<button type="button" class="ls-acao" data-radai-minimizar-acao>@MINIMIZAR@<span data-radai-frase>Minimizar</span></button>
+<p class="ls-falha" role="status" data-radai-falha hidden data-radai-frase>@FALHA_MINIMIZAR@</p>
+</div>
+</details>
+<details class="ls-ctl ls-engrenagem" data-radai-engrenagem>
+<summary>@ENGRENAGEM@<span class="ls-rot" data-radai-frase>Configurações</span></summary>
+<div class="ls-menu">
+<a href="/config">@ENGRENAGEM@<span data-radai-frase>Configurações</span></a>
+</div>
+</details>
+<details class="ls-ctl ls-power" data-radai-power>
+<summary>@POWER@<span class="ls-rot" data-radai-frase>Fechar app</span></summary>
+<div class="ls-menu">
 <span class="ls-encerrar" data-radai-encerrar></span>
 </div>
 </details>
+</div>
 </header>
 <section class="ls-cena" id="scene" aria-hidden="true">
 <div class="ls-rig" id="art-rig">
@@ -333,6 +401,9 @@ def pagina():
     return (PAGINA.replace(u"@CSS@", CSS)
             .replace(u"@RAIZ@", _esc(_nome_da_raiz()))
             .replace(u"@ENGRENAGEM@", _ENGRENAGEM)
+            .replace(u"@MINIMIZAR@", _MINIMIZAR)
+            .replace(u"@POWER@", _POWER)
+            .replace(u"@FALHA_MINIMIZAR@", _esc(FALHA_MINIMIZAR))
             .replace(u"@CARTOES@", cartoes)
             .replace(u"@FRONTEIRA@", FRONTEIRA)
             .replace(u"@AUTOR@", _esc(AUTOR))

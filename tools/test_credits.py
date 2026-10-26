@@ -1101,6 +1101,155 @@ def teste_a_demo_saiu_dos_creditos_e_do_notice():
                not os.path.isfile(os.path.join(RAIZ, rel)))
 
 
+_MARCA_WSRT = "Listas copiadas do Workstation RT"
+_MARCA_MODIFICACAO = ("MODIFICACAO DOS PESOS (Apache License 2.0, secao 4, "
+                      "item b)")
+_MARCA_MODIFICACAO_NOS_CREDITOS = ("os checkpoints dele saem sem o estado do "
+                                   "otimizador")
+
+
+def _o_limpador_copia_o_kit(src):
+    return bool(re.search(r"(?m)^(WSRT_[A-Z_]+|ORIGEM_WSRT)\s*=", src or ""))
+
+
+def _o_preparo_modifica_os_pesos(src):
+    s = src or ""
+    return ("'optimizer_state'" in s and "def enxugar_pasta_de_peso(" in s
+            and "enxugar_pasta_de_peso(py_do_pacote" in s)
+
+
+def _notice_divergente(notice, creditos, copia, modifica):
+    fora = []
+    if copia is not (_MARCA_WSRT in notice):
+        fora.append("o limpador %s as listas do Workstation RT, e o NOTICE %s"
+                    % ("copia" if copia else "NAO copia",
+                       "as declara" if _MARCA_WSRT in notice else "cala"))
+    if modifica is not (_MARCA_MODIFICACAO in notice):
+        fora.append("o preparo %s o estado do otimizador dos pesos do "
+                    "TotalSegmentator, e o NOTICE %s a modificacao (4b)"
+                    % ("tira" if modifica else "NAO tira",
+                       "declara" if _MARCA_MODIFICACAO in notice else "cala"))
+    nos_creditos = _MARCA_MODIFICACAO_NOS_CREDITOS in " ".join(creditos.split())
+    if modifica is not nos_creditos:
+        fora.append("o preparo %s o estado do otimizador, e os Creditos %s"
+                    % ("tira" if modifica else "NAO tira",
+                       "dizem" if nos_creditos else "calam"))
+    return fora
+
+
+def teste_o_notice_diz_o_que_o_pacote_leva_na_v87():
+    secao("o NOTICE sem as listas do Workstation RT, e com a modificacao dos "
+          "pesos do TotalSegmentator (Apache-2.0, 4b)")
+    import radai_credits as CR
+    notice = ler("NOTICE")
+    creditos = CR._CRITERIO
+    copia = _o_limpador_copia_o_kit(ler("app/radai_cleaner.py"))
+    modifica = _o_preparo_modifica_os_pesos(ler("build/configurar_ambiente.py"))
+    checar("li o codigo: o limpador copia as listas do kit = %s, o preparo "
+           "tira o estado do otimizador = %s" % (copia, modifica),
+           not copia and modifica)
+    div = _notice_divergente(notice, creditos, copia, modifica)
+    checar("o NOTICE e os Creditos dizem o que o codigo faz", not div,
+           " | ".join(div))
+    checar("  isca: o limpador volta a copiar as listas, com o NOTICE de "
+           "hoje: reprova",
+           bool(_notice_divergente(notice, creditos, _o_limpador_copia_o_kit(
+               "WSRT_CATALOGO = ()\n"), modifica)))
+    checar("  isca: o NOTICE com a secao das listas de volta: reprova",
+           bool(_notice_divergente(notice + "\n" + _MARCA_WSRT + "\n",
+                                   creditos, copia, modifica)))
+    checar("  isca: o preparo sem o enxugar, com o NOTICE de hoje: reprova",
+           bool(_notice_divergente(notice, creditos, copia,
+                                   _o_preparo_modifica_os_pesos(
+                                       "CHAVE = 'optimizer_state'\n"))))
+    checar("  isca: o NOTICE sem a linha da modificacao: reprova",
+           bool(_notice_divergente(notice.replace(_MARCA_MODIFICACAO, "X"),
+                                   creditos, copia, modifica)))
+    checar("  isca: os Creditos calam a modificacao: reprova",
+           bool(_notice_divergente(notice, creditos.replace(
+               "otimizador", "X"), copia, modifica)))
+
+
+_SECAO_DO_RT_UTILS = u"A montagem da ROI do rt-utils, reproduzida no motor"
+_AVISO_DO_RT_UTILS = u"Copyright (c) 2021 Qurit"
+
+
+def _modificacao_divergente(notice, modelos, preparo_enxuga):
+    secoes = _secoes_do_notice(notice)
+    fora = []
+    for chave in sorted(modelos):
+        titulo = _SECAO_DO_MODELO.get(chave)
+        if not titulo or chave == "totalsegmentator":
+            continue
+        enxuga = bool(preparo_enxuga and (modelos[chave] or {}).get("enxuto"))
+        diz = u"MODIFICACAO DO" in secoes.get(titulo, u"")
+        if enxuga is not diz:
+            fora.append(u"%s: o preparo %s o checkpoint, e a secao %s a "
+                        u"modificacao" % (chave, u"enxuga" if enxuga
+                                          else u"NAO enxuga",
+                                          u"declara" if diz else u"cala"))
+    return fora
+
+
+def _o_motor_reproduz_o_rt_utils(src):
+    m = re.search(r"(?ms)^def _adicionar_roi\(.*?(?=^\S)", src or u"")
+    corpo = m.group(0) if m else u""
+    return ("ds_helper.create_structure_set_roi(" in corpo
+            and "image_helper.get_contours_coords(" in corpo)
+
+
+def _rt_utils_divergente(notice, reproduz):
+    secao = _secoes_do_notice(notice).get(_SECAO_DO_RT_UTILS, u"")
+    diz = bool(secao) and _AVISO_DO_RT_UTILS in secao and (
+        u"Permission is hereby granted" in secao)
+    if reproduz is not diz:
+        return [u"o motor %s a montagem da ROI do rt-utils, e o NOTICE %s o "
+                u"aviso MIT dele" % (u"reproduz" if reproduz
+                                     else u"NAO reproduz",
+                                     u"traz" if diz else u"nao traz")]
+    return []
+
+
+def teste_o_notice_declara_os_checkpoints_enxutos_e_o_rt_utils():
+    secao("o NOTICE declara a modificacao de cada checkpoint do registro que "
+          "o preparo enxuga, e o aviso MIT do rt-utils que o motor reproduz")
+    import radai_models as _RM
+    notice = ler("NOTICE")
+    prep = ler("build/configurar_ambiente.py")
+    enxuga = "def enxugar_modelo_do_registro(" in prep
+    com_enxuto = sorted(k for k, m in _RM.MODELOS.items() if m.get("enxuto"))
+    checar("li o codigo: o preparo enxuga os do registro = %s, e o registro "
+           "declara o enxuto de %s" % (enxuga, ", ".join(com_enxuto)),
+           enxuga and len(com_enxuto) >= 4)
+    div = _modificacao_divergente(notice, _RM.MODELOS, enxuga)
+    checar("cada secao de modelo do registro diz a modificacao exatamente "
+           "quando o checkpoint dele e enxugado", not div, " | ".join(div))
+    for chave in com_enxuto:
+        titulo = _SECAO_DO_MODELO[chave]
+        secoes = _secoes_do_notice(notice)
+        sem = notice.replace(secoes.get(titulo, u"#"), secoes.get(
+            titulo, u"#").replace(u"MODIFICACAO DO", u"X"))
+        checar("  isca: a secao de %s cala a modificacao: reprova" % chave,
+               bool(_modificacao_divergente(sem, _RM.MODELOS, enxuga)))
+    checar("  isca: o preparo deixa de enxugar o registro, com o NOTICE de "
+           "hoje: reprova",
+           bool(_modificacao_divergente(notice, _RM.MODELOS, False)))
+    reproduz = _o_motor_reproduz_o_rt_utils(ler("app/engine.py"))
+    checar("li o codigo: o motor reproduz a montagem da ROI do rt-utils = %s"
+           % reproduz, reproduz)
+    div = _rt_utils_divergente(notice, reproduz)
+    checar("o NOTICE traz o aviso MIT do rt-utils (o copyright e a "
+           "permissao)", not div, " | ".join(div))
+    checar("  isca: o NOTICE sem o copyright do rt-utils: reprova",
+           bool(_rt_utils_divergente(notice.replace(_AVISO_DO_RT_UTILS, u"X"),
+                                     reproduz)))
+    checar("  isca: o motor volta a chamar so o add_roi, com o NOTICE de "
+           "hoje: reprova",
+           bool(_rt_utils_divergente(notice, _o_motor_reproduz_o_rt_utils(
+               "def _adicionar_roi(rt, mb, nome, cor):\n"
+               "    rt.add_roi(mask=mb, name=nome, color=cor)\n"))))
+
+
 def _rotas_da_bibliografia(src):
     return sorted(set(re.findall(r"@app\.(?:get|post|api_route)\(\s*"
                                  r"[\"']([^\"']+)[\"']", src or "")))
@@ -1157,7 +1306,9 @@ def main():
               teste_o_notice_declara_todo_sufixo,
               teste_notice_cobre_os_componentes_da_porta,
               teste_a_demo_saiu_dos_creditos_e_do_notice,
-              teste_a_bibliografia_nao_tem_rota_sem_tela]
+              teste_a_bibliografia_nao_tem_rota_sem_tela,
+              teste_o_notice_diz_o_que_o_pacote_leva_na_v87,
+              teste_o_notice_declara_os_checkpoints_enxutos_e_o_rt_utils]
     for t in testes:
         try:
             t()

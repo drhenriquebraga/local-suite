@@ -25,32 +25,97 @@ def _raizes_declaradas():
     return tuple(p.strip().strip('"') for p in bruto.split(";") if p.strip())
 
 
+_LOCAL_DO_PERFIL = []
+
+
+def _local_do_perfil():
+    if _LOCAL_DO_PERFIL:
+        return _LOCAL_DO_PERFIL[0]
+    achada = ""
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class _Guid(ctypes.Structure):
+            _fields_ = [("a", wintypes.DWORD), ("b", wintypes.WORD),
+                        ("c", wintypes.WORD), ("d", ctypes.c_ubyte * 8)]
+        local_app_data = _Guid(0xF1B32785, 0x6FBA, 0x4FCF, (ctypes.c_ubyte * 8)(
+            0x9D, 0x55, 0x7B, 0x8E, 0x7F, 0x15, 0x70, 0x91))
+        k32 = ctypes.WinDLL("kernel32")
+        adv = ctypes.WinDLL("advapi32")
+        shell = ctypes.WinDLL("shell32")
+        k32.GetCurrentProcess.restype = wintypes.HANDLE
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+        adv.OpenProcessToken.argtypes = [wintypes.HANDLE, wintypes.DWORD,
+                                         ctypes.POINTER(wintypes.HANDLE)]
+        shell.SHGetKnownFolderPath.argtypes = [
+            ctypes.POINTER(_Guid), wintypes.DWORD, wintypes.HANDLE,
+            ctypes.POINTER(ctypes.c_wchar_p)]
+        token = wintypes.HANDLE()
+        if not adv.OpenProcessToken(k32.GetCurrentProcess(), 0x000E,
+                                    ctypes.byref(token)):
+            token = wintypes.HANDLE()
+        saida = ctypes.c_wchar_p()
+        try:
+            # GUARDA: com o token, a pasta nao segue a LOCALAPPDATA nem o USERPROFILE trocados no processo.
+            if shell.SHGetKnownFolderPath(ctypes.byref(local_app_data), 0,
+                                          token, ctypes.byref(saida)) == 0:
+                achada = saida.value or ""
+        finally:
+            ctypes.WinDLL("ole32").CoTaskMemFree(saida)
+            if token.value:
+                k32.CloseHandle(token)
+    except Exception:
+        achada = ""
+    _LOCAL_DO_PERFIL.append(achada)
+    return achada
+
+
+def _bancos_do_drive():
+    import os
+    bancos = []
+    for base in (os.environ.get("LOCALAPPDATA") or "", _local_do_perfil()):
+        db = os.path.join(base, *_DRIVE_DB) if base else ""
+        if db and os.path.normcase(db) not in [os.path.normcase(b)
+                                               for b in bancos]:
+            bancos.append(db)
+    return bancos
+
+
+def _raizes_do_banco(db):
+    import sqlite3
+    achadas = []
+    con = sqlite3.connect("file:%s?mode=ro" % db.replace("\\", "/"), uri=True)
+    try:
+        for (p,) in con.execute("select last_seen_absolute_path from roots"):
+            if p:
+                achadas.append(str(p).rstrip("\\/"))
+    finally:
+        con.close()
+    return achadas
+
+
 def raizes_espelhadas():
     import os
     fora = list(_raizes_declaradas())
-    base = os.environ.get("LOCALAPPDATA") or ""
-    db = os.path.join(base, *_DRIVE_DB) if base else ""
-    try:
-        carimbo = os.path.getmtime(db) if db else None
-    except OSError:
-        carimbo = None
-    if carimbo is None:
-        return tuple(fora)
-    if _CACHE_RAIZES["quando"] != carimbo:
-        achadas = []
+    carimbos = []
+    for db in _bancos_do_drive():
         try:
-            import sqlite3
-            con = sqlite3.connect("file:%s?mode=ro" % db.replace("\\", "/"),
-                                  uri=True)
+            carimbos.append((db, os.path.getmtime(db)))
+        except OSError:
+            continue
+    if not carimbos:
+        return tuple(fora)
+    carimbo = tuple(carimbos)
+    if _CACHE_RAIZES["quando"] != carimbo:
+        achadas, falhou = [], False
+        for db, _quando in carimbos:
             try:
-                for (p,) in con.execute(
-                        "select last_seen_absolute_path from roots"):
-                    if p:
-                        achadas.append(str(p).rstrip("\\/"))
-            finally:
-                con.close()
-        except Exception:
-            return tuple(fora)
+                achadas.extend(_raizes_do_banco(db))
+            except Exception:
+                falhou = True
+        if falhou:
+            return tuple(fora) + tuple(achadas)
         _CACHE_RAIZES["quando"] = carimbo
         _CACHE_RAIZES["valor"] = tuple(achadas)
     return tuple(fora) + _CACHE_RAIZES["valor"]

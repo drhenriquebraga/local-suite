@@ -11,7 +11,7 @@ ITENS = [
     ("nidus_projecao", "/nidus/projecao", u"cruzamento", u"Projeção Vascular", u"circular na projeção, ver onde as duas se cruzam"),
     ("elastic",     "/elastic",     u"malha",      u"Elastic RT",    u"fusão elástica: o que a deformação fez, e se ela é possível"),
     ("elastic_fusao", "/elastic/fusao", u"malha",  u"Fusão elástica", u"registrar duas séries e medir o campo"),
-    ("bolus",       "/bolus",       u"camadas",      u"3D Printed Bolus", u"bólus impresso em 3D: a camada sobre a pele, em STL"),
+    ("bolus",       "/bolus",       u"bolus",      u"3D Printed Bolus", u"bólus impresso em 3D: a camada sobre a pele, em STL"),
     ("bolus_gerar", "/bolus/gerar", u"camadas",      u"Gerar bólus",   u"fechar a caixa no MPR e gerar o STL"),
     ("vigia",       "/vigia",       u"lua",      u"Vigia",         u"o lote automático da noite"),
     ("lote",        "/lote",        u"rodar",      u"Rodar agora",   u"escolher series e contornar"),
@@ -87,6 +87,12 @@ body{margin-left:var(--ui-lado) !important}
  --mod-cor-fraca:var(--mod-bridge-fraco,rgba(124,92,255,.14))}
 .radai-menu a[data-mod="recon3d"]{--mod-cor:var(--mod-recon,#31D0AA);
  --mod-cor-fraca:var(--mod-recon-fraco,rgba(49,208,170,.14))}
+.radai-menu a[data-mod="nidus"]{--mod-cor:var(--mod-nidus,#E39B4F);
+ --mod-cor-fraca:var(--mod-nidus-fraco,rgba(227,155,79,.14))}
+.radai-menu a[data-mod="elastic"]{--mod-cor:var(--mod-elastic,#8FA9F2);
+ --mod-cor-fraca:var(--mod-elastic-fraco,rgba(143,169,242,.14))}
+.radai-menu a[data-mod="bolus"]{--mod-cor:var(--mod-bolus,#B5D65A);
+ --mod-cor-fraca:var(--mod-bolus-fraco,rgba(181,214,90,.14))}
 
 .radai-menu .lado-dobra{display:flex;justify-content:center;width:100%%;
  padding:0 0 6px;margin:0 0 4px;border-bottom:1px solid var(--line,#1e293b)}
@@ -381,6 +387,15 @@ def aplicar(pagina, ativo="", com_tarefas=True, com_pendencias=False):
     return saida[:corte] + html(ativo) + saida[corte:]
 
 
+def e_ferramenta(chave):
+    try:
+        import radai_breadcrumb
+        entrada = radai_breadcrumb.ARVORE.get(str(chave or ""))
+    except Exception:
+        return False
+    return bool(entrada) and entrada[2] in MODULOS
+
+
 def marcar_tela(pagina, chave):
     if not pagina:
         return pagina
@@ -390,6 +405,11 @@ def marcar_tela(pagina, chave):
     j = pagina.find(u">", i)
     if j < 0:
         return pagina
-    if u"data-tela=" in pagina[i:j]:
+    extra = u""
+    if u"data-tela=" not in pagina[i:j]:
+        extra += u' data-tela="%s"' % _esc(chave)
+    if e_ferramenta(chave) and u"data-ls-identidade=" not in pagina[i:j]:
+        extra += u' data-ls-identidade="trabalho"'
+    if not extra:
         return pagina
-    return pagina[:i + 5] + (u' data-tela="%s"' % _esc(chave)) + pagina[i + 5:]
+    return pagina[:i + 5] + extra + pagina[i + 5:]

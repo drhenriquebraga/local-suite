@@ -782,6 +782,7 @@ def teste_landing_no_ar():
                 % (root, porta, os.path.join(base, "log")))
     env = dict(os.environ, RADAI_CONFIG=cfg, RADAI_MACHINE="PC_LANDING",
                RADAI_CALIB_DIR=acervo, LOCALAPPDATA=os.path.join(base, "ad"),
+               RADAI_REGISTRO_DIR=os.path.join(base, "registro"),
                PYTHONIOENCODING="utf-8:replace")
     proc = subprocess.Popen([sys.executable, _componentes.fonte("app/radai_watcher.py")],
                             env=env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
@@ -937,6 +938,7 @@ def teste_tela_de_config_no_ar():
                 % (porta, os.path.join(base, "log")))
     env = dict(os.environ, RADAI_CONFIG=cfg, RADAI_MACHINE="PC_TELA",
                RADAI_CALIB_DIR=os.path.join(base, "calibracao"),
+               RADAI_REGISTRO_DIR=os.path.join(base, "registro"),
                LOCALAPPDATA=os.path.join(base, "ad"), PYTHONIOENCODING="utf-8:replace")
     proc = subprocess.Popen([sys.executable, _componentes.fonte("app/radai_watcher.py")],
                             env=env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
@@ -1064,6 +1066,7 @@ def teste_reiniciar_aplica_sem_fechar_o_programa():
                 "PORT=%d\nLOG_DIR=%s\n" % (porta, os.path.join(base, "log")))
     env = dict(os.environ, RADAI_CONFIG=cfg, RADAI_MACHINE="PC_REC",
                RADAI_CALIB_DIR=os.path.join(base, "calibracao"),
+               RADAI_REGISTRO_DIR=os.path.join(base, "registro"),
                LOCALAPPDATA=os.path.join(base, "ad"), PYTHONIOENCODING="utf-8:replace")
     proc = subprocess.Popen([sys.executable, _componentes.fonte("app/radai_watcher.py")],
                             env=env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
@@ -1204,6 +1207,7 @@ def teste_o_vigia_grava_o_root_pela_pagina():
                 "PORT=%d\nLOG_DIR=%s\n" % (porta, os.path.join(base, "log")))
     env = dict(os.environ, RADAI_CONFIG=cfg, RADAI_MACHINE="PC_P",
                RADAI_CALIB_DIR=os.path.join(base, "calibracao"),
+               RADAI_REGISTRO_DIR=os.path.join(base, "registro"),
                LOCALAPPDATA=os.path.join(base, "ad"),
                PYTHONIOENCODING="utf-8:replace")
     proc = subprocess.Popen([sys.executable, _componentes.fonte("app/radai_watcher.py")],
@@ -1741,8 +1745,10 @@ def _primeiro_uso_divergente(t, lote, modulos, atalho):
         fora.append(u"a ferramenta «Rodar agora» nao existe")
     if u"atalho" in tt and atalho and atalho not in tt:
         fora.append(u"o atalho nao e o que o INSTALL.ps1 grava (%s)" % atalho)
-    if u"TPS de destino" not in tt:
-        fora.append(u"nao diz que o primeiro uso pede o TPS de destino")
+    if u"TPS de destino (Eclipse ou" in tt:
+        fora.append(u"diz que o primeiro uso pede o TPS de destino (saiu na v8.7)")
+    if u"pasta favorita" not in tt:
+        fora.append(u"nao diz que o primeiro uso pede a pasta favorita")
     return fora
 
 
@@ -1790,10 +1796,11 @@ def teste_o_primeiro_uso_aponta_o_que_existe():
            bool(_primeiro_uso_divergente(
                textos[0][1], lote.replace(u"Incluir Overnight Run", u"X"),
                modulos, atalho)))
-    v83 = (u"No ContourLab, em Rodar agora, clique em Incluir Overnight Run e "
-           u"aponte a pasta que o turno varre.")
-    checar("  isca: o texto da v8.3, sem o TPS de destino, reprova",
-           bool(_primeiro_uso_divergente(v83, lote, modulos, atalho)))
+    v86 = (u"Logo depois, o primeiro uso pede o TPS de destino (Eclipse ou "
+           u"Monaco) e a pasta favorita. No ContourLab, em Rodar agora, clique "
+           u"em Incluir Overnight Run.")
+    checar("  isca: o texto da v8.6, que manda escolher o TPS, reprova",
+           bool(_primeiro_uso_divergente(v86, lote, modulos, atalho)))
     import radai_primeiro_uso as _pu
     consent = io.open(_componentes.fonte("app/radai_consent.py"), encoding="utf-8").read()
     checar("e a tela que o texto promete existe: o aceite leva a /primeiro-uso",
@@ -1833,7 +1840,8 @@ def teste_a_verificacao_profunda_saiu_da_instalacao():
            sorted(r for r in rotas if "conferir" in r))
     checar("  e o Diagnosticar continua (rota e botao)",
            "/api/diagnosticar" in rotas and 'onclick="diagnosticar()"' in pag
-           and u"Diagnosticar e otimizar" in pag)
+           and u"Diagnósticos e Registros" in pag
+           and u"Diagnosticar e otimizar" not in pag)
 
     raiz = os.path.dirname(AQUI)
     for rel, extrai in ((os.path.join("installer", "INSTALL.ps1"), None),
@@ -1848,6 +1856,9 @@ def teste_a_verificacao_profunda_saiu_da_instalacao():
             t = t[i:t.find('"""', i + len(extrai) + 6)] if i >= 0 else u""
         checar("%s: o texto de depois de instalar existe" % rel, bool(t))
         checar("  e nomeia o Diagnosticar", "Diagnosticar" in t)
+        checar("  e o bloco pelo nome de agora (Diagnosticos e Registros), "
+               "sem o Otimizar", "Diagnosticos e Registros" in t
+               and "otimizar" not in t.lower())
         checar("  e nao manda rodar a Verificacao profunda, que saiu",
                "Verificacao profunda" not in t and u"Verificação profunda" not in t)
 
@@ -2408,8 +2419,18 @@ def teste_o_registro_de_casos_e_secao_e_nao_dialogo():
            str(arv.anc.get("reg_bt")))
     checar(u"e nao existe mais veu de dialogo", "reg-fundo" not in arv.classes
            and u".reg-fundo" not in radai_panel.CSS_REGISTRO)
-    checar(u"a contagem esta no subtitulo da secao",
-           arv.dentro_de("reg_n", "ps-sub"), str(arv.anc.get("reg_n")))
+    checar(u"a contagem esta no titulo do bloco Registro de casos",
+           arv.dentro_de("reg_n", "cfg-sub"), str(arv.anc.get("reg_n")))
+    pg = radai_panel.PAGINA_CONFIG
+    i7 = pg.find(u'id="ps_limpar"')
+    fim7 = pg.find(u"</section>", i7)
+    checar(u"o registro mora na secao 7 (Diagnosticos e Registros), depois do "
+           u"Diagnosticar",
+           0 <= i7 < pg.find(u'id="btDiag"') < pg.find(u'id="reg_bt"') < fim7
+           and u'id="ps_registro"' not in pg, u"%d %d" % (i7, fim7))
+    checar(u"  e a secao 5 virou Estruturas e Protocolos",
+           u'data-alvo="ps_estruturas"' in pg and u'id="ps_estruturas"' in pg
+           and u'data-alvo="ps_registro"' not in pg)
 
     try:
         from starlette.testclient import TestClient
@@ -2477,9 +2498,9 @@ def _chromium_da_maquina():
 
 
 _MEDIR_REGISTRO = u"""() => {
-  if (window.cfgMostrar) { window.cfgMostrar('ps_registro'); }
+  if (window.cfgMostrar) { window.cfgMostrar('ps_limpar'); }
   else {
-    const s = document.getElementById('ps_registro');
+    const s = document.getElementById('ps_limpar');
     if (s) s.classList.remove('fechado');
   }
   const b = document.getElementById('reg_bt');
@@ -2488,7 +2509,7 @@ _MEDIR_REGISTRO = u"""() => {
   b.scrollIntoView({block: 'center'});
   const r = b.getBoundingClientRect();
   const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-  const cx = document.querySelector('.reg-cx') || document.getElementById('ps_registro');
+  const cx = document.querySelector('.reg-cx') || document.getElementById('ps_limpar');
   const c = cx.getBoundingClientRect();
   let topoFim = 0;
   document.querySelectorAll('.topo, .rc-topo').forEach(function(t){
@@ -2542,6 +2563,12 @@ _MEDIR_BLOCOS = u"""() => {
                           && sec('f_LOCK_PARADO_MIN') === sec('f_HEARTBEAT_MIN'),
     favorita_nas_pastas: sec('f_PASTA_FAVORITA') !== null
                          && sec('f_PASTA_FAVORITA') === sec('f_OUT_DIR'),
+    estrela_na_favorita: (function(){
+      const b = document.getElementById('cfg_fav_estrela'),
+            c = document.getElementById('f_PASTA_FAVORITA');
+      return !!b && !!c && b.getAttribute('data-ui-fav') === 'f_PASTA_FAVORITA'
+             && b.closest('.campo') === c.closest('.campo') && !!b._uiFav
+             && !!document.getElementById('fav_procurar'); })(),
     processamento_so_device: !!dev && dev.id === 'ps_processamento'
                              && dev.querySelectorAll('input,select').length === 1,
     sem_varredura: !document.getElementById('f_ROOT')
@@ -2738,6 +2765,9 @@ def teste_config_no_navegador():
                            u"o IDIOMA nao vira caixa de texto (FORA_DA_TELA)"),
                           ("lock_parado_no_ritmo", u"LOCK_PARADO_MIN no ritmo do vigia"),
                           ("favorita_nas_pastas", u"PASTA_FAVORITA nas pastas"),
+                          ("estrela_na_favorita",
+                           u"a PASTA_FAVORITA tem a estrela da casca, ligada, ao "
+                           u"lado do Procurar (o explorador com o Mapear)"),
                           ("processamento_so_device",
                            u"o Processamento e so o DEVICE (v8.3)"),
                           ("sem_varredura",
@@ -2776,9 +2806,9 @@ def teste_config_no_navegador():
            u"para auto (ele procurava `[name=DEVICE]`, e o campo tem `id`)",
            cc.get("recomendacao") == "auto", str(cc.get("recomendacao")))
     _dg = cc.get("diag") or {}
-    checar(u"[1280 px] a secao Diagnosticar e otimizar tem os dois botoes, e "
-           u"o iframe do log do ambiente nao voltou",
-           _dg.get("btDiag") is True and _dg.get("btOtim") is True
+    checar(u"[1280 px] a secao do Diagnosticar tem o botao dele e nao tem "
+           u"mais o Otimizar, e o iframe do log do ambiente nao voltou",
+           _dg.get("btDiag") is True and _dg.get("btOtim") is False
            and _dg.get("iframe") is False, str(_dg))
     checar(u"[1280 px] o topo fica colado (o Salvar sempre a mao)",
            (m.get("blocos_1280") or {}).get("topo_posicao") == "sticky",
@@ -2796,10 +2826,15 @@ def teste_config_no_navegador():
         u"  x.hidden = !s || (x !== s && !(x.id === 'ps_outras' && id === 'ps_pastas'));",
         u"  x.hidden = false;")
     checar(u"  (isca) a troca existe no fonte", isca != radai_panel.PAGINA_CONFIG)
-    mi = medir_config_no_navegador(isca) or {}
+    sem_estrela = isca.replace(u" cfgFavoritaEstrela();\n", u"\n", 1)
+    checar(u"  (isca) a chamada da estrela existe no fonte", sem_estrela != isca)
+    mi = medir_config_no_navegador(sem_estrela) or {}
     si = mi.get("so_cartoes") or {}
     checar(u"  (isca) sem o esconder, o cartao deixa as outras secoes a vista",
            len(si.get("depois") or []) > 1, str(si)[:300])
+    checar(u"  (isca) sem ligar a estrela, a medida da favorita reprova",
+           (mi.get("blocos_1280") or {}).get("estrela_na_favorita") is False,
+           str((mi.get("blocos_1280") or {}).get("estrela_na_favorita")))
 
 
 def _sessao_inventada():
@@ -2844,27 +2879,14 @@ _CONFERENCIA_FIXA = {"secoes": [{"titulo": u"Pesos", "itens": [
     "resumo": {"ok": 1, "faltam": 1, "avisos": 0}, "segundos": 0.1}
 _LAUDO_FIXO = {"memoria": {"total_mb": 16000, "livre_mb": 5000,
                            "usada_mb": 11000, "pct": 69},
-               "servicos": [], "aplicacoes": [], "disco": [], "ganhos": [],
-               "recuperavel": [], "aviso": u""}
+               "aplicacoes": [], "disco": [], "ganhos": []}
 
 
-def _dublagem_do_limpador(fechados, abertos, linhas_ok=True):
+def _dublagem_do_limpador():
     import radai_cleaner as LP
     import radai_station_check as CE
-
-    def _fechar(p, espera_s=0.5):
-        fechados.append(int(p["pid"]))
-        return {"ok": True, "como": u"fechado pela janela"}
-
-    def _abrir(exe, args):
-        abertos.append(exe)
-        return True
     return _Dublagem([
         (LP, "processos", _sessao_inventada),
-        (LP, "eh_administrador", lambda: False),
-        (LP, "espaco_recuperavel", lambda: []),
-        (LP, "_fechar_pid", _fechar),
-        (LP, "_abrir_programa", _abrir),
         (LP, "laudo", lambda device=None: dict(_LAUDO_FIXO)),
         (LP, "ler_em_uso", lambda caminho=None: {}),
         (CE, "conferir", lambda root=u"", porta=0: dict(_CONFERENCIA_FIXA))])
@@ -2881,8 +2903,13 @@ def _app_com_registro(caminho_cfg, linhas):
     return app
 
 
-def teste_as_rotas_de_diagnosticar_e_otimizar():
-    secao(u"config: as rotas de Diagnosticar e Otimizar")
+_ROTAS_DO_OTIMIZAR = ("/api/otimizar/plano", "/api/otimizar/aplicar",
+                      "/api/otimizar/restaurar", "/api/limpador",
+                      "/api/limpador/parar", "/api/limpador/liberar")
+
+
+def teste_as_rotas_de_diagnosticar():
+    secao(u"config: a rota de Diagnosticar, e as do Otimizar sairam")
     try:
         from starlette.testclient import TestClient
     except Exception as e:
@@ -2893,51 +2920,27 @@ def teste_as_rotas_de_diagnosticar_e_otimizar():
         f.write(u"# teste\nROOT=\nDEVICE=auto\n")
     velho = os.environ.get("LOCALAPPDATA")
     os.environ["LOCALAPPDATA"] = novo_temp(u"radai_p_lad_")
-    fechados, abertos, linhas = [], [], []
+    linhas = []
     try:
-        with _dublagem_do_limpador(fechados, abertos):
-            c = TestClient(_app_com_registro(arq, linhas),
-                           raise_server_exceptions=False)
+        with _dublagem_do_limpador():
+            app = _app_com_registro(arq, linhas)
+            rotas = set(getattr(r, "path", u"") for r in app.routes)
+            checar(u"as rotas do Otimizar e do limpador nao estao montadas",
+                   "/api/diagnosticar" in rotas
+                   and not (set(_ROTAS_DO_OTIMIZAR) & rotas),
+                   sorted(set(_ROTAS_DO_OTIMIZAR) & rotas))
+            c = TestClient(app, raise_server_exceptions=False)
             d = c.post("/api/diagnosticar").json()
             checar(u"o Diagnosticar devolve o resumo da conferencia",
                    d.get("resumo") == {"ok": 1, "faltam": 1, "avisos": 0}, d)
             checar(u"  e escreve o relatorio no log do vigia, do comeco ao fim",
                    linhas and u"começo" in linhas[0] and u"fim" in linhas[-1]
                    and any(u"[FALTA]" in x for x in linhas), linhas[:4])
-            pl = c.post("/api/otimizar/plano").json()
-            nomes = dict((i["nome"], i["marcado"]) for i in pl.get("itens") or [])
-            checar(u"o plano: OneDrive marcado, Foo (com janela) desmarcado",
-                   nomes.get("OneDrive") is True and nomes.get("Foo") is False,
-                   nomes)
-            checar(u"  e nem o vigia, nem o cmd dele, nem o chrome, nem o Vitrea",
-                   not (set(nomes) & {"python", "cmd", "chrome", "Vitrea"}),
-                   sorted(nomes))
-            checar(u"  e ainda nao ha o que restaurar", pl.get("restauravel") is False,
-                   pl.get("restauravel"))
-            n0 = len(linhas)
-            r = c.post("/api/otimizar/aplicar",
-                       json={"nomes": ["OneDrive", "Vitrea", "python"],
-                             "servicos": "SysMain", "discos": None}).json()
-            checar(u"aplicar fecha so o OneDrive (o Vitrea e o vigia pedidos a "
-                   u"mao sao recusados no modulo)", fechados == [400], fechados)
-            checar(u"  uma linha de log por processo pedido, e a do fim",
-                   len([x for x in linhas[n0:] if u"(PID" in x]) == 4, linhas[n0:])
-            checar(u"  e o resumo oferece Restaurar", r.get("restauravel") is True, r)
-            checar(u"  servico que nao veio em lista nao e tocado",
-                   r.get("servicos_parados") == [], r)
-            pl2 = c.post("/api/otimizar/plano").json()
-            checar(u"o plano seguinte ja oferece Restaurar",
-                   pl2.get("restauravel") is True)
-            n2 = len(linhas)
-            rr = c.post("/api/otimizar/restaurar").json()
-            checar(u"restaurar: o que ja esta aberto nao e aberto de novo, e "
-                   u"o log diz",
-                   rr.get("ok") is True and abertos == []
-                   and any(u"OneDrive já está aberto" in x
-                           for x in linhas[n2:]), (rr, linhas[n2:]))
-            checar(u"  e o registro do Restaurar sai",
-                   c.post("/api/otimizar/plano").json().get("restauravel")
-                   is False)
+            checar(u"  e o relatorio nao fala mais do Otimizar nem de servico",
+                   not any(u"Otimizar" in x or u"servi" in x for x in linhas),
+                   [x for x in linhas if u"Otimizar" in x or u"servi" in x])
+            checar(u"  e uma rota do Otimizar pedida responde que nao existe",
+                   c.post("/api/otimizar/plano").status_code in (404, 405))
             from fastapi import FastAPI
             padroes = _defaults_do_vigia()
             app2 = FastAPI()
@@ -2977,41 +2980,15 @@ _FLUXO_DIAG = u"""
   out.aberta_depois = !document.documentElement.classList.contains('dir-recolhida');
   out.falta_na_tela = /trunk_cavities/.test(txt('cfRel'));
   out.ok_fora_da_tela = !/total_v3/.test(txt('cfRel'));
-  return out;
-"""
-
-_FLUXO_LISTA = u"""
-  document.getElementById('btOtimPlano').click();
-  out.lista_ok = await ate(() => !!document.querySelector('.opt-proc'), 15000);
-  out.caixas = Array.prototype.map.call(document.querySelectorAll('.opt-proc'),
-      function(c){ return [c.value, c.checked]; });
-  out.nunca = /Nunca tocados/.test(txt('limpRel'));
-  return out;
-"""
-
-_FLUXO_APLICAR = u"""
-  window.__conf = null;
-  window.confirm = function(t){ window.__conf = t; return true; };
-  document.getElementById('btOtim').click();
-  out.aplicou = await ate(() => /fechado/.test(txt('limpRel')), 15000);
-  out.confirmou = window.__conf || '';
-  out.tem_restaurar = !!document.getElementById('btRestaurar');
-  return out;
-"""
-
-_FLUXO_RESTAURAR = u"""
-  const b = document.getElementById('btRestaurar');
-  if (b) {
-    b.click();
-    out.restaurou = await ate(() => /reabertos/.test(txt('limpMsg')), 15000);
-    out.msg_rest = txt('limpMsg');
-  }
+  const secao = document.getElementById('ps_limpar');
+  out.botoes = secao ? Array.prototype.map.call(
+      secao.querySelectorAll('button'), function(b){
+        return (b.textContent || '').trim(); }) : null;
   return out;
 """
 
 
-
-def medir_otimizar_no_navegador(prints=None):
+def medir_diagnosticar_no_navegador(prints=None):
     try:
         from playwright.sync_api import sync_playwright
     except Exception:
@@ -3024,11 +3001,11 @@ def medir_otimizar_no_navegador(prints=None):
         f.write(u"# teste\nROOT=\nDEVICE=auto\n")
     velho = os.environ.get("LOCALAPPDATA")
     os.environ["LOCALAPPDATA"] = novo_temp(u"radai_p_lad_")
-    fechados, abertos, linhas = [], [], []
+    linhas = []
     srv = th = None
     fora = {}
     try:
-        with _dublagem_do_limpador(fechados, abertos):
+        with _dublagem_do_limpador():
             app = _app_com_registro(arq, linhas)
             porta, _aviso = porta_de_teste(8799)
             srv, th = _servir(app, porta)
@@ -3046,10 +3023,7 @@ def medir_otimizar_no_navegador(prints=None):
                                              timeout=15000)
                     except Exception:
                         pass
-                    for passo, nome in ((_FLUXO_DIAG, "1_diagnosticar"),
-                                        (_FLUXO_LISTA, "2_otimizar_lista"),
-                                        (_FLUXO_APLICAR, "3_otimizar_feito"),
-                                        (_FLUXO_RESTAURAR, "4_restaurado")):
+                    for passo, nome in ((_FLUXO_DIAG, "1_diagnosticar"),):
                         fora.update(pg.evaluate(
                             u"async () => {" + _AJUDA_JS + passo + u"}") or {})
                         if prints:
@@ -3065,14 +3039,13 @@ def medir_otimizar_no_navegador(prints=None):
             os.environ.pop("LOCALAPPDATA", None)
         else:
             os.environ["LOCALAPPDATA"] = velho
-    fora["fechados"] = fechados
     fora["linhas"] = linhas
     return fora
 
 
-def teste_diagnosticar_e_otimizar_no_navegador():
-    secao(u"config no navegador: Diagnosticar e Otimizar")
-    m = medir_otimizar_no_navegador()
+def teste_diagnosticar_no_navegador():
+    secao(u"config no navegador: Diagnosticar, sem o Otimizar")
+    m = medir_diagnosticar_no_navegador()
     if m is None:
         print(u"  PULADO  sem Playwright ou sem Chromium nesta maquina")
         return
@@ -3088,21 +3061,10 @@ def teste_diagnosticar_e_otimizar_no_navegador():
     checar(u"  e o relatorio foi para o log do vigia",
            any(u"diagnostico: [FALTA]" in x for x in m.get("linhas") or []),
            (m.get("linhas") or [])[:3])
-    cx = dict((v, c) for v, c in m.get("caixas") or [])
-    checar(u"o Otimizar lista antes: OneDrive marcado, Foo desmarcado",
-           m.get("lista_ok") and cx.get("OneDrive") is True
-           and cx.get("Foo") is False, m.get("caixas"))
-    checar(u"  sem o vigia, o cmd dele, o chrome e o Vitrea",
-           not (set(cx) & {"python", "cmd", "chrome", "Vitrea"}), sorted(cx))
-    checar(u"  e diz o que nunca e tocado", m.get("nunca") is True)
-    checar(u"a confirmacao lista o que vai fechar, e so o marcado",
-           u"OneDrive" in (m.get("confirmou") or u"")
-           and u"Foo" not in (m.get("confirmou") or u""), m.get("confirmou"))
-    checar(u"fecha so o marcado (o PID do OneDrive)",
-           m.get("aplicou") is True and m.get("fechados") == [400],
-           m.get("fechados"))
-    checar(u"e oferece Restaurar, que responde", m.get("tem_restaurar") is True
-           and m.get("restaurou") is True, m.get("msg_rest"))
+    checar(u"a secao abre com o Diagnosticar e nao tem o Otimizar (o Otimizar "
+           u"saiu; o registro de casos vem depois, na mesma secao)",
+           (m.get("botoes") or [])[:1] == [u"Diagnosticar"]
+           and u"Otimizar" not in (m.get("botoes") or []), m.get("botoes"))
 
 
 def teste_o_cartao_de_atualizar_da_o_link_permanente():
@@ -3145,7 +3107,7 @@ def teste_o_cartao_de_atualizar_da_o_link_permanente():
 
     def _sobra(texto):
         return [m for m in (u"@BT_INSTALADOR@", u"@AVISO_INSTALADOR@",
-                            u"@URL_VERSOES@") if m in texto]
+                            u"@URL_VERSOES@", u"@BT_ATU_AGORA@") if m in texto]
     checar(u"  e nenhum marcador sobra na pagina servida", not _sobra(t),
            str(_sobra(t)))
     checar(u"  (isca) um marcador que sobrasse seria acusado",
@@ -3164,41 +3126,78 @@ def teste_o_cartao_de_atualizar_da_o_link_permanente():
            u'id="lkInst"' not in t4
            and u'href="https://espelho.hospital.local/radai/versoes"' in t4,
            str(_sobra(t4)))
+    real = RV.para_a_tela
+    try:
+        RV.para_a_tela = lambda: {"estado": "nova", "nova": True,
+                                  "publicada": u"9.9", "aqui": u"8.7",
+                                  "link": link}
+        t5 = _config(gh)
+        RV.para_a_tela = lambda: {"estado": "atual", "nova": False,
+                                  "publicada": u"", "aqui": u"8.7", "link": u""}
+        t6 = _config(gh)
+    finally:
+        RV.para_a_tela = real
+    checar(u"com versao nova, o cartao tem o «Atualizar agora», que chama a "
+           u"atualizacao com um clique", u'id="btAtuAgora"' in t5
+           and u"window.radaiAtualizarAgora()" in t5 and not _sobra(t5),
+           str(_sobra(t5)))
+    checar(u"  e o instalador vira o caminho a mao, em botao secundario",
+           u'class="bt sec" id="lkInst"' in t5)
+    checar(u"  (isca) sem versao nova o «Atualizar agora» nao aparece, e o "
+           u"instalador continua o principal", u'id="btAtuAgora"' not in t6
+           and u'class="bt pri" id="lkInst"' in t6)
+    checar(u"o balao diz que «Atualizar agora» baixa e reabre por ato, e nao "
+           u"que a pessoa baixa e roda o instalador sozinha",
+           u"baixa e roda o instalador quando voc&ecirc; clica" in t5
+           and u"Voc&ecirc; escolhe, baixa e roda" not in t5)
 
 
 def teste_o_primeiro_uso_grava_tps_e_pasta():
-    secao(u"o primeiro uso: o TPS de destino e a pasta das series, no config")
+    secao(u"o primeiro uso: sem a pergunta do TPS, e a pasta favorita opcional")
     import radai_primeiro_uso as PU
     base = novo_temp(u"radai_p_pu_")
     cfg = os.path.join(base, "radai_watcher.config")
     io.open(cfg, "w", encoding="utf-8").write(
-        u"# a pasta do share\nROOT=\n\n# idioma da tela\nIDIOMA=\n")
+        u"# a pasta do share\nROOT=\n\n# idioma da tela\nIDIOMA=\nPASTA_FAVORITA=\n")
     checar(u"sem TPS_DESTINO no arquivo, o primeiro uso nao rodou",
            PU.estado(cfg)["feito"] is False)
-    ok, r = PU.gravar(cfg, u"varian")
-    checar(u"TPS que nao e eclipse nem monaco e recusado",
-           not ok and u"eclipse" in r.get("erro", u""), repr(r))
-    checar(u"  e o arquivo nao muda",
-           u"TPS_DESTINO" not in io.open(cfg, encoding="utf-8").read())
-    ok, r = PU.gravar(cfg, u"Monaco")
+    ok, r = PU.gravar(cfg, u"")
     texto = io.open(cfg, encoding="utf-8").read()
-    checar(u"monaco gravado no arquivo, com os comentarios preservados",
-           ok and u"TPS_DESTINO=monaco" in texto and u"# a pasta do share" in texto,
+    checar(u"«Salvar e continuar» com o campo vazio avanca e grava o padrao "
+           u"Eclipse / Monaco, com os comentarios preservados",
+           ok and u"TPS_DESTINO=eclipse" in texto and u"# a pasta do share" in texto,
            texto)
     checar(u"  e o estado diz que o primeiro uso rodou",
-           PU.estado(cfg)["feito"] is True and PU.estado(cfg)["tps"] == u"monaco")
-    checar(u"  e a pasta em branco nao mexeu no ROOT", u"ROOT=\n" in texto)
+           PU.estado(cfg)["feito"] is True and PU.estado(cfg)["tps"] == u"eclipse")
+    checar(u"  e nao mexe no ROOT nem na favorita",
+           u"ROOT=\n" in texto and u"PASTA_FAVORITA=\n" in texto, texto)
+    io.open(cfg, "w", encoding="utf-8").write(u"TPS_DESTINO=monaco\nPASTA_FAVORITA=\n")
+    ok, r = PU.gravar(cfg, u"", pular=True)
+    checar(u"a estacao que ja escolheu continua com a escolha (o pular nao troca "
+           u"Xio / Focal pelo padrao)",
+           ok and PU.estado(cfg)["tps"] == u"monaco" and r.get("mudou") == [], repr(r))
     pasta = os.path.join(base, u"share")
     os.makedirs(pasta)
-    ok, r = PU.gravar(cfg, u"eclipse", pasta)
-    checar(u"pasta que existe, le e escreve: grava o ROOT e o TPS",
-           ok and PU.estado(cfg)["root"] == pasta
-           and PU.estado(cfg)["tps"] == u"eclipse", repr(r))
-    ok, r = PU.gravar(cfg, u"monaco", os.path.join(base, u"nao_existe"))
-    checar(u"pasta que nao existe: recusa, com o laudo",
-           not ok and (r.get("laudo") or {}).get("existe") is False, repr(r))
-    checar(u"  e nada muda no arquivo (nem o TPS)",
-           PU.estado(cfg)["tps"] == u"eclipse")
+    ok, r = PU.gravar(cfg, pasta)
+    checar(u"pasta que existe e le: vira a PASTA_FAVORITA, e o ROOT nao entra",
+           ok and PU.estado(cfg)["pasta"] == pasta
+           and u"ROOT" not in io.open(cfg, encoding="utf-8").read(), repr(r))
+    ok, r = PU.gravar(cfg, os.path.join(base, u"nao_existe"))
+    checar(u"pasta que nao existe: recusa com o codigo do laudo, e nada muda",
+           not ok and (r.get("laudo") or {}).get("codigo") == u"nao_existe"
+           and PU.estado(cfg)["pasta"] == pasta, repr(r))
+    ok, r = PU.gravar(cfg, u"", pular=True)
+    checar(u"«Pular por agora» nao apaga a favorita que ja existe",
+           ok and PU.estado(cfg)["pasta"] == pasta, repr(r))
+    ok, r = PU.gravar(cfg, u"")
+    checar(u"«Salvar e continuar» com o campo esvaziado apaga a favorita",
+           ok and PU.estado(cfg)["pasta"] == u"", repr(r))
+    linha = PU.linha_do_registro({"tps": u"eclipse", "pasta": pasta,
+                                  "mudou": ["PASTA_FAVORITA", "TPS_DESTINO"]})
+    checar(u"a linha do log diz o TPS gravado e nao leva o caminho da favorita "
+           u"(a pasta pode ter nome de paciente)",
+           u"TPS_DESTINO=eclipse (Eclipse / Monaco" in linha and pasta not in linha
+           and u"share" not in linha, linha)
 
     try:
         from fastapi import FastAPI
@@ -3206,23 +3205,45 @@ def teste_o_primeiro_uso_grava_tps_e_pasta():
     except Exception as e:
         checar(u"cliente de teste disponivel", False, u"PULADO -- %s" % e)
         return
+    io.open(cfg, "w", encoding="utf-8").write(u"# x\nROOT=\n")
     app = FastAPI()
     log, rec = [], []
     PU.montar(app, cfg, registrar=log.append, recarregar=lambda: rec.append(1))
     c = TestClient(app, raise_server_exceptions=False)
-    checar(u"GET /api/primeiro-uso diz o que esta no arquivo",
-           c.get(u"/api/primeiro-uso").json().get("tps") == u"eclipse")
-    r = c.post(u"/api/primeiro-uso", json={u"tps": u"x"})
-    checar(u"POST com TPS invalido: 400", r.status_code == 400, r.status_code)
-    r = c.post(u"/api/primeiro-uso", json={u"tps": u"monaco"})
-    checar(u"POST com monaco: grava, registra no log e pede a recarga",
-           r.status_code == 200 and PU.estado(cfg)["tps"] == u"monaco"
-           and any(u"primeiro uso: TPS_DESTINO=monaco" in l for l in log)
+    checar(u"GET /api/primeiro-uso diz que o primeiro uso nao rodou",
+           c.get(u"/api/primeiro-uso").json().get("feito") is False)
+    r = c.post(u"/api/primeiro-uso", json={u"pasta": os.path.join(base, u"nao_existe")})
+    checar(u"POST com pasta que nao existe: 400, com o laudo, e o TPS nao e gravado",
+           r.status_code == 400 and (r.json().get("laudo") or {}).get("codigo")
+           == u"nao_existe" and PU.estado(cfg)["feito"] is False, r.status_code)
+    r = c.post(u"/api/primeiro-uso", json={u"pular": True})
+    checar(u"POST de pular: grava o padrao, registra no log e pede a recarga",
+           r.status_code == 200 and PU.estado(cfg)["tps"] == u"eclipse"
+           and any(u"primeiro uso: TPS_DESTINO=eclipse" in l for l in log)
            and rec == [1], u"%s %r %r" % (r.status_code, log, rec))
+    r = c.post(u"/api/primeiro-uso", json={u"pular": u"sim"})
+    checar(u"  e so o true literal pula (texto vira o salvar com o campo vazio)",
+           r.status_code == 200 and r.json().get("pulou") is False, r.text)
     tela = c.get(u"/primeiro-uso").text
-    checar(u"a tela do primeiro uso serve as duas escolhas e o salvar",
-           all(m in tela for m in (u'data-tps="eclipse"', u'data-tps="monaco"',
-                                   u'id="pu_root"', u'id="pu_salvar"')))
+    checar(u"a tela do primeiro uso nao pergunta mais o TPS: a pasta, o pular e o "
+           u"salvar", all(m in tela for m in (u'id="pu_pasta"', u'id="pu_pular"',
+                                               u'id="pu_salvar"'))
+           and u"data-tps=" not in tela and u'id="pu_root"' not in tela)
+    checar(u"  o campo da favorita tem a estrela da casca e o Procurar abre o "
+           u"explorador da casca (com o Mapear nova unidade de rede)",
+           u'data-ui-fav="pu_pasta"' in tela and u"window.uiExplorador({" in tela
+           and u"Mapear nova unidade de rede" in tela
+           and u"fetch('/api/pastas'" not in tela, u"")
+    import radai_ui as _ui
+    _real = _ui.botao_favorita
+    try:
+        _ui.botao_favorita = lambda campo: u""
+        sem_estrela = PU.pagina()
+    finally:
+        _ui.botao_favorita = _real
+    checar(u"  (isca) com a casca sem a estrela, a pagina perde a estrela e a "
+           u"checagem acusa", u'data-ui-fav="pu_pasta"' not in sem_estrela
+           and u'id="pu_pasta"' in sem_estrela)
 
     wat = io.open(_componentes.fonte("app/radai_watcher.py"), encoding="utf-8").read()
     import check_project as _cp
@@ -3234,8 +3255,10 @@ def teste_o_primeiro_uso_grava_tps_e_pasta():
            and c3["defaults"].get("TPS_DESTINO") == u"")
     checar(u"a tela de config nao mostra a chave como caixa de texto",
            u"TPS_DESTINO" in radai_panel.FORA_DA_TELA)
-    checar(u"  e oferece refazer o primeiro uso na secao Geral",
-           u'href="/primeiro-uso?de=/config"' in radai_panel.PAGINA_CONFIG)
+    checar(u"  e oferece «Configurar pasta favorita» na secao Geral (o refazer "
+           u"saiu)", u'href="/primeiro-uso?de=/config"' in radai_panel.PAGINA_CONFIG
+           and u"Configurar pasta favorita" in radai_panel.PAGINA_CONFIG
+           and u"Refazer o primeiro uso" not in radai_panel.PAGINA_CONFIG)
     import radai_consent as _cs
     checar(u"o aceite leva ao primeiro uso quando ele nao rodou",
            u"'/primeiro-uso?de=' + encodeURIComponent(destino)" in _cs.PAGINA_ACEITE
@@ -3288,9 +3311,9 @@ def teste_a_porta_leva_ao_primeiro_uso_sem_tps():
            c.get(u"/config", follow_redirects=False).status_code == 200)
     checar(u"  a API nao e desviada",
            c.get(u"/api/primeiro-uso", follow_redirects=False).status_code == 200)
-    PU.gravar(cfg, u"eclipse")
+    PU.gravar(cfg, u"", pular=True)
     r = c.get(u"/", follow_redirects=False)
-    checar(u"com o TPS gravado, a porta abre",
+    checar(u"depois do pular (que grava o padrao), a porta abre",
            r.status_code == 200 and r.text == u"PORTA", r.status_code)
 
 
@@ -3305,10 +3328,13 @@ FRASES_DO_JS_DA_CASCA = (
     u"pasta recusada",
     u"A pasta não existe ou não está acessível desta máquina.",
     u"Sem permissão para ler esta pasta.",
-    u"Dá para ler, mas não para escrever nesta pasta. O vigia grava o "
-    u"RTSTRUCT e os marcadores _RadAI na própria pasta da série: sem escrita, "
-    u"nenhuma série é processada. Fale com o TI.",
     u"Nada foi gravado: confira a pasta acima.",
+    u"Gravado: vale para o próximo RTSTRUCT.",
+    u"Nada foi gravado: confira as linhas marcadas.",
+    u"Gravado: vale para a próxima série.",
+    u"Nada foi gravado: confira os campos marcados.",
+    u"Importado. Clique em Reiniciar agora para o vigia reler o arquivo.",
+    u"O arquivo foi para a pasta de downloads do navegador.",
 )
 
 
@@ -3333,8 +3359,9 @@ def teste_as_frases_do_js_da_casca_tem_os_doze_idiomas():
     checar(u"a nota do aviso de conexao fecha antes do detalhe (no de texto proprio)",
            u"Configurações › Diagnóstico.</span>'" in _ui.JS)
     fonte = io.open(_componentes.fonte("app/radai_primeiro_uso.py"), encoding="utf-8").read()
-    checar(u"as mensagens do servidor do primeiro uso sao as do dicionario",
-           u'u"escolha eclipse ou monaco"' in fonte and u'u"pasta recusada"' in fonte)
+    cfg_src = io.open(_componentes.fonte("app/radai_config.py"), encoding="utf-8").read()
+    checar(u"as mensagens do servidor do primeiro uso e do anel sao as do dicionario",
+           u'u"pasta recusada"' in fonte and u'u"escolha eclipse ou monaco"' in cfg_src)
 
 
 def _primeiro_uso_no_navegador(pagina=None):
@@ -3364,23 +3391,26 @@ def _primeiro_uso_no_navegador(pagina=None):
                 pg.goto(u"http://127.0.0.1:%d/primeiro-uso?de=/config" % porta,
                         wait_until="networkidle")
                 medida["salvar_antes"] = pg.locator(u"#pu_salvar").is_disabled()
-                medida["passo3_antes"] = pg.locator(u"#pu_passo3").get_attribute(u"class")
-                pg.locator(u'[data-tps="monaco"]').click()
-                medida["salvar_depois"] = pg.locator(u"#pu_salvar").is_disabled()
-                medida["passo3_depois"] = pg.locator(u"#pu_passo3").get_attribute(u"class")
-                medida["passo3_cor"] = pg.evaluate(
-                    u"getComputedStyle(document.querySelector('#pu_passo3 .n'))"
-                    u".backgroundColor")
-                medida["balao_fechado"] = pg.evaluate(
-                    u"(function(){var b=document.querySelector('h2 .ui-ajuda .ui-balao');"
-                    u"return b?getComputedStyle(b).visibility:null})()")
-                pg.locator(u"#pu_procurar").click()
-                pg.wait_for_selector(u".pu-lista.on .pu-pasta", timeout=5000)
-                medida["lista"] = pg.locator(u".pu-lista.on .pu-pasta").count()
-                if not medida["salvar_depois"]:
-                    pg.locator(u"#pu_salvar").click()
+                medida["pular_antes"] = pg.locator(u"#pu_pular").is_disabled()
+                medida["botoes_tps"] = pg.locator(u"[data-tps]").count()
+                medida["passos"] = pg.evaluate(
+                    u"Array.prototype.map.call(document.querySelectorAll('.pu-passos li'),"
+                    u" function(l){ return l.className })")
+                medida["procurar_visivel"] = pg.locator(u"#pu_procurar").is_visible()
+                if medida["procurar_visivel"]:
+                    pg.locator(u"#pu_procurar").click()
+                    try:
+                        pg.wait_for_selector(u".ui-fp-modal", state="visible",
+                                             timeout=5000)
+                        medida["explorador"] = True
+                    except Exception:
+                        medida["explorador"] = False
+                    pg.keyboard.press(u"Escape")
+                    pg.wait_for_timeout(400)
+                pg.locator(u"#pu_pular").click()
                 try:
-                    pg.wait_for_url(u"**/config", timeout=6000)
+                    from urllib.parse import urlsplit as _us
+                    pg.wait_for_url(lambda u: _us(u).path == u"/config", timeout=6000)
                     medida["foi_para"] = pg.url
                 except Exception:
                     medida["foi_para"] = pg.url
@@ -3429,19 +3459,14 @@ def _erro_da_pasta_em_ingles(pagina=None):
                 pg.add_init_script(u"try{localStorage.setItem('radai_idioma','en')}catch(e){}")
                 pg.goto(u"http://127.0.0.1:%d/primeiro-uso?de=/config" % porta,
                         wait_until="networkidle")
-                pg.fill(u"#pu_root", falta)
-                pg.locator(u"#pu_conferir").click()
+                pg.fill(u"#pu_pasta", falta)
+                pg.locator(u"#pu_salvar").click()
                 pg.wait_for_function(
-                    u"document.getElementById('pu_laudo').innerText.trim().length>0",
+                    u"document.getElementById('pu_msg').innerText.trim().length>0"
+                    u" && document.getElementById('pu_laudo').innerText.trim().length>0",
                     timeout=6000)
                 pg.wait_for_timeout(400)
                 m["laudo"] = pg.locator(u"#pu_laudo").inner_text()
-                pg.locator(u'[data-tps="monaco"]').click()
-                pg.locator(u"#pu_salvar").click()
-                pg.wait_for_function(
-                    u"document.getElementById('pu_msg').innerText.trim().length>0",
-                    timeout=6000)
-                pg.wait_for_timeout(400)
                 m["msg"] = pg.locator(u"#pu_msg").inner_text()
                 m["cor_msg"] = pg.evaluate(
                     u"getComputedStyle(document.getElementById('pu_msg')).color")
@@ -3461,8 +3486,8 @@ def _erro_da_pasta_em_ingles(pagina=None):
 def teste_o_erro_da_pasta_no_primeiro_uso_se_traduz():
     secao(u"o primeiro uso: o erro da pasta sai pela chave do codigo, traduzido")
     import radai_primeiro_uso as PU
-    laudo = radai_config.validar_pasta(os.path.join(novo_temp(), u"nao_existe"))
-    checar(u"validar_pasta devolve o codigo do erro (nao_existe)",
+    laudo = radai_config.validar_favorita(os.path.join(novo_temp(), u"nao_existe"))
+    checar(u"validar_favorita devolve o codigo do erro (nao_existe)",
            laudo.get("codigo") == u"nao_existe", repr(laudo))
     m = _erro_da_pasta_em_ingles()
     if m is None:
@@ -3478,49 +3503,45 @@ def teste_o_erro_da_pasta_no_primeiro_uso_se_traduz():
     isca = PU.PAGINA.replace(u"ERRO_DA_PASTA[l.codigo] ||", u"l.erro ||")
     checar(u"  (isca) a troca existe no fonte", isca != PU.PAGINA)
     mi = _erro_da_pasta_em_ingles(isca) or {}
-    checar(u"  (isca) com o erro cru do servidor, o laudo fica em portugues",
-           u"nao existe" in mi.get("laudo", u""), repr(mi))
+    checar(u"  (isca) sem a frase pelo codigo, o laudo deixa de dizer que a pasta "
+           u"nao existe", mi.get("laudo") and u"does not exist" not in mi.get("laudo", u""),
+           repr(mi))
 
 
 def teste_o_primeiro_uso_no_navegador():
-    secao(u"o primeiro uso no navegador: escolher o Monaco e salvar")
+    secao(u"o primeiro uso no navegador: sem o TPS, a favorita opcional e o pular")
     m = _primeiro_uso_no_navegador()
     if m is None:
         print(u"    PULADO o navegador: sem Playwright ou sem Chromium")
         return
-    checar(u"o salvar nasce desligado (falta escolher o TPS)",
-           m.get("salvar_antes") is True)
-    checar(u"  e liga ao escolher o Monaco", m.get("salvar_depois") is False)
-    checar(u"a bolinha 3 (TPS de destino) nasce por fazer, e fica verde ao escolher",
-           m.get("passo3_antes") == u"agora" and m.get("passo3_depois") == u"feito"
-           and m.get("passo3_cor") in (u"rgb(91, 197, 127)", u"rgb(19, 122, 57)"),
-           repr(m))
-    checar(u"  e a explicacao dos dois aneis fica fechada no «?» ate alguem pedir",
-           m.get("balao_fechado") == u"hidden", repr(m))
-    checar(u"o Procurar lista as unidades pelo servidor", m.get("lista", 0) >= 1)
-    checar(u"salvar grava TPS_DESTINO=monaco no config",
-           u"TPS_DESTINO=monaco" in m.get("arquivo", u""), m.get("arquivo"))
+    checar(u"o salvar e o pular nascem ligados (a pasta e opcional)",
+           m.get("salvar_antes") is False and m.get("pular_antes") is False, repr(m))
+    checar(u"  e nao ha mais botao de TPS na tela", m.get("botoes_tps") == 0, repr(m))
+    checar(u"os passos: Termos feito, Pasta favorita agora",
+           m.get("passos") == [u"feito", u"agora"], repr(m.get("passos")))
+    checar(u"o Procurar abre o explorador da casca (com a estrela e o mapear dela)",
+           m.get("procurar_visivel") is True and m.get("explorador") is True, repr(m))
+    checar(u"«Pular por agora» grava o padrao TPS_DESTINO=eclipse e nenhuma pasta",
+           u"TPS_DESTINO=eclipse" in m.get("arquivo", u"")
+           and u"PASTA_FAVORITA" not in m.get("arquivo", u""), m.get("arquivo"))
+    from urllib.parse import urlsplit as _us
     checar(u"  e volta para de onde veio (/config)",
-           m.get("foi_para", u"").endswith(u"/config"), m.get("foi_para"))
+           _us(m.get("foi_para", u"")).path == u"/config", m.get("foi_para"))
     import radai_primeiro_uso as PU
     isca = PU.PAGINA.replace(
-        u"bts[i].addEventListener('click', function(){ escolher(this.getAttribute('data-tps')) });",
+        u"pular.addEventListener('click', function(){ enviar({pular: true}) });",
         u"0;")
     checar(u"  (isca) a troca existe no fonte", isca != PU.PAGINA)
     mi = _primeiro_uso_no_navegador(isca)
-    checar(u"  (isca) sem o clique ligado ao botao, o salvar nao liga e nada grava",
-           mi is not None and mi.get("salvar_depois") is True
-           and u"TPS_DESTINO" not in mi.get("arquivo", u""), repr(mi))
-    checar(u"  (isca) e a bolinha 3 continua por fazer",
-           mi is not None and mi.get("passo3_depois") == u"agora", repr(mi))
+    checar(u"  (isca) sem o clique ligado ao pular, nada grava e a tela nao sai",
+           mi is not None and u"TPS_DESTINO" not in mi.get("arquivo", u"")
+           and _us(mi.get("foi_para", u"")).path == u"/primeiro-uso", repr(mi))
     import re as _re
     corpo = _re.sub(u"(?s)<script.*?</script>", u"", PU.PAGINA)
-    h2 = _re.search(u'(?s)<h2><span id="pu_t3"[^>]*>TPS de destino</span>(.*?)</h2>', corpo)
-    frase = u"o furo é ligado à borda por uma linha divisória estreita"
-    checar(u"a explicacao da linha divisoria mora no «?» ao lado de «TPS de destino»",
-           bool(h2) and u"ui-ajuda" in h2.group(1) and frase in h2.group(1),
-           corpo[:200])
-    checar(u"  e nao aparece mais solta na secao", corpo.count(frase) == 1)
+    checar(u"a tela diz onde se ajusta o anel (Xio / Focal em Configuracoes > Geral)",
+           u"Usa Xio / Focal? Ajuste em Configurações, na seção Geral." in corpo)
+    checar(u"  e diz que a favorita nao muda a pasta que o vigia varre",
+           u"Ela não muda a pasta que o vigia varre." in corpo)
 
 
 def _canto_no_navegador(largura=1280):
@@ -3552,7 +3573,7 @@ def _canto_no_navegador(largura=1280):
 
     @app.get(u"/api/primeiro-uso")
     def _estado_pu():
-        return {u"feito": False, u"tps": u"", u"root": u""}
+        return {u"feito": False, u"tps": u"", u"pasta": u""}
 
     @app.get(u"/api/aceite")
     def _estado_ac():
@@ -3560,7 +3581,7 @@ def _canto_no_navegador(largura=1280):
 
     medir = u"""() => {
       var c = document.querySelector('.ac-lang'), r = c ? c.getBoundingClientRect() : null;
-      var rot = document.querySelector('.ac .rot');
+      var rot = document.querySelector('.ac .rot') || document.querySelector('.ac h1');
       return {
         bandeiras: document.querySelectorAll('.ac-lang .radai-lang .rl-op .rl-band svg').length,
         temas: document.querySelectorAll('.ac-lang .ui-seg button[role=radio]').length,
@@ -3608,12 +3629,14 @@ def _canto_no_navegador(largura=1280):
 
 
 def teste_os_botoes_de_anel_e_o_canto():
-    secao(u"o primeiro uso: os dois aneis com o nome novo, e o canto com idioma e tema")
+    secao(u"os dois aneis em Configuracoes > Geral, e o canto do primeiro uso com idioma e tema")
     import radai_primeiro_uso as PU
+    import radai_config_estacao as CE
     import radai_consent as CS
     import radai_dicom as D
     import re as _re
-    corpo = _re.sub(u"(?s)<script.*?</script>", u"", PU.PAGINA)
+    corpo = _re.sub(u"(?s)<script.*?</script>", u"", CE.GERAL)
+    checar(u"os dois aneis sairam do primeiro uso", u"data-tps=" not in PU.PAGINA)
 
     def nomes_batem(pagina, rotulos):
         for v in radai_config.TPS_VALIDOS:
@@ -3634,7 +3657,8 @@ def teste_os_botoes_de_anel_e_o_canto():
     checar(u"os nomes antigos sairam da tela (Varian, Elekta, «Com o Monaco»)",
            u"<span>Varian</span>" not in corpo and u"<span>Elekta</span>" not in corpo
            and u"Com o Monaco" not in corpo)
-    balao = _re.search(u'(?s)<span class="ui-balao">(.*?)</span></span></h2>', corpo)
+    balao = _re.search(u'(?s)id="an_rot".*?<span class="ui-balao">(.*?)</span></span></div>',
+                       corpo)
     balao = balao.group(1) if balao else u""
     checar(u"o «?» explica os dois", u"<b>Eclipse / Monaco</b>" in balao
            and u"<b>Xio / Focal</b>" in balao, balao[:120])
@@ -3657,9 +3681,9 @@ def teste_os_botoes_de_anel_e_o_canto():
            not sintaxe_confere(D.sintaxe_de_saida, u"<p>Com Xio / Focal, o que o "
                                u"DicomBridge exporta sai também em Implicit VR "
                                u"Little Endian.</p>"))
-    linha = PU.linha_do_registro({u"tps": u"monaco", u"root": u""})
-    checar(u"o registro do primeiro uso diz o valor e o nome da tela",
-           u"TPS_DESTINO=monaco (Xio / Focal)" in linha, linha)
+    linha = PU.linha_do_registro({u"tps": u"eclipse", u"mudou": [u"TPS_DESTINO"]})
+    checar(u"o registro do primeiro uso diz o valor padrao e o nome da tela",
+           u"TPS_DESTINO=eclipse (Eclipse / Monaco" in linha, linha)
     checar(u"o canto entra so ao servir: o texto selado do aceite nao muda",
            u"data-ui-tema" not in CS.PAGINA_ACEITE
            and PU.ANCORA_DO_CANTO in CS.PAGINA_ACEITE)
@@ -3788,8 +3812,8 @@ def main():
               teste_a_linha_clinica_do_contourlab_no_rodape,
               teste_o_cartao_de_atualizar_da_o_link_permanente,
               teste_config_no_navegador,
-              teste_as_rotas_de_diagnosticar_e_otimizar,
-              teste_diagnosticar_e_otimizar_no_navegador,
+              teste_as_rotas_de_diagnosticar,
+              teste_diagnosticar_no_navegador,
               teste_landing_no_ar, teste_tela_de_config_no_ar,
               teste_a_tela_do_vigia_fala_a_lingua_da_rota,
               teste_o_vigia_grava_o_root_pela_pagina,

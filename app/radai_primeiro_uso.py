@@ -6,20 +6,32 @@ ROTA_API = "/api/primeiro-uso"
 PORTAS = ("/", "/suite")
 
 
+def _favorita(valores):
+    return (valores.get("PASTA_FAVORITA") or u"").split("#")[0].strip().strip('"')
+
+
 def estado(caminho):
     _t, valores = radai_config.ler_arquivo(caminho)
     tps = radai_config.tps_canonico(valores.get("TPS_DESTINO", u""))
-    root = (valores.get("ROOT") or u"").split("#")[0].strip().strip('"')
-    return {"feito": bool(tps), "tps": tps, "root": root,
+    return {"feito": bool(tps), "tps": tps, "pasta": _favorita(valores),
             "rotulo": radai_config.rotulo_do_tps(tps),
             "tps_validos": list(radai_config.TPS_VALIDOS)}
 
 
 def linha_do_registro(r):
-    return u"primeiro uso: TPS_DESTINO=%s (%s)%s" % (
-        r["tps"], radai_config.rotulo_do_tps(r["tps"]),
-        (u", ROOT=%s (existe, le e escreve)" % r["root"])
-        if r["root"] else u", ROOT sem mudanca")
+    mudou = r.get("mudou") or ()
+    partes = []
+    if "TPS_DESTINO" in mudou:
+        partes.append(u"TPS_DESTINO=%s (%s, o padrao; o anel se ajusta em "
+                      u"Configuracoes > Geral)"
+                      % (r["tps"], radai_config.rotulo_do_tps(r["tps"])))
+    if "PASTA_FAVORITA" in mudou:
+        partes.append(u"pasta favorita gravada" if r.get("pasta")
+                      else u"pasta favorita apagada")
+    if not partes:
+        partes.append(u"pulado, sem mudanca" if r.get("pulou")
+                      else u"sem mudanca")
+    return u"primeiro uso: " + u", ".join(partes)
 
 
 ANCORA_DO_CANTO = u'<div class="ac-lang"><span data-radai-idiomas></span></div>'
@@ -37,25 +49,35 @@ def com_canto(pagina):
     return pagina.replace(ANCORA_DO_CANTO, CANTO, 1)
 
 
-def gravar(caminho, tps, root=u"", modelo=u"", validar=None):
-    validar = validar or radai_config.validar_pasta
-    t = radai_config.tps_canonico(tps)
-    if not t:
-        return False, {"ok": False, "erro": u"escolha eclipse ou monaco"}
-    mudancas = {"TPS_DESTINO": t}
-    root = str(root or u"").strip().strip('"')
+def gravar(caminho, pasta=u"", modelo=u"", validar=None, pular=False):
+    validar = validar or radai_config.validar_favorita
+    _t, valores = radai_config.ler_arquivo(caminho)
+    mudancas = {}
+    tps = radai_config.tps_canonico(valores.get("TPS_DESTINO", u""))
+    if not tps:
+        tps = radai_config.TPS_PADRAO
+        mudancas["TPS_DESTINO"] = tps
+    pasta = u"%s" % (pasta or u"")
+    pasta = pasta.strip().strip('"')
+    atual = _favorita(valores)
     laudo = None
-    if root:
-        laudo = validar(root)
-        if not (laudo.get("existe") and laudo.get("leitura")
-                and laudo.get("escrita")):
-            return False, {"ok": False, "laudo": laudo,
-                           "erro": laudo.get("erro") or u"pasta recusada"}
-        mudancas["ROOT"] = root
-    ok, erro = radai_config.escrever(caminho, mudancas, modelo=modelo)
-    if not ok:
-        return False, {"ok": False, "erro": erro}
-    return True, {"ok": True, "tps": t, "root": root, "laudo": laudo}
+    if not pular:
+        if pasta:
+            laudo = validar(pasta)
+            if not (laudo.get("existe") and laudo.get("leitura")):
+                return False, {"ok": False, "laudo": laudo,
+                               "erro": u"pasta recusada"}
+            if pasta != atual:
+                mudancas["PASTA_FAVORITA"] = pasta
+        elif atual:
+            mudancas["PASTA_FAVORITA"] = u""
+    if mudancas:
+        ok, erro = radai_config.escrever(caminho, mudancas, modelo=modelo)
+        if not ok:
+            return False, {"ok": False, "erro": erro}
+    final = pasta if "PASTA_FAVORITA" in mudancas else atual
+    return True, {"ok": True, "tps": tps, "pasta": final, "pulou": bool(pular),
+                  "mudou": sorted(mudancas), "laudo": laudo}
 
 
 CSS = u"""
@@ -71,37 +93,32 @@ CSS = u"""
 .pu-passos .agora .n{border-color:var(--accent,#4DA3FF);color:var(--accent,#4DA3FF)}
 .pu-cx{margin:22px 0 0;padding:16px 18px;border-radius:var(--r-lg,8px);
  background:var(--panel,#0c1322);border:1px solid var(--line,#1e293b)}
-.pu-cx h2{margin:0;font:600 15px/1.3 var(--font-display,inherit)}
+.pu-cx h2{display:flex;align-items:center;justify-content:space-between;gap:12px;
+ margin:0;font:600 15px/1.3 var(--font-display,inherit)}
 .pu-cx p{margin:6px 0 0;font-size:12.5px;line-height:1.6;color:var(--text-muted,#a3b1c6)}
-.pu-ops{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 0}
-.pu-op{flex:1 1 180px;text-align:start;padding:11px 13px;border-radius:var(--r-md,6px);
- border:1px solid var(--line-strong,#2a3a55);background:var(--panel-2,#0f1729);
- color:var(--text,#e6edf7);font:inherit;cursor:pointer}
-.pu-op b{display:block;font-size:14px}
-.pu-op span{display:block;font-size:11.5px;color:var(--text-dim,#72829b);margin-top:2px}
-.pu-op[aria-pressed="true"]{border-color:var(--accent,#4DA3FF);
- box-shadow:inset 0 0 0 1px var(--accent,#4DA3FF)}
-.pu-op:focus-visible,.pu-bt:focus-visible,.pu-pasta:focus-visible{
- outline:2px solid var(--accent,#4DA3FF);outline-offset:2px}
-.pu-linha{display:flex;gap:8px;margin:12px 0 0;flex-wrap:wrap;align-items:stretch}
+.pu-tag{flex:0 0 auto;padding:2px 9px;border-radius:var(--r-pill,999px);
+ border:1px solid var(--line-strong,#2a3a55);font:500 11px/1.5 var(--font-display,inherit);
+ color:var(--text-muted,#a3b1c6)}
+.pu-linha{display:flex;gap:8px;margin:14px 0 0;flex-wrap:wrap;align-items:stretch}
 .ac .pu-linha input{flex:1 1 260px;min-width:0;margin:0;padding:9px 12px;border-radius:var(--r-md,6px);
  border:1px solid var(--line-strong,#2a3a55);background:var(--panel-2,#0f1729);
  color:var(--text,#e6edf7);font:13px var(--font-mono,monospace)}
+.ac .pu-linha input::placeholder{color:var(--text-dim,#72829b);font-family:var(--font-display,inherit)}
 .pu-bt{padding:9px 14px;border-radius:var(--r-md,6px);border:1px solid var(--line-strong,#2a3a55);
  background:var(--panel-2,#0f1729);color:var(--text,#e6edf7);font:inherit;font-size:13px;
  cursor:pointer}
+.pu-bt:hover{border-color:var(--accent-line,#2a3d57)}
+.pu-bt:focus-visible,.ac .pu-linha input:focus-visible{outline:2px solid var(--accent,#4DA3FF);outline-offset:2px}
+.ac .pu-linha .ui-fav{flex:0 0 auto;margin:0}
 .pu-laudo{margin:10px 0 0;font-size:12.5px;min-height:18px}
 .pu-laudo.ok{color:var(--success,#5BC57F)}
 .pu-laudo.ruim,.ac .msg.ruim{color:var(--perigo,#E96A5C)}
 .pu-det{display:block;margin-top:3px;font:11.5px var(--font-mono,monospace);
  color:var(--text-dim,#72829b);overflow-wrap:anywhere}
-.pu-lista{display:none;margin:10px 0 0;max-height:260px;overflow:auto;
- border:1px solid var(--line,#1e293b);border-radius:var(--r-md,6px)}
-.pu-lista.on{display:block}
-.pu-pasta{display:block;width:100%;text-align:start;padding:7px 11px;border:0;
- border-bottom:1px solid var(--line,#1e293b);background:transparent;
- color:var(--text,#e6edf7);font:12.5px var(--font-mono,monospace);cursor:pointer}
-.pu-pasta:hover{background:var(--panel-2,#0f1729)}
+.pu-anel{margin:14px 0 0;font-size:12px;line-height:1.55;color:var(--text-muted,#a3b1c6)}
+.pu-acoes{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;
+ margin:20px 0 0;padding-top:16px;border-top:1px solid var(--line,#1e293b)}
+.pu-acoes .bt{margin:0}
 """
 
 PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
@@ -109,44 +126,35 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>@CSS@</style></head><body><div class="ac">
 <div class="ac-lang"><span data-radai-idiomas></span></div>
-<div class="rot" data-radai-frase>Primeiro uso</div>
-<h1 data-radai-frase>Configure esta estação</h1>
-<p class="pp" data-radai-frase>Duas escolhas, uma vez só. Elas ficam gravadas no arquivo de configuração desta estação, e nas próximas aberturas o programa já sabe.</p>
+<h1 data-radai-frase>Seu ponto de partida</h1>
+<p class="pp" data-radai-frase>A pasta favorita é onde os seletores de pasta abrem. Ela não muda a pasta que o vigia varre.</p>
 
 <ol class="pu-passos">
- <li class="feito"><span class="n">1</span><span data-radai-frase>Idioma da interface</span></li>
- <li class="feito"><span class="n">2</span><span data-radai-frase>Termos de uso</span></li>
- <li class="agora" id="pu_passo3"><span class="n">3</span><span data-radai-frase>TPS de destino</span></li>
- <li class="agora"><span class="n">4</span><span data-radai-frase>Pasta das séries</span></li>
+ <li class="feito"><span class="n">1</span><span data-radai-frase>Termos de uso</span></li>
+ <li class="agora"><span class="n">2</span><span data-radai-frase>Pasta favorita</span></li>
 </ol>
 
-<section class="pu-cx" aria-labelledby="pu_t3">
- <h2><span id="pu_t3" data-radai-frase>TPS de destino</span><span class="ui-ajuda" tabindex="0" aria-label="ajuda">?<span class="ui-balao"><p><b>Eclipse / Monaco</b>: o furo de um contorno em anel sai como um segundo contorno, dentro do primeiro.</p><p><b>Xio / Focal</b>: o furo é ligado à borda por uma linha divisória estreita, para o sistema que não lê o furo como contorno separado.</p><p>Nos dois, o RTSTRUCT e o que o DicomBridge exporta saem em Implicit VR Little Endian, a sintaxe de transferência padrão do DICOM.</p></span></span></h2>
- <p data-radai-frase>Para qual sistema de planejamento esta estação entrega os RTSTRUCT?</p>
- <div class="pu-ops" role="group" aria-labelledby="pu_t3">
-  <button class="pu-op" type="button" data-tps="eclipse" aria-pressed="false"><b translate="no">Eclipse / Monaco</b><span data-radai-frase>Anel sem linha divisória</span></button>
-  <button class="pu-op" type="button" data-tps="monaco" aria-pressed="false"><b translate="no">Xio / Focal</b><span data-radai-frase>Versões anteriores, ou outros que precisem de linha divisória nos anéis</span></button>
- </div>
-</section>
-
-<section class="pu-cx" aria-labelledby="pu_t4">
- <h2 id="pu_t4" data-radai-frase>Pasta das séries</h2>
- <p data-radai-frase>A pasta que o vigia varre à noite, com as pastas dos pacientes. Pode deixar em branco e escolher depois, no Overnight Run.</p>
+<section class="pu-cx" aria-labelledby="pu_t">
+ <h2><span id="pu_t" data-radai-frase>Pasta favorita</span><span class="pu-tag" data-radai-frase>Opcional</span></h2>
+ <p data-radai-frase>Você pode escolher agora ou continuar e configurar depois.</p>
  <div class="pu-linha">
-  <input id="pu_root" type="text" spellcheck="false" autocomplete="off" aria-labelledby="pu_t4">
+  <input id="pu_pasta" type="text" spellcheck="false" autocomplete="off" aria-labelledby="pu_t" placeholder="Nenhuma pasta selecionada">
+  @FAV@
   <button class="pu-bt" type="button" id="pu_procurar" data-radai-frase>Procurar…</button>
-  <button class="pu-bt" type="button" id="pu_conferir" data-radai-frase>Conferir a pasta</button>
  </div>
- <div class="pu-lista" id="pu_lista"></div>
  <div class="pu-laudo" id="pu_laudo" aria-live="polite"></div>
 </section>
 
-<div><button class="bt" id="pu_salvar" type="button" disabled data-radai-frase>Salvar e continuar</button></div>
+<p class="pu-anel" data-radai-frase>Os contornos em anel saem no padrão Eclipse / Monaco. Usa Xio / Focal? Ajuste em Configurações, na seção Geral.</p>
+
+<div class="pu-acoes">
+ <button class="pu-bt" id="pu_pular" type="button" data-radai-frase>Pular por agora</button>
+ <button class="bt" id="pu_salvar" type="button" data-radai-frase>Salvar e continuar</button>
+</div>
 <p class="msg" id="pu_msg" aria-live="polite"></p>
-<p class="mini" data-radai-frase>Dá para refazer depois em Configurações, na seção Geral.</p>
+<p class="mini" data-radai-frase>Você pode mudar a pasta favorita em Configurações, na seção Geral.</p>
 </div><script>
 (function(){
- var TPS = '';
  var DE = (function(){
   var p = new URLSearchParams(location.search).get('de') || '', n = '';
   for (var k = 0; k < p.length; k++) {
@@ -157,16 +165,16 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
   if (n.indexOf('/primeiro-uso') === 0) { return '/'; }
   return (n.charAt(0) === '/' && n.charAt(1) !== '/') ? n : '/';
  })();
- var bts = document.querySelectorAll('.pu-op');
  var salvar = document.getElementById('pu_salvar');
- var root = document.getElementById('pu_root');
+ var pular = document.getElementById('pu_pular');
+ var pasta = document.getElementById('pu_pasta');
+ var procurar = document.getElementById('pu_procurar');
  var laudoEl = document.getElementById('pu_laudo');
- var lista = document.getElementById('pu_lista');
+ var msg = document.getElementById('pu_msg');
  function traduzir(){ try{ if(window.radaiRetraduzir) window.radaiRetraduzir() }catch(e){} }
  var ERRO_DA_PASTA = {
   nao_existe: 'A pasta não existe ou não está acessível desta máquina.',
   sem_leitura: 'Sem permissão para ler esta pasta.',
-  sem_escrita: 'Dá para ler, mas não para escrever nesta pasta. O vigia grava o RTSTRUCT e os marcadores _RadAI na própria pasta da série: sem escrita, nenhuma série é processada. Fale com o TI.',
   erro: 'Não consegui conferir a pasta.'
  };
  function frase(el, txt, classe, detalhe){
@@ -178,16 +186,6 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
   if(detalhe) el.querySelector('code').textContent = detalhe;
   traduzir();
  }
- function escolher(v){
-  TPS = v;
-  for(var i = 0; i < bts.length; i++)
-   bts[i].setAttribute('aria-pressed', bts[i].getAttribute('data-tps') === v ? 'true' : 'false');
-  salvar.disabled = !TPS;
-  var p3 = document.getElementById('pu_passo3');
-  if(p3) p3.className = TPS ? 'feito' : 'agora';
- }
- for(var i = 0; i < bts.length; i++)
-  bts[i].addEventListener('click', function(){ escolher(this.getAttribute('data-tps')) });
  function post(url, corpo){
   return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'},
                      body: JSON.stringify(corpo || {})})
@@ -195,79 +193,34 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
  }
  function mostrarLaudo(l){
   if(!l || l.vazio){ frase(laudoEl, ''); return }
-  if(l.existe && l.leitura && l.escrita)
-   frase(laudoEl, 'A pasta existe, e dá para ler e escrever nela.', 'ok');
-  else frase(laudoEl, ERRO_DA_PASTA[l.codigo] || 'Pasta recusada.', 'ruim',
-             l.detalhe || '');
+  if(l.existe && l.leitura) frase(laudoEl, '');
+  else frase(laudoEl, ERRO_DA_PASTA[l.codigo] || 'Pasta recusada.', 'ruim', l.detalhe || '');
  }
- document.getElementById('pu_conferir').addEventListener('click', function(){
-  if(!root.value.trim()){ frase(laudoEl, ''); return }
-  post('/api/config/testar', {caminho: root.value}).then(mostrarLaudo)
-   .catch(function(){ frase(laudoEl, 'Não consegui conferir a pasta.', 'ruim') });
+ procurar.hidden = (typeof window.uiExplorador !== 'function');
+ procurar.addEventListener('click', function(){
+  if(typeof window.uiExplorador !== 'function') return;
+  window.uiExplorador({titulo: 'Pasta favorita', origem: procurar, inicial: pasta.value.trim(),
+   aoUsar: function(c){ pasta.value = c || ''; mostrarLaudo(null); frase(msg, '') }});
  });
- function abrir(caminho){
-  post('/api/pastas', {caminho: caminho || ''}).then(function(r){
-   lista.className = 'pu-lista on';
-   lista.innerHTML = '';
-   function item(rotulo, nome, alvo, usar){
-    var b = document.createElement('button');
-    b.type = 'button'; b.className = 'pu-pasta';
-    if(rotulo){
-     var s = document.createElement('span');
-     s.setAttribute('data-radai-frase', '');
-     s.textContent = rotulo;
-     b.appendChild(s);
-     if(nome) b.appendChild(document.createTextNode(' '));
-    }
-    if(nome){
-     var c = document.createElement('code');
-     c.setAttribute('data-radai-t', '1');
-     c.textContent = nome;
-     b.appendChild(c);
-    }
-    b.addEventListener('click', function(){
-     if(usar){ root.value = alvo; lista.className = 'pu-lista'; mostrarLaudo(null) }
-     else abrir(alvo);
-    });
-    lista.appendChild(b);
-   }
-   if(r.caminho){
-    item('Usar esta pasta:', r.caminho, r.caminho, true);
-    if(r.pai) item('Pasta de cima', '', r.pai, false);
-    (r.pastas || []).forEach(function(p){ item('', p.nome, p.caminho, false) });
-   } else {
-    (r.unidades || []).forEach(function(u){ item('', u, u, false) });
-   }
-   if(r.erro){
-    var e = document.createElement('div');
-    e.className = 'pu-laudo ruim';
-    e.textContent = r.erro;
-    lista.appendChild(e);
-   }
-   traduzir();
-  });
- }
- document.getElementById('pu_procurar').addEventListener('click', function(){
-  abrir(root.value.trim());
- });
- salvar.addEventListener('click', function(){
-  var msg = document.getElementById('pu_msg');
-  salvar.disabled = true;
-  post('/api/primeiro-uso', {tps: TPS, root: root.value}).then(function(d){
+ pasta.addEventListener('input', function(){ mostrarLaudo(null); frase(msg, '') });
+ function enviar(corpo){
+  salvar.disabled = true; pular.disabled = true;
+  post('/api/primeiro-uso', corpo).then(function(d){
    if(d && d.ok){ location.href = DE; return }
+   salvar.disabled = false; pular.disabled = false;
    if(d && d.laudo){
     mostrarLaudo(d.laudo);
     frase(msg, 'Nada foi gravado: confira a pasta acima.', 'ruim');
    } else frase(msg, (d && d.erro) || 'Não consegui gravar.', 'ruim');
-   salvar.disabled = !TPS;
   }).catch(function(){
+   salvar.disabled = false; pular.disabled = false;
    frase(msg, 'Não consegui gravar.', 'ruim');
-   salvar.disabled = !TPS;
   });
- });
+ }
+ salvar.addEventListener('click', function(){ enviar({pasta: pasta.value}) });
+ pular.addEventListener('click', function(){ enviar({pular: true}) });
  fetch('/api/primeiro-uso').then(function(r){ return r.json() }).then(function(d){
-  if(d && d.tps) escolher(d.tps);
-  if(d && d.root && !root.value) root.value = d.root;
+  if(d && d.pasta && !pasta.value) pasta.value = d.pasta;
  }).catch(function(){});
 })();
 </script></body></html>"""
@@ -288,9 +241,9 @@ def pagina():
     p = com_canto(PAGINA.replace(u"@CSS@", css))
     try:
         import radai_ui as _ui
-        p = _ui.aplicar(p)
+        p = _ui.aplicar(p.replace(u"@FAV@", _ui.botao_favorita(u"pu_pasta")))
     except Exception:
-        pass
+        p = p.replace(u"@FAV@", u"")
     try:
         import radai_languages as _idi
         p = _idi.so_traduzir(p)
@@ -305,8 +258,8 @@ def montar(app, caminho, modelo=u"", registrar=None, recarregar=None):
 
     from fastapi.responses import RedirectResponse
 
-    # GUARDA: a porta desvia enquanto o TPS nao foi escolhido; o aceite tambem
-    # leva ate aqui, mas a estacao com o aceite em dia so chega por este desvio.
+    # GUARDA: a porta desvia enquanto o primeiro uso nao rodou (sem TPS_DESTINO
+    # no arquivo); o aceite tambem leva ate aqui.
     @app.middleware("http")
     async def _desvio_da_porta(request, call_next):
         try:
@@ -334,7 +287,8 @@ def montar(app, caminho, modelo=u"", registrar=None, recarregar=None):
             c = {}
         if not isinstance(c, dict):
             c = {}
-        ok, r = gravar(caminho, c.get("tps"), c.get("root"), modelo=modelo)
+        ok, r = gravar(caminho, c.get("pasta"), modelo=modelo,
+                       pular=c.get("pular") is True)
         if not ok:
             return JSONResponse(r, status_code=400)
         if registrar:
@@ -342,7 +296,7 @@ def montar(app, caminho, modelo=u"", registrar=None, recarregar=None):
                 registrar(linha_do_registro(r))
             except Exception:
                 pass
-        if recarregar:
+        if recarregar and r.get("mudou"):
             try:
                 recarregar()
             except Exception:

@@ -135,7 +135,8 @@ try {
 Diga ("  " + $narq + " arquivos, " + ("{0:N2}" -f ($bytes / 1GB)) + " GB")
 
 $PRESERVAVEL = @("radai_watcher.config", "_dados.txt", "_bundle.txt",
-                 "calibracao", "registro", "radai_status.json")
+                 "calibracao", "registro", "radai_status.json",
+                 "nomes_proprios.json", "protocolos_proprios.json")
 $achados = @()
 foreach ($n in $PRESERVAVEL) {
     if (Test-Path -LiteralPath (Join-Path $AQUI $n)) { $achados += $n }

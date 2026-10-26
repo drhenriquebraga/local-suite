@@ -15,6 +15,7 @@ TOKENS = u"""
  --r-sm:5px; --r-md:6px; --r-lg:8px; --r-xl:10px; --r-2xl:12px;
  --r-pill:999px;
  --marca-grad:linear-gradient(90deg,#4DA3FF 0%,#3DD9F0 48%,#9D8BFF 100%);
+ --nome-grad:linear-gradient(100deg,#66c4ff 0%,#7da4f8 48%,#b49aec 100%);
  --mod-auto:#4DA3FF;   --mod-auto-fraco:rgba(77,163,255,.14);
  --mod-bridge:#9D8BFF; --mod-bridge-fraco:rgba(124,92,255,.14);
  --mod-recon:#31D0AA;  --mod-recon-fraco:rgba(49,208,170,.14);
@@ -59,6 +60,7 @@ TOKENS = u"""
  --fundo-ok:#eaf6ee;     --borda-ok:#a9d6ba;
  --img-fundo:#000000; --img-texto:#e6edf7; --img-texto-fraco:#a3b1c6;
  --linha:#d9e0ea;
+ --nome-grad:linear-gradient(105deg,#176eaa 0%,#4f5fb8 50%,#7353b8 100%);
 }
 """
 
@@ -518,7 +520,7 @@ MARCA_TEMA = u"radai-tema-js"
 
 TEMAS = (u"claro", u"escuro", u"sistema")
 
-TEMA_PADRAO = u"sistema"
+TEMA_PADRAO = u"escuro"
 
 TEMA_JS = u"""
 <script id="radai-tema-js">
@@ -529,7 +531,7 @@ TEMA_JS = u"""
  catch(e){ mq = null }
  function escolha(){
   try{ var v = localStorage.getItem(CHAVE); if(VALE[v]) return v }catch(e){}
-  return VALE[guardado] ? guardado : 'sistema';
+  return VALE[guardado] ? guardado : 'escuro';
  }
  function efetivo(v){
   // GUARDA: a tela que so existe escura (a porta) se declara em data-tema-fixo, e a escolha nao a alcanca.
@@ -603,6 +605,28 @@ JS = u"""
    setTimeout(function(){ c.classList.remove('abriu') }, 1200); }
  };
  window.psFechar = function(id){ var c=el(id); if(c) c.classList.add('fechado') };
+
+ window.uiFimDoNome = function(no){
+  var fim = no.getAttribute('data-ls-fim');
+  if(!fim || no.querySelector('.ls-fim')) return;
+  var t = no.textContent, i = t.lastIndexOf(fim);
+  if(i < 0) return;
+  var s = document.createElement('span');
+  s.className = 'ls-fim';
+  s.textContent = fim;
+  no.textContent = t.slice(0, i);
+  no.appendChild(s);
+  if(i + fim.length < t.length)
+   no.appendChild(document.createTextNode(t.slice(i + fim.length)));
+ };
+ document.addEventListener('DOMContentLoaded', function(){
+  Array.prototype.forEach.call(document.querySelectorAll('[data-ls-fim]'), function(no){
+   window.uiFimDoNome(no);
+   // GUARDA: o tradutor troca o texto do nome inteiro e leva o span junto; o observador o devolve.
+   if(window.MutationObserver) new MutationObserver(function(){ window.uiFimDoNome(no) })
+    .observe(no, {childList: true, characterData: true, subtree: true});
+  });
+ });
 
  function psPeloEndereco(){
   try{
@@ -1759,6 +1783,7 @@ COMPONENTES_JS = u"""
   }
  });
 
+ var _MODAIS = [];
  window.uiModal = function(o){
   o = o || {};
   var antes = document.activeElement;
@@ -1788,8 +1813,10 @@ COMPONENTES_JS = u"""
     + Math.round(r.top + r.height / 2 - q.top) + 'px';
   }
   var aberto = true;
+  _MODAIS.push(m);
   function fechar(){
    if(!aberto) return; aberto = false;
+   var i = _MODAIS.indexOf(m); if(i >= 0) _MODAIS.splice(i, 1);
    v.classList.add('saindo'); v.classList.remove('vis');
    setTimeout(function(){ if(v.parentNode) v.parentNode.removeChild(v) }, 200);
    document.removeEventListener('keydown', tecla, true);
@@ -1797,8 +1824,9 @@ COMPONENTES_JS = u"""
    try{ if(o.aoFechar) o.aoFechar() }catch(e){}
   }
   function tecla(e){
-   if(!aberto) return;
-   if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); fechar() }
+   // GUARDA: so o modal de cima da pilha responde; o de baixo registrou o ouvinte antes e ouviria primeiro.
+   if(!aberto || _MODAIS[_MODAIS.length - 1] !== m) return;
+   if(e.key === 'Escape'){ e.preventDefault(); e.stopImmediatePropagation(); fechar() }
    else if(e.key === 'Tab' && window.uiPrenderFoco) window.uiPrenderFoco(m, e);
    else if(o.aoTecla) o.aoTecla(e);
   }
@@ -2535,7 +2563,7 @@ COMPONENTES_JS = u"""
    if(s.getAttribute('data-ui-tema-feito') === '1') return s;
    s.setAttribute('data-ui-tema-feito', '1');
    var sincronizar = function(){
-    var v = window.uiTemaEscolha ? window.uiTemaEscolha() : 'sistema';
+    var v = window.uiTemaEscolha ? window.uiTemaEscolha() : 'escuro';
     if(s.value === v) return;
     s.value = v;
     var cx = s.previousElementSibling;
@@ -2763,6 +2791,7 @@ COMPONENTES_JS = u"""
   if(z.getAttribute('data-ui-envio-feito') === '1') return z;
   z.setAttribute('data-ui-envio-feito', '1');
   var arq = z.querySelector('.ui-envio-arq'), dir = z.querySelector('.ui-envio-dir');
+  var img = z.querySelector('.ui-envio-img');
   var fundo = 0;
   function soltar(lista){
    z.classList.remove('engoliu'); void z.offsetWidth; z.classList.add('engoliu');
@@ -2812,15 +2841,16 @@ COMPONENTES_JS = u"""
   z.addEventListener('click', function(e){
    var b = e.target.closest ? e.target.closest('[data-envio]') : null;
    if(b){ e.preventDefault();
-    (b.getAttribute('data-envio') === 'pasta' ? dir : arq).click(); return }
-   if(e.target === arq || e.target === dir) return;
+    var qual = b.getAttribute('data-envio');
+    (qual === 'pasta' ? dir : (qual === 'imagem' && img) ? img : arq).click(); return }
+   if(e.target === arq || e.target === dir || e.target === img) return;
    arq.click();
   });
   z.addEventListener('keydown', function(e){
    if(e.target !== z) return;
    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); arq.click() }
   });
-  [arq, dir].forEach(function(inp){
+  [arq, dir, img].forEach(function(inp){
    if(!inp) return;
    inp.addEventListener('change', function(){
     var l = doCampo(inp); inp.value = '';
@@ -2853,7 +2883,10 @@ COMPONENTES_JS = u"""
    + '<button type="button" class="ui-bt" data-fp="ir">' + frase('Ir') + '</button></div>'
    + '<div class="ui-fp-corpo"><aside class="ui-fp-lado" aria-label="unidades">'
    + '<div class="ui-fp-sec">' + frase('Unidades') + '</div>'
-   + '<div class="ui-fp-arvore" role="tree"></div></aside>'
+   + '<div class="ui-fp-arvore" role="tree"></div>'
+   + '<button type="button" class="ui-bt ui-fp-mapear" data-fp="mapear">' + ico('rede')
+   + frase('Mapear nova unidade de rede') + '</button>'
+   + '<div class="ui-fp-mapa" role="status" aria-live="polite"></div></aside>'
    + '<section class="ui-fp-dir"><div class="ui-fp-ferr">'
    + '<input type="text" class="ui-fp-busca" spellcheck="false" placeholder="buscar nesta pasta &mdash; trecho do nome ou do prontu&aacute;rio">'
    + '<button type="button" class="ui-bt" data-fp="limpar">' + frase('limpar') + '</button>'
@@ -2863,7 +2896,8 @@ COMPONENTES_JS = u"""
    + '<div class="ui-fp-cabl">' + frase('Nome') + frase('Modificada em') + '</div>'
    + '<div class="ui-fp-lista" role="listbox" aria-label="pastas"></div>'
    + '<div class="ui-fp-msg"></div></section></div>'
-   + '<div class="ui-fp-pe"><button type="button" class="ui-bt" data-fp="favoritar">'
+   + '<div class="ui-fp-pe"><button type="button" class="ui-bt" data-fp="favoritar"'
+   + ' title="esta pasta passa a ser a que o seletor abre">'
    + ico('estrela') + frase('marcar como favorita') + '</button><span class="ui-fp-esp"></span>'
    + '<button type="button" class="ui-bt" data-fp="cancelar">' + frase('Cancelar') + '</button>'
    + '<button type="button" class="ui-bt pri" data-fp="usar">' + frase('Usar esta pasta') + '</button></div>';
@@ -2879,7 +2913,10 @@ COMPONENTES_JS = u"""
   fpQ('[data-fp="volta"]').disabled = !(FP.pos > 0);
   fpQ('[data-fp="frente"]').disabled = !(FP.pos < FP.hist.length - 1);
   fpQ('[data-fp="sobe"]').disabled = !FP.pai;
-  fpQ('[data-fp="fav"]').style.display = FP.fav ? '' : 'none';
+  var bf = fpQ('[data-fp="fav"]'), tf = FP.fav ? 'ir para a pasta favorita'
+                                                : 'Nenhuma pasta favorita configurada';
+  bf.disabled = !FP.fav;
+  bf.setAttribute('title', tf); bf.setAttribute('aria-label', tf);
   Array.prototype.forEach.call(FP.raiz.querySelectorAll('.ui-fp-ord button'), function(b){
    var on = (b.getAttribute('data-ord') === FP.ordem);
    b.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -2902,10 +2939,10 @@ COMPONENTES_JS = u"""
    + '</span></div><div class="ui-fp-filhos" hidden></div>';
   return cx;
  }
- function fpArvore(){
+ function fpArvore(fresco){
   var arv = fpQ('.ui-fp-arvore');
   arv.innerHTML = '<div class="ui-esqueleto ui-esq-l"></div><div class="ui-esqueleto ui-esq-l"></div>';
-  fpPedir({caminho:'', unidades:true}).then(function(d){
+  return fpPedir({caminho:'', unidades:true, fresco:!!fresco}).then(function(d){
    arv.innerHTML = '';
    (d.unidades || []).forEach(function(u){ arv.appendChild(fpNo(u.raiz, u.raiz, u.tipo, u.ok)) });
    if(!arv.children.length) arv.innerHTML = '<div class="ui-fp-item vazio">'
@@ -2983,6 +3020,26 @@ COMPONENTES_JS = u"""
     if(d && d.erro){ fpErro(fpQ('.ui-fp-msg'), 'Não consegui marcar a pasta como favorita.', d.erro); return }
     FP.fav = (d && d.favorita) || cf; fpBotoes();
    }).catch(function(){});
+  } else if(a === 'mapear'){
+   var eu = FP, bm = fpQ('[data-fp="mapear"]'), mm = fpQ('.ui-fp-mapa');
+   bm.disabled = true;
+   fpErro(mm, 'A janela do Windows abriu: escolha a letra e a pasta de rede. Se ela não aparecer, procure na barra de tarefas.');
+   fetch('/api/pastas/mapear', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:'{}'}).then(function(r){ return r.json() }).then(function(d){
+    if(FP !== eu) return;
+    bm.disabled = false;
+    var novas = (d && d.novas) || [];
+    var h = novas.length ? frase('Unidade mapeada:') + ' <b translate="no">' + esc(novas.join(' ')) + '</b>'
+            : ((d && d.erro) ? frase(d.erro) : '');
+    if(window.uiHTML) window.uiHTML(mm, h); else mm.innerHTML = h;
+    traduzir();
+    var p = fpArvore(true);
+    if(novas.length && p && p.then) p.then(function(){ if(FP === eu) fpNavegar(novas[0]) });
+   }).catch(function(e){
+    if(FP !== eu) return;
+    bm.disabled = false;
+    fpErro(mm, 'Não consegui abrir o mapeamento de unidade.', e);
+   });
   }
  }
  window.uiExplorador = function(o){
@@ -3044,7 +3101,8 @@ COMPONENTES_JS = u"""
 
 ICONES_DOS_COMPONENTES = (u"fechar", u"esquerda", u"direita", u"acima",
                           u"estrela", u"pasta", u"subir", u"mais",
-                          u"alerta", u"desmarcar", u"sol", u"lua", u"monitor")
+                          u"alerta", u"desmarcar", u"sol", u"lua", u"monitor",
+                          u"rede")
 
 
 def moldes_de_icone():
@@ -3112,7 +3170,581 @@ CSS_EXPLORADOR = u"""
  .ui-fp-lado{max-height:150px}
  .ui-fp-cabl,.ui-fp-item{grid-template-columns:minmax(0,1fr) 104px}
 }
+.ui-fp-mapear{width:100%;justify-content:flex-start;margin:8px 0 0;padding:7px 9px;
+ font-size:12px;text-align:left}
+.ui-fp-mapear .ui-ic{margin-right:6px}
+.ui-fp-mapa{font-size:11.5px;line-height:1.45;color:var(--text-dim);padding:6px 4px 0}
+.ui-fp-mapa:empty{display:none}
+.ui-fp-mapa b{color:var(--text)}
 """
+
+
+CSS_VARREDURA = u"""
+.ui-pensa{--ui-pensa-troca:150ms;--ui-pensa-curva:ease-in-out;
+ --ui-pensa-dist:8px;--ui-pensa-borra:2px;--ui-pensa-brilho:2000ms;
+ position:relative;display:block;width:100%;height:1.5em;
+ font:500 14px/1.5 var(--font-display);color:var(--text-muted);text-align:center}
+.ui-pensa-linha{position:absolute;left:0;right:0;top:0;display:block;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ transform:translateY(0);filter:blur(0);opacity:1;
+ transition:transform var(--ui-pensa-troca) var(--ui-pensa-curva),
+  filter var(--ui-pensa-troca) var(--ui-pensa-curva),
+  opacity var(--ui-pensa-troca) var(--ui-pensa-curva)}
+.ui-pensa-linha::before{content:attr(data-t);position:absolute;inset:0;
+ pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ background-image:linear-gradient(90deg,transparent 0%,transparent 40%,
+  var(--text) 50%,transparent 60%,transparent 100%);
+ background-size:400% 100%;background-repeat:no-repeat;
+ -webkit-background-clip:text;background-clip:text;color:transparent;
+ -webkit-text-fill-color:transparent;
+ animation:uiPensaBrilho var(--ui-pensa-brilho) linear infinite}
+@keyframes uiPensaBrilho{from{background-position:100% 0}to{background-position:0% 0}}
+.ui-pensa-linha.sai{transform:translateY(calc(var(--ui-pensa-dist) * -1));
+ filter:blur(var(--ui-pensa-borra));opacity:0}
+.ui-pensa-linha.entra{transition:none;transform:translateY(var(--ui-pensa-dist));
+ filter:blur(var(--ui-pensa-borra));opacity:0}
+.ui-pensa.parou .ui-pensa-linha::before{display:none}
+.ui-pensa.parou .ui-pensa-linha{color:var(--text)}
+
+.ui-troca{transform:translateY(0);filter:blur(0);opacity:1;
+ transition:transform 150ms ease-in-out,filter 150ms ease-in-out,
+  opacity 150ms ease-in-out}
+.ui-troca.ui-troca-sai{transform:translateY(-4px);filter:blur(2px);opacity:0}
+.ui-troca.ui-troca-entra{transition:none;transform:translateY(4px);
+ filter:blur(2px);opacity:0}
+
+.ui-certo{--ui-certo-l:24;display:inline-grid;place-items:center;width:44px;
+ height:44px;box-sizing:border-box;border-radius:50%;
+ background:var(--fundo-ok);border:1px solid var(--borda-ok);
+ color:var(--success);opacity:0;transform-origin:center}
+.ui-certo svg{display:block;overflow:visible;width:24px;height:24px}
+.ui-certo svg path{stroke-dasharray:var(--ui-certo-l);
+ stroke-dashoffset:var(--ui-certo-l)}
+.ui-certo.on{animation:uiCertoNasce 500ms cubic-bezier(.22,1,.36,1) forwards,
+ uiCertoGira 500ms cubic-bezier(.22,1,.36,1) forwards,
+ uiCertoBorra 500ms cubic-bezier(.22,1,.36,1) forwards,
+ uiCertoSobe 500ms cubic-bezier(.34,1.35,.64,1) forwards}
+.ui-certo.on svg path{animation:uiCertoTraca 500ms cubic-bezier(.22,1,.36,1) 80ms forwards}
+@keyframes uiCertoNasce{from{opacity:0}to{opacity:1}}
+@keyframes uiCertoGira{from{transform:rotate(80deg)}to{transform:rotate(0deg)}}
+@keyframes uiCertoBorra{from{filter:blur(10px)}to{filter:blur(0)}}
+@keyframes uiCertoSobe{from{translate:0 40px}to{translate:0 0}}
+@keyframes uiCertoTraca{to{stroke-dashoffset:0}}
+
+.ui-ler{position:relative;isolation:isolate;overflow:hidden;display:flex;
+ flex-direction:column;align-items:center;justify-content:center;gap:8px;
+ min-height:176px;padding:20px;box-sizing:border-box;
+ border-radius:var(--r-xl);border:1px solid var(--line);background:var(--panel-2)}
+.ui-ler::before,.ui-ler::after{content:"";position:absolute;z-index:-1;
+ width:70%;height:90%;border-radius:50%;filter:blur(38px);opacity:.5;
+ background:radial-gradient(circle at 50% 50%,var(--accent),transparent 68%);
+ transition:opacity .4s ease}
+.ui-ler::before{left:-10%;top:-30%;animation:uiOrgA 7.5s ease-in-out infinite alternate}
+.ui-ler::after{right:-12%;bottom:-34%;
+ background:radial-gradient(circle at 50% 50%,var(--mod-bridge),transparent 66%);
+ animation:uiOrgB 9s ease-in-out infinite alternate}
+.ui-ler.pronto::before,.ui-ler.pronto::after{animation-play-state:paused;opacity:.3}
+.ui-ler-marca{display:grid;place-items:center;height:44px}
+.ui-ler-pensa{display:block;width:100%;max-width:560px}
+.ui-ler-conta{display:flex;flex-wrap:wrap;justify-content:center;gap:0 4px;
+ min-height:17px;font:400 12px/1.4 var(--font-mono);color:var(--text-dim);
+ font-variant-numeric:tabular-nums}
+.ui-ler-conta>span+span::before{content:"\\00B7";margin-right:4px;color:var(--text-dim)}
+.ui-ler-lista{list-style:none;margin:10px 0 0;padding:0;max-height:168px;
+ overflow:auto;border-top:1px solid var(--line)}
+.ui-ler-lista:empty{display:none}
+.ui-ler-lista li{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;
+ gap:10px;align-items:baseline;padding:6px 4px;border-bottom:1px solid var(--line);
+ font-size:12.5px;color:var(--text-muted);
+ animation:uiRevela .34s cubic-bezier(.22,1,.36,1) both}
+.ui-ler-lista .md{font:600 10.5px/1 var(--font-mono);letter-spacing:.06em;
+ color:var(--text-dim)}
+.ui-ler-lista .ds{color:var(--text);overflow:hidden;text-overflow:ellipsis;
+ white-space:nowrap}
+.ui-ler-lista .nm{font-family:var(--font-mono);font-variant-numeric:tabular-nums;
+ color:var(--text-dim);white-space:nowrap}
+
+.ui-dias{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;
+ font-size:12.5px;color:var(--text-muted)}
+.ui-dias-rot{white-space:nowrap}
+.ui-dias .ui-seg>button{padding:5px 10px;font-size:12px}
+.ui-vl-est{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;
+ min-height:30px;margin:0 0 8px;font-size:12.5px;color:var(--text-muted)}
+.ui-vl-est:empty{display:none}
+.ui-vl-est .ui-vl-n{display:inline-flex;gap:0 4px;flex-wrap:wrap}
+.ui-vl-est .ui-vl-n>span+span::before{content:"\\00B7";margin-right:4px}
+.ui-vl-est .ui-bt{padding:5px 11px;font-size:12px}
+.ui-vl-aviso{display:block;width:100%;color:var(--text-dim)}
+.ui-fav{padding:7px 9px;min-width:34px}
+.ui-fav .ui-ic{margin:0}
+.ui-fav:not(:disabled) .ui-ic{color:var(--warn)}
+
+@media (prefers-reduced-motion:reduce){
+ .ui-pensa-linha{transition:none !important;transform:none !important;
+  filter:none !important}
+ .ui-pensa-linha::before{display:none !important}
+ .ui-troca{transition:none !important}
+ .ui-certo.on{animation:none !important;opacity:1}
+ .ui-certo.on svg path{animation:none !important;stroke-dashoffset:0 !important}
+ .ui-ler::before,.ui-ler::after{animation:none;transition:none}
+ .ui-ler-lista li{animation:none}
+}
+"""
+
+
+VARREDURA_JS = u"""
+<script id="radai-ui-varrer-js">
+(function(){
+ function $(id){ return document.getElementById(id) }
+ function no(a){ return (typeof a === 'string') ? $(a) : a }
+ function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;')
+  .replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+ function traduzir(){ try{ if(window.radaiRetraduzir) window.radaiRetraduzir() }catch(e){} }
+ function frase(t){ return '<span data-radai-frase>' + esc(t) + '</span>' }
+ function calmo(){
+  try{ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) }
+  catch(e){ return false }
+ }
+ function texto(alvo, t){ if(window.uiTexto) window.uiTexto(alvo, t); else alvo.textContent = t }
+ function html(alvo, h){ if(window.uiHTML) window.uiHTML(alvo, h); else alvo.innerHTML = h }
+ function post(url, corpo){
+  return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'},
+                     body: JSON.stringify(corpo || {})}).then(function(r){ return r.json() });
+ }
+ function molde(t, vals){
+  var k = 0;
+  return String(t).replace(/%s/g, function(){ var v = vals[k++]; return v == null ? '' : String(v) });
+ }
+ window.uiMolde = molde;
+
+ window.UI_PENSA_SEGURA_MS = 2000;
+ window.UI_PENSA_TROCA_MS = 150;
+ window.UI_PENSA_FOLGA_MS = 50;
+ window.UI_TROCA_MS = 150;
+ window.UI_CERTO_MS = 580;
+
+ function pintarLinha(linha, t){
+  texto(linha, t);
+  linha.setAttribute('data-radai-frase', '');
+  traduzir();
+  // GUARDA: o brilho repete o texto por attr(); sem copiar depois da tradução ele brilha em português.
+  linha.setAttribute('data-t', linha.textContent);
+ }
+
+ window.uiPensando = function(alvo){
+  var e = no(alvo);
+  if(!e) return null;
+  e.innerHTML = '<span class="ui-pensa"><span class="ui-pensa-linha"></span></span>';
+  var cx = e.firstChild, atual = cx.firstChild;
+  var estados = [], i = 0, timer = null, vivo = true;
+  function agendar(){
+   clearTimeout(timer);
+   if(vivo && estados.length > 1) timer = setTimeout(trocar, window.UI_PENSA_SEGURA_MS);
+  }
+  function trocar(){
+   if(!vivo || estados.length < 2) return;
+   var velha = atual;
+   var nova = document.createElement('span');
+   nova.className = 'ui-pensa-linha entra';
+   i = (i + 1) % estados.length;
+   cx.appendChild(nova);
+   pintarLinha(nova, estados[i]);
+   atual = nova;
+   if(calmo()){
+    if(velha.parentNode) velha.parentNode.removeChild(velha);
+    nova.classList.remove('entra');
+    agendar();
+    return;
+   }
+   velha.classList.add('sai');
+   void nova.offsetWidth;
+   setTimeout(function(){ nova.classList.remove('entra') }, window.UI_PENSA_FOLGA_MS);
+   setTimeout(function(){ if(velha.parentNode) velha.parentNode.removeChild(velha) },
+              window.UI_PENSA_TROCA_MS + window.UI_PENSA_FOLGA_MS);
+   agendar();
+  }
+  var api = {
+   dizer: function(lista){
+    var novos = (lista || []).filter(function(x){ return x });
+    var antes = estados.length;
+    estados = novos;
+    if(i >= estados.length) i = 0;
+    var t = estados[i] || '';
+    if(atual.getAttribute('data-fonte') !== t){
+     atual.setAttribute('data-fonte', t);
+     pintarLinha(atual, t);
+    }
+    if(estados.length > 1 && (antes < 2 || !timer)) agendar();
+    if(estados.length < 2){ clearTimeout(timer); timer = null }
+    return api;
+   },
+   parar: function(){
+    vivo = false; clearTimeout(timer); timer = null;
+    cx.classList.add('parou');
+    var sobra = cx.querySelectorAll('.ui-pensa-linha');
+    for(var k = 0; k < sobra.length; k++) if(sobra[k] !== atual && sobra[k].parentNode) sobra[k].parentNode.removeChild(sobra[k]);
+    atual.classList.remove('sai'); atual.classList.remove('entra');
+    return api;
+   },
+   linha: function(){ return atual },
+   estados: function(){ return estados.slice() },
+   caixa: cx
+  };
+  return api;
+ };
+
+ window.uiTrocarTexto = function(alvo, t, o){
+  o = o || {};
+  var e = no(alvo);
+  if(!e) return Promise.resolve(null);
+  function pintar(){
+   if(o.html) html(e, t); else texto(e, t);
+   if(e.classList.contains('ui-pensa-linha')){ e.setAttribute('data-fonte', t) }
+   traduzir();
+   if(e.hasAttribute('data-t')) e.setAttribute('data-t', e.textContent);
+  }
+  if(calmo()){ pintar(); return Promise.resolve(e) }
+  return new Promise(function(ok){
+   e.classList.add('ui-troca');
+   e.classList.remove('ui-troca-entra');
+   void e.offsetWidth;
+   e.classList.add('ui-troca-sai');
+   setTimeout(function(){
+    pintar();
+    e.classList.remove('ui-troca-sai');
+    e.classList.add('ui-troca-entra');
+    void e.offsetWidth;
+    e.classList.remove('ui-troca-entra');
+    setTimeout(function(){ ok(e) }, window.UI_TROCA_MS);
+   }, window.UI_TROCA_MS);
+  });
+ };
+
+ var CERTO_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+  + 'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" '
+  + 'aria-hidden="true" focusable="false"><path d="M5.5 12.6l4.2 4.1 8.8-9.3"/></svg>';
+ window.uiCerto = function(alvo){
+  var e = no(alvo);
+  if(!e) return Promise.resolve(null);
+  var c = e.classList && e.classList.contains('ui-certo') ? e : e.querySelector('.ui-certo');
+  if(!c){
+   c = document.createElement('span');
+   c.className = 'ui-certo';
+   c.setAttribute('aria-hidden', 'true');
+   c.innerHTML = CERTO_SVG;
+   e.appendChild(c);
+  }
+  try{
+   var p = c.querySelector('path');
+   c.style.setProperty('--ui-certo-l', String(Math.ceil(p.getTotalLength()) + 1));
+  }catch(x){}
+  c.classList.remove('on');
+  void c.offsetWidth;
+  c.classList.add('on');
+  return new Promise(function(ok){
+   setTimeout(function(){ ok(c) }, calmo() ? 0 : window.UI_CERTO_MS);
+  });
+ };
+
+ window.uiLeitura = function(alvo){
+  var e = no(alvo);
+  if(!e) return null;
+  e.innerHTML = '<div class="ui-ler" role="status" aria-live="polite">'
+   + '<span class="ui-ler-marca"></span><span class="ui-ler-pensa"></span>'
+   + '<span class="ui-ler-conta"></span></div><ol class="ui-ler-lista"></ol>';
+  var cx = e.firstChild, marca = cx.querySelector('.ui-ler-marca');
+  var conta = cx.querySelector('.ui-ler-conta'), lista = e.querySelector('.ui-ler-lista');
+  var pensa = window.uiPensando(cx.querySelector('.ui-ler-pensa'));
+  var contas = '', vistos = {};
+  return {
+   estados: function(l){ pensa.dizer(l) },
+   conta: function(frases){
+    var h = (frases || []).filter(function(x){ return x }).map(frase).join('');
+    if(h === contas) return;
+    contas = h;
+    html(conta, h);
+    traduzir();
+   },
+   series: function(linhas, desenhar){
+    (linhas || []).forEach(function(s){
+     var k = String(s.uid || s.curto || s.bilhete || '');
+     var h = desenhar(s);
+     var li = vistos[k];
+     if(!li){
+      li = document.createElement('li');
+      vistos[k] = li;
+      lista.appendChild(li);
+     } else if(li.getAttribute('data-h') === h) return;
+     li.setAttribute('data-h', h);
+     li.innerHTML = h;
+    });
+    traduzir();
+   },
+   pronto: function(t){
+    pensa.parar();
+    cx.classList.add('pronto');
+    return window.uiCerto(marca).then(function(){
+     return window.uiTrocarTexto(pensa.linha(), t);
+    });
+   },
+   caixa: cx,
+   lista: lista
+  };
+ };
+
+ var UI_VARRE = {};
+ window.UI_VARRER_INTERVALO_MS = 400;
+ window.uiVarrer = function(o){
+  o = o || {};
+  var chave = o.chave || o.uso || 'series';
+  if(UI_VARRE[chave]) UI_VARRE[chave].parar(true);
+  var st = {v: '', versao: null, linhas: [], vivo: true, t: null, pedido: false};
+  function chamar(nome, d){ try{ if(o[nome]) o[nome](st.linhas, d) }catch(e){} }
+  function erro(msg, d){ try{ if(o.aoErro) o.aoErro(msg, d || {}) }catch(e){} }
+  function agendar(){
+   clearTimeout(st.t);
+   if(st.vivo) st.t = setTimeout(consultar, window.UI_VARRER_INTERVALO_MS);
+  }
+  function tratar(d){
+   if(!st.vivo) return;
+   d = d || {};
+   if(d.v) st.v = d.v;
+   if(d.linhas){ st.linhas = d.linhas; chamar('aoParcial', d) }
+   if(d.versao != null) st.versao = d.versao;
+   try{ if(o.aoProgresso) o.aoProgresso(d) }catch(e){}
+   if(!d.fim){ agendar(); return }
+   st.vivo = false;
+   if(UI_VARRE[chave] === ctl) delete UI_VARRE[chave];
+   if(d.erro && !(st.linhas || []).length) erro(d.erro, d);
+   else chamar('aoFim', d);
+  }
+  function consultar(){
+   if(!st.vivo || !st.v) return;
+   post('/api/varrer/estado', {v: st.v, versao: st.versao}).then(function(d){
+    if(d && !d.v && !d.fim) d = {fim: true, erro: d.erro || d.detail || '?'};
+    tratar(d);
+   }).catch(function(){ if(st.vivo) st.t = setTimeout(consultar, 1200) });
+  }
+  var ctl = {
+   parar: function(calado){
+    if(!st.vivo) return;
+    if(st.v) post('/api/varrer/parar', {v: st.v}).catch(function(){});
+    else st.pedido = true;
+    if(calado){ st.vivo = false; clearTimeout(st.t);
+                if(UI_VARRE[chave] === ctl) delete UI_VARRE[chave] }
+   },
+   v: function(){ return st.v },
+   vivo: function(){ return st.vivo }
+  };
+  UI_VARRE[chave] = ctl;
+  post('/api/varrer/iniciar', {uso: o.uso || 'series', pasta: o.pasta || '',
+       dias: (o.dias == null ? 7 : o.dias), opcoes: o.opcoes || {}})
+   .then(function(d){
+    if(!st.vivo) { if(d && d.v) post('/api/varrer/parar', {v: d.v}).catch(function(){}); return }
+    if(!d || !d.v){
+     st.vivo = false;
+     if(UI_VARRE[chave] === ctl) delete UI_VARRE[chave];
+     erro((d && (d.erro || d.detail)) || '?', d || {});
+     return;
+    }
+    if(st.pedido){ st.v = d.v; post('/api/varrer/parar', {v: d.v}).catch(function(){}) }
+    tratar(d);
+   })
+   .catch(function(e){
+    st.vivo = false;
+    if(UI_VARRE[chave] === ctl) delete UI_VARRE[chave];
+    erro(String(e && e.message || e), {});
+   });
+  return ctl;
+ };
+
+ var DIAS_CHAVE = 'radai_varrer_dias';
+ var DIAS_VALEM = {'0': 1, '1': 1, '3': 1, '7': 1, '30': 1};
+ window.uiDiasGuardado = function(){
+  try{ var v = localStorage.getItem(DIAS_CHAVE); if(DIAS_VALEM[v]) return v }catch(e){}
+  return null;
+ };
+ window.uiDias = function(alvo, valor){
+  var s = no(alvo);
+  if(!s) return 7;
+  if(valor != null && DIAS_VALEM[String(valor)]){
+   s.value = String(valor);
+   var ev;
+   try{ ev = new Event('change', {bubbles: true}) }
+   catch(x){ ev = document.createEvent('HTMLEvents'); ev.initEvent('change', true, false) }
+   s.dispatchEvent(ev);
+  }
+  var n = parseInt(s.value, 10);
+  return isNaN(n) ? 7 : n;
+ };
+ function diasLigar(s){
+  if(!s || s._uiDias) return;
+  s._uiDias = true;
+  var g = window.uiDiasGuardado();
+  if(g !== null && s.value !== g) window.uiDias(s, g);
+  s.addEventListener('change', function(){
+   try{ if(DIAS_VALEM[s.value]) localStorage.setItem(DIAS_CHAVE, s.value) }catch(e){}
+  });
+ }
+ window.uiDiasLigar = diasLigar;
+ document.addEventListener('DOMContentLoaded', function(){
+  var l = document.querySelectorAll('select[data-ui-dias]');
+  for(var i = 0; i < l.length; i++) diasLigar(l[i]);
+ });
+
+ var FAV = {valor: null, pedido: null};
+ window.uiFavorita = function(fresca){
+  if(FAV.pedido && !fresca) return FAV.pedido;
+  FAV.pedido = post('/api/lote/favorita', {}).then(function(d){
+   FAV.valor = (d && d.favorita) || '';
+   return FAV.valor;
+  }).catch(function(){ FAV.valor = ''; return '' });
+  return FAV.pedido;
+ };
+ function favPintar(b, fav){
+  b.disabled = !fav;
+  var t = fav ? 'Preencher com a pasta favorita' : 'Nenhuma pasta favorita configurada';
+  b.setAttribute('title', t);
+  b.setAttribute('aria-label', t);
+ }
+ window.uiFavoritaLigar = function(b){
+  b = no(b);
+  if(!b || b._uiFav) return;
+  b._uiFav = true;
+  window.uiFavorita().then(function(f){ favPintar(b, f); traduzir() });
+  b.addEventListener('click', function(e){
+   e.preventDefault();
+   var campo = $(b.getAttribute('data-ui-fav'));
+   window.uiFavorita(true).then(function(f){
+    favPintar(b, f);
+    if(!f || !campo) return;
+    campo.value = f;
+    var ev;
+    try{ ev = new Event('input', {bubbles: true}) }
+    catch(x){ ev = document.createEvent('HTMLEvents'); ev.initEvent('input', true, false) }
+    campo.dispatchEvent(ev);
+    try{ campo.focus() }catch(x){}
+    try{ if(b._uiAoPreencher) b._uiAoPreencher(f) }catch(x){}
+   });
+  });
+ };
+ document.addEventListener('DOMContentLoaded', function(){
+  var l = document.querySelectorAll('button[data-ui-fav]');
+  for(var i = 0; i < l.length; i++) window.uiFavoritaLigar(l[i]);
+ });
+
+ window.uiVarrerLista = function(o){
+  o = o || {};
+  var alvo = no(o.alvo), est = no(o.estado);
+  if(!alvo && !o.pintar) return null;
+  var dias = (o.dias == null) ? 7 : (typeof o.dias === 'number' ? o.dias : window.uiDias(o.dias));
+  var vistos = {}, n = 0, ctl = null;
+  if(alvo){
+   alvo.innerHTML = '';
+   if(alvo.classList && !o.pintar) alvo.classList.add('ui-revelar-lista');
+  }
+  function contas(d){
+   var p = [molde('%s série(s) achada(s)', [d.series || 0]),
+            molde('%s pasta(s) olhada(s)', [d.pastas || 0])];
+   if(d.fora_da_data) p.push(molde('%s pasta(s) ficaram fora do filtro de data.', [d.fora_da_data]));
+   return '<span class="ui-vl-n">' + p.map(frase).join('') + '</span>';
+  }
+  function pintarEstado(d, rodando){
+   if(!est) return;
+   var h = '';
+   if(rodando){
+    h = '<span class="ui-gira" aria-hidden="true"></span>' + contas(d)
+      + '<button type="button" class="ui-bt" data-ui-vl="parar">' + frase('Parar a leitura') + '</button>';
+   } else {
+    h = contas(d);
+    if(d.fora_da_data && dias)
+     h += '<button type="button" class="ui-bt" data-ui-vl="todas">' + frase('Ler todas as datas') + '</button>';
+    (d.avisos || []).forEach(function(a){ h += '<span class="ui-vl-aviso">' + frase(a) + '</span>' });
+   }
+   html(est, h);
+   traduzir();
+  }
+  function aoParcial(linhas, d){
+   if(o.pintar){
+    n = (linhas || []).length;
+    try{ o.pintar(linhas || [], d || {}) }catch(e){}
+    traduzir();
+    return;
+   }
+   (linhas || []).forEach(function(s){
+    var k = String(s.uid || s.bilhete || s.curto || '');
+    var h = o.linha ? o.linha(s) : esc(s.desc || s.descricao || k);
+    var velho = vistos[k];
+    if(velho && velho.getAttribute('data-h') === h) return;
+    var cx = document.createElement('div');
+    cx.innerHTML = h;
+    var novo = cx.firstElementChild || cx;
+    novo.setAttribute('data-h', h);
+    if(velho && velho.parentNode) velho.parentNode.replaceChild(novo, velho);
+    else { alvo.appendChild(novo); n++ }
+    vistos[k] = novo;
+   });
+   traduzir();
+  }
+  if(est && !est._uiVl){
+   est._uiVl = true;
+   est.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('[data-ui-vl]') : null;
+    if(!b) return;
+    var a = b.getAttribute('data-ui-vl');
+    if(a === 'parar' && est._uiCtl){ b.disabled = true; est._uiCtl.parar() }
+    else if(a === 'todas' && est._uiDeNovo) est._uiDeNovo();
+   });
+  }
+  if(est) est._uiDeNovo = function(){
+   if(typeof o.dias === 'string' || (o.dias && o.dias.tagName)) window.uiDias(o.dias, 0);
+   var o2 = {}; for(var k in o) if(Object.prototype.hasOwnProperty.call(o, k)) o2[k] = o[k];
+   o2.dias = 0;
+   window.uiVarrerLista(o2);
+  };
+  pintarEstado({series: 0, pastas: 0}, true);
+  ctl = window.uiVarrer({uso: o.uso || 'series', chave: o.chave || ('lista:' + (alvo.id || '')),
+   pasta: o.pasta, dias: dias, opcoes: o.opcoes,
+   aoParcial: aoParcial,
+   aoProgresso: function(d){ if(!d.fim) pintarEstado(d, true) },
+   aoFim: function(linhas, d){
+    pintarEstado(d, false);
+    if(!n && o.vazio && alvo) html(alvo, '<p class="ui-vl-vazio">' + frase(o.vazio) + '</p>');
+    traduzir();
+    try{ if(o.aoFim) o.aoFim(linhas, d) }catch(e){}
+   },
+   aoErro: function(msg, d){
+    if(est) html(est, '<span class="ui-vl-aviso">' + frase(msg) + '</span>');
+    traduzir();
+    try{ if(o.aoErro) o.aoErro(msg, d) }catch(e){}
+   }});
+  if(est) est._uiCtl = ctl;
+  return ctl;
+ };
+})();
+</script>
+"""
+
+
+FILTRO_DE_DATA = ((u"1", u"1 dia"), (u"3", u"3 dias"), (u"7", u"7 dias"),
+                  (u"30", u"30 dias"), (u"0", u"Todas as datas"))
+
+
+def filtro_de_data(ident, valor=u"7"):
+    sel = segmentado(ident, FILTRO_DE_DATA, valor=valor,
+                     rotulo=u"Pastas dos últimos")
+    sel = sel.replace(u"<select ", u'<select data-ui-dias ', 1)
+    return (u'<div class="ui-dias" title="Lê só as pastas modificadas no '
+            u'período; a data é a da pasta, sem abrir o DICOM">'
+            u'<span class="ui-dias-rot" data-radai-frase>Pastas dos últimos'
+            u'</span>%s</div>' % sel)
+
+
+def botao_favorita(campo):
+    return (u'<button type="button" class="ui-bt ui-fav" data-ui-fav="%s" '
+            u'disabled title="Nenhuma pasta favorita configurada" '
+            u'aria-label="Nenhuma pasta favorita configurada">%s</button>'
+            % (_esc(campo), icone(u"estrela")))
 
 
 def tag_de_funcao(icone_txt, nome, chave_modulo=u""):
@@ -3206,12 +3838,21 @@ def cartao_de_serie(ident, popup, titulo, vazio=u"nenhuma série aberta",
 
 def area_de_envio(ident, titulo=u"Arraste para cá, ou clique para carregar",
                   dica=u"Pastas, vários arquivos ou um .zip do exame",
-                  aceita=u"", extra=u""):
+                  aceita=u"", extra=u"", imagens=u""):
     ac = (u' accept="%s"' % _esc(aceita)) if aceita else u""
+    img_inp, img_bt = u"", u""
+    if imagens:
+        img_inp = (u'<input type="file" class="ui-envio-img" multiple '
+                   u'accept="%s">' % _esc(imagens))
+        img_bt = (u'<button type="button" class="ui-bt" data-envio="imagem" '
+                  u'title="JPEG, PNG, TIFF ou BMP, pelo explorador do Windows">'
+                  u'%s<span data-radai-frase>Importar imagem</span></button>'
+                  % icone(u"imagem"))
     return (u'<div class="ui-envio" id="%s" tabindex="0" role="button" '
             u'aria-label="%s">'
             u'<input type="file" class="ui-envio-arq" multiple%s>'
             u'<input type="file" class="ui-envio-dir" webkitdirectory multiple>'
+            u'%s'
             u'<span class="ui-envio-ic" aria-hidden="true">%s</span>'
             u'<span class="ui-envio-tit" data-radai-frase>%s</span>'
             u'<span class="ui-envio-dica" data-radai-frase>%s</span>'
@@ -3219,11 +3860,12 @@ def area_de_envio(ident, titulo=u"Arraste para cá, ou clique para carregar",
             u'<button type="button" class="ui-bt" data-envio="arquivos">%s'
             u'<span data-radai-frase>Escolher arquivos</span></button>'
             u'<button type="button" class="ui-bt" data-envio="pasta">%s'
-            u'<span data-radai-frase>Escolher pasta</span></button>%s</span>'
+            u'<span data-radai-frase>Escolher pasta</span></button>%s%s</span>'
             u'<span class="ui-envio-barra"><i></i></span>'
             u'<span class="ui-envio-est" role="status"></span></div>'
-            % (_esc(ident), _esc(titulo), ac, icone(u"subir"), _esc(titulo),
-               _esc(dica), icone(u"arquivo"), icone(u"pasta"), extra or u""))
+            % (_esc(ident), _esc(titulo), ac, img_inp, icone(u"subir"),
+               _esc(titulo), _esc(dica), icone(u"arquivo"), icone(u"pasta"),
+               extra or u"", img_bt))
 
 
 _COR_DO_MODULO = {
@@ -3236,10 +3878,32 @@ _COR_DO_MODULO = {
 }
 
 
+IDENTIDADE = u"""
+:root:not([data-tema="claro"]) body[data-ls-identidade="trabalho"]{
+ --ls-chrome:#08111f; --ls-divisor:#29374d; --ls-borda-painel:#2c3a51;
+ --ls-ouro-discreto:rgba(181,156,121,.4); --ls-icone-neutro:#9bb0cc}
+:root:not([data-tema="claro"]) body[data-ls-identidade="trabalho"] :is(.rc-topo,.ui-topo,.radai-menu,.radai-tarefas){
+ background-color:var(--ls-chrome);border-color:var(--ls-divisor)}
+:root:not([data-tema="claro"]) body[data-ls-identidade="trabalho"] .rc-marca .g{
+ background-image:linear-gradient(100deg,#66c4ff,#7da4f8 48%,#b49aec)}
+:root:not([data-tema="claro"]) body[data-ls-identidade="trabalho"] .radai-menu a:not(.on):not(:hover) .ico{
+ color:var(--ls-icone-neutro)}
+:root:not([data-tema="claro"]) body[data-ls-identidade="trabalho"] .radai-menu a.on{
+ border-color:var(--ls-ouro-discreto)}
+:root:not([data-tema="claro"]) body[data-ls-identidade="trabalho"] :is(.ps-cx,.pp-etapa){
+ border-color:var(--ls-borda-painel)}
+:root:not([data-tema="claro"]) body[data-ls-identidade="trabalho"] .ui-modal{
+ border-color:var(--ls-ouro-discreto)}
+:root:not([data-tema="claro"]) body[data-ls-identidade="trabalho"] .ui-modal-cab{
+ border-bottom-color:var(--ls-divisor)}
+"""
+
+
 def folha():
     return (u'<style id="%s">' % MARCA_CSS) + TOKENS + CASCA + PASSOS \
         + AJUDA + BOTOES + MOVIMENTO + CONTROLES + TRANSICOES + CSS_ICONES \
-        + COMPONENTES + CSS_EXPLORADOR + u"</style>"
+        + COMPONENTES + CSS_EXPLORADOR + CSS_VARREDURA + IDENTIDADE \
+        + u"</style>"
 
 
 def _esc(t):
@@ -3308,6 +3972,19 @@ def _resolver_icones(pagina):
     return pagina
 
 
+PECAS_DA_CASCA = ("radai_janela", "radai_roteiro", "radai_atualizar")
+
+
+def da_casca():
+    pedacos = []
+    for nome in PECAS_DA_CASCA:
+        try:
+            pedacos.append(getattr(__import__(nome), "PARA_A_CASCA", u"") or u"")
+        except Exception:
+            continue
+    return u"".join(pedacos)
+
+
 def aplicar(pagina):
     pagina = _resolver_icones(pagina)
     pagina = _pendurar_icone(pagina)
@@ -3318,7 +3995,7 @@ def aplicar(pagina):
     if fim_head < 0:
         return pagina
     saida = (pagina[:fim_head] + TEMA_JS + folha() + JS + COMPONENTES_JS
-             + pagina[fim_head:])
+             + VARREDURA_JS + da_casca() + pagina[fim_head:])
     fim_corpo = saida.lower().rfind(u"</body>")
     if fim_corpo < 0:
         return saida
@@ -3390,6 +4067,13 @@ _TRACOS = {
                  u'<path d="M6.5 4c1.2 3-1 5 0 8s1.2 5 0 8M12 4c1.6 3-1.6 5 0 8s1.6 5 0 8M17.5 4c1.2 3-1 5 0 8s1.2 5 0 8"/>',
     u"camadas":  u'<path d="M3 19.5c2-6.5 16-6.5 18 0"/><path d="M3 15c2-6.5 16-6.5 18 0"/>'
                  u'<path d="M3 15v4.5M21 15v4.5"/>',
+    # GUARDA: o desenho mora em 84 unidades (o da porta); o traco 5.6 na escala da 1,6 dos outros.
+    u"bolus":    u'<g transform="scale(.2857142857)" stroke-width="5.6">'
+                 u'<path d="M13 56q-3 10 6 13l25 9q4 2 9-1l19-12q4-3 1-9L43 37Z"/>'
+                 u'<path d="M13 48q-3 10 6 13l25 9q4 2 9-1l19-12q4-3 1-9L43 29Z"/>'
+                 u'<path d="M15 37q-5 8 3 13l25 12q4 2 9-1l19-14q4-3-1-9L45 19q-5-3-9 0Z"/>'
+                 u'<path d="m20 35 19-12q5-3 10 1l17 13q5 4-1 8L50 55q-5 3-10 0L20 44q-6-3 0-9Z"'
+                 u' fill="currentColor" fill-opacity=".08"/></g>',
     u"exportar": u'<path d="M3 12h12.5M11.5 7l5 5-5 5M20 4.5v15"/>',
     u"converter": u'<rect x="3" y="3.5" width="8" height="8" rx="1.5"/><path d="M5.2 9.7l1.9-2.4 1.7 1.7"/>'
                   u'<path d="M7 14.5v1.5a2 2 0 0 0 2 2h4M11 16l2 2-2 2"/>'
@@ -3401,6 +4085,15 @@ _TRACOS = {
     u"olho":     u'<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/>'
                  u'<circle cx="12" cy="12" r="3"/>',
     u"lapis":    u'<path d="M15.5 4.5l4 4L8 20H4v-4z"/><path d="M13 7l4 4"/>',
+    u"rede":     u'<rect x="4" y="3.5" width="16" height="8" rx="2"/><path d="M8 7.5h.01'
+                 u'M12 11.5v5M3.5 19h6M14.5 19h6"/><circle cx="12" cy="19" r="2.5"/>',
+    u"imagem":   u'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/>'
+                 u'<circle cx="9" cy="9.5" r="1.6"/><path d="M4 17l5-5 4 4 2.5-2.5L20 17"/>',
+    u"atraves":  u'<circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6" stroke-dasharray="2.2 2.2"/>',
+    u"sala":     u'<path d="M15.5 4.6a8 8 0 1 0 0 14.8"/><rect x="13.5" y="2.5" width="6" height="4" rx="1"/>'
+                 u'<rect x="14.5" y="17.5" width="4" height="4" rx="1"/><path d="M12 12h.01"/>',
+    u"detector": u'<rect x="3.5" y="5" width="9" height="14" rx="1.2"/><path d="M15 12h6M18 9l3 3-3 3"/>',
+    u"guardar":  u'<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 19h14"/>',
 }
 
 

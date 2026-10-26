@@ -163,6 +163,9 @@ USER_AGENT = "radioterapia-ai-local-suite"
 
 DIAS_SEM_VERIFICAR = 21
 
+FRASE_DO_404 = (u"consulta indisponivel (o endereco das versoes respondeu "
+                u"404: endereco errado ou release que nao existe)")
+
 _CONSULTA = {"estado": "nunca", "versao": u"", "quando": None,
              "erro": u"", "url": u""}
 _TRAVA_CONSULTA = None
@@ -257,6 +260,7 @@ def consultar(url_pagina=None, timeout=None):
             fora["erro"] = u"a resposta nao trouxe tag_name"
             return fora
         fora["versao"] = tag
+        fora["instalador"] = instalador_da_release(d)
         if not aqui:
             fora["estado"] = "erro"
             fora["erro"] = (u"achei a versao publicada (%s), mas nao sei a "
@@ -266,21 +270,139 @@ def consultar(url_pagina=None, timeout=None):
         return fora
     except urllib.error.HTTPError as e:
         if e.code == 404:
-            fora["estado"] = "privado"
-            fora["esperado"] = True
-            fora["esperado"] = True
+            fora["estado"] = "nao_achada"
             fora["erro"] = (
-                u"nao consultei a versao publicada: sem credencial o "
-                u"GitHub responde 404 tanto para repositorio privado "
-                u"quanto para endereco errado, e este programa nao usa "
-                u"conta. Confira o endereco das versoes "
-                u"(RADAI_URL_VERSOES).")
+                u"o endereco das versoes respondeu 404: ou ele esta errado, "
+                u"ou nao existe release publicada nele. Confira o endereco "
+                u"das versoes (RADAI_URL_VERSOES).")
         else:
             fora["erro"] = u"HTTP %s" % e.code
         return fora
     except Exception as e:
         fora["erro"] = u"%s: %s" % (type(e).__name__, str(e)[:120])
         return fora
+
+
+def instalador_da_release(d, nome=None):
+    nome = nome_do_instalador_latest() if nome is None else nome
+    if not nome or not isinstance(d, dict):
+        return {}
+    for a in d.get("assets") or []:
+        if not isinstance(a, dict) or str(a.get("name") or "") != nome:
+            continue
+        dig = str(a.get("digest") or "").strip()
+        sha = (dig.split(":", 1)[1].strip().lower()
+               if dig.lower().startswith("sha256:") else u"")
+        try:
+            tam = int(a.get("size") or 0)
+        except (TypeError, ValueError):
+            tam = 0
+        return {"nome": nome, "url": str(a.get("browser_download_url") or ""),
+                "tamanho": tam, "sha256": sha}
+    return {}
+
+
+TETO_DO_INSTALADOR_BYTES = 256 * 1024 * 1024
+TETO_DO_DOWNLOAD_S = 900.0
+
+
+def _endereco_local(url):
+    resto = str(url or "").split("://", 1)[-1]
+    lugar = resto.split("/", 1)[0].rsplit("@", 1)[-1]
+    return lugar.split(":", 1)[0].lower() in ("127.0.0.1", "localhost")
+
+
+def baixar_instalador(inst, pasta, timeout=None, progresso=None,
+                      relogio=None):
+    import hashlib
+    import re
+    import time
+    import urllib.request
+    relogio = relogio or time.monotonic
+    r = {"ok": False, "motivo": u"", "arquivo": u"", "bytes": 0,
+         "segundos": 0.0}
+    inst = inst if isinstance(inst, dict) else {}
+    url = str(inst.get("url") or "").strip()
+    sha = str(inst.get("sha256") or "").strip().lower()
+    nome = str(inst.get("nome") or "").strip()
+    try:
+        tam = int(inst.get("tamanho") or 0)
+    except (TypeError, ValueError):
+        tam = 0
+    if not url or not nome:
+        r["motivo"] = u"a release não diz de onde baixar o instalador"
+        return r
+    # GUARDA: sem a soma publicada pela release nada do que se baixa e
+    # executado; ela prova identidade com o publicado, nao autenticidade.
+    if not re.match(r"^[0-9a-f]{64}$", sha):
+        r["motivo"] = (u"a release não publica a soma SHA-256 do instalador, "
+                       u"e sem ela nada baixado é executado")
+        return r
+    if not (url.lower().startswith("https://") or _endereco_local(url)):
+        r["motivo"] = u"o endereço do instalador não é https"
+        return r
+    if tam <= 0 or tam > TETO_DO_INSTALADOR_BYTES:
+        r["motivo"] = u"a release diz um tamanho fora do esperado"
+        return r
+    if os.path.sep in nome or "/" in nome or nome.startswith("."):
+        r["motivo"] = u"o nome do instalador na release não é um nome de arquivo"
+        return r
+    os.makedirs(pasta, exist_ok=True)
+    destino = os.path.join(pasta, nome)
+    h = hashlib.sha256()
+    n = 0
+    t0 = relogio()
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(
+                req, timeout=float(timeout or 30.0)) as resp, \
+                io.open(destino, "wb") as f:
+            while True:
+                bloco = resp.read(256 * 1024)
+                if not bloco:
+                    break
+                n += len(bloco)
+                if n > tam:
+                    raise ValueError(u"o arquivo passou do tamanho da release")
+                if relogio() - t0 > TETO_DO_DOWNLOAD_S:
+                    raise ValueError(u"o download passou de %d min"
+                                     % int(TETO_DO_DOWNLOAD_S // 60))
+                h.update(bloco)
+                f.write(bloco)
+                if progresso:
+                    try:
+                        progresso(n, tam)
+                    except Exception:
+                        pass
+    except Exception as e:
+        _apagar(destino)
+        r["motivo"] = u"o download falhou (%s: %s)" % (type(e).__name__,
+                                                       str(e)[:120])
+        r["bytes"] = n
+        return r
+    r["bytes"] = n
+    r["segundos"] = max(0.0, relogio() - t0)
+    if n != tam:
+        _apagar(destino)
+        r["motivo"] = (u"o arquivo baixado tem %d bytes, e a release diz %d"
+                       % (n, tam))
+        return r
+    if h.hexdigest().lower() != sha:
+        _apagar(destino)
+        r["motivo"] = (u"a soma SHA-256 do arquivo baixado (%s…) não bate com "
+                       u"a da release (%s…)" % (h.hexdigest()[:12], sha[:12]))
+        return r
+    r["ok"] = True
+    r["arquivo"] = destino
+    return r
+
+
+def _apagar(caminho):
+    try:
+        if caminho and os.path.isfile(caminho):
+            os.remove(caminho)
+    except Exception:
+        pass
 
 
 def _maior(a, b):
@@ -328,14 +450,12 @@ def ultima_consulta(hoje=None):
         d["frase"] = u"conferido agora: esta e a versao mais recente"
     elif est == "nunca":
         d["frase"] = u""
+    elif est == "nao_achada":
+        d["frase"] = FRASE_DO_404
     else:
         _e = (d.get("erro") or u"sem detalhe")
         _m = _e.split(":")[0].strip()[:60]
-        if _m == u"nao consultei a versao publicada":
-            d["frase"] = (u"consulta indisponivel (nao consultei a versao "
-                          u"publicada)")
-        else:
-            d["frase"] = u"consulta indisponivel (%s)" % _m
+        d["frase"] = u"consulta indisponivel (%s)" % _m
     if quando is not None and est not in ("nova", "atual"):
         dias = ((hoje or datetime.datetime.now()) - quando).days
         if dias >= DIAS_SEM_VERIFICAR:

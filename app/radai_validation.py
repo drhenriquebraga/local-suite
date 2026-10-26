@@ -72,6 +72,18 @@ def pasta_evidencias(versao, criar=False):
     return d
 
 
+_SEGREDO_NA_MEMORIA = {}
+
+
+def _pasta_que_sincroniza(pasta):
+    if radai_archive is None:
+        return False
+    try:
+        return bool(radai_archive.em_pasta_sincronizada(pasta)[0])
+    except Exception:
+        return False
+
+
 def _segredo():
     p = raiz()
     p.mkdir(parents=True, exist_ok=True)
@@ -83,6 +95,12 @@ def _segredo():
                 return b
         except OSError:
             pass
+    # GUARDA: chave em texto nunca vai para pasta que sincroniza com a nuvem.
+    if _pasta_que_sincroniza(p):
+        chave = os.path.normcase(os.path.abspath(str(p)))
+        if chave not in _SEGREDO_NA_MEMORIA:
+            _SEGREDO_NA_MEMORIA[chave] = os.urandom(32).hex().encode("ascii")
+        return _SEGREDO_NA_MEMORIA[chave]
     b = os.urandom(32).hex().encode("ascii")
     arq.write_bytes(b)
     return b
@@ -310,8 +328,13 @@ def conferir():
         "esquema": caminho(ARQ_ESQUEMA).exists(),
         "aviso": (u"O registro de validacao esta em %s, que parece pasta "
                   u"sincronizada (%r no caminho). Ele referencia caso clinico: "
-                  u"isso sairia do hospital. Aponte o acervo para uma pasta "
-                  u"local." % (d, motivo)) if nuvem else "",
+                  u"isso sairia do hospital. A chave do pseudonimo nao e "
+                  u"gravada nela e vale so enquanto o programa esta aberto%s. "
+                  u"Aponte o acervo para uma pasta local." % (
+                      d, motivo,
+                      u"; a que ja esta la (%s) deve sair dela" % ARQ_SEGREDO
+                      if caminho(ARQ_SEGREDO).exists() else u""))
+                  if nuvem else "",
     }
 
 
@@ -350,7 +373,9 @@ falha se alguma escapar.
 ### Sobre o pseudônimo
 
 HMAC-SHA256 com segredo local de 32 bytes, gerado na primeira execução e
-guardado em `_pseudonimo.segredo`, ao lado deste arquivo.
+guardado em `_pseudonimo.segredo`, ao lado deste arquivo. Em pasta que
+sincroniza com a nuvem o segredo não é gravado: vale só enquanto o programa
+está aberto.
 
 Não é um hash simples de propósito: `PatientID` tem espaço de busca pequeno, e
 SHA-256 puro de um número de prontuário volta por força bruta em segundos. Com

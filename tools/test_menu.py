@@ -377,12 +377,84 @@ def teste_os_nomes_dos_modulos_tem_o_espaco():
            isca["titulo"] + isca["destaque"] == "NidusRT")
 
 
+def _corpo(p):
+    i = p.lower().find("<body")
+    return p[i:p.index(">", i) + 1] if i >= 0 else ""
+
+
+def teste_a_identidade_marca_so_as_ferramentas():
+    secao("identidade: so as telas de ferramenta levam data-ls-identidade")
+    import radai_breadcrumb as B
+    ferramentas = sorted(k for k, v in B.ARVORE.items() if v[2] in M.MODULOS)
+    checar("a arvore tem as ferramentas dos seis modulos",
+           len(ferramentas) >= 9 and "bolus_gerar" in ferramentas
+           and "lote" in ferramentas, repr(ferramentas))
+    for k in ferramentas:
+        checar("`%s` e ferramenta" % k, M.e_ferramenta(k))
+        c = _corpo(M.aplicar(PAGINA, k, com_tarefas=False))
+        checar("  e o body leva data-ls-identidade=\"trabalho\"",
+               'data-ls-identidade="trabalho"' in c, c)
+    for k in ("inicio", "config", "bibliografia", "procedencia", "creditos",
+              "termos", "diagnostico", "xpto", "") + tuple(M.MODULOS):
+        c = _corpo(M.aplicar(PAGINA, k, com_tarefas=False))
+        checar("`%s` nao e tela de ferramenta" % k,
+               not M.e_ferramenta(k) and "data-ls-identidade" not in c, c)
+    ja = (u'<!doctype html><html><head><title>x</title></head>'
+          u'<body data-tela="lote"><p>x</p></body></html>')
+    c = _corpo(M.marcar_tela(ja, "lote"))
+    checar("body que ja tem data-tela ganha a identidade sem repetir a tela",
+           c.count("data-tela=") == 1 and 'data-ls-identidade="trabalho"' in c, c)
+    c = _corpo(M.marcar_tela(M.marcar_tela(PAGINA, "lote"), "lote"))
+    checar("  e marcar de novo nao repete o atributo",
+           c.count("data-ls-identidade") == 1, c)
+
+
+def teste_o_trilho_pinta_cada_modulo():
+    secao("trilho: cada modulo tem a sua cor, e o icone inativo acende no hover")
+    folha = M.folha_do_trilho()
+    import re as _re
+    for k in M.MODULOS:
+        achou = _re.search(r'\.radai-menu a\[data-mod="%s"\]\{--mod-cor:var\(--mod-'
+                           % k, folha)
+        checar("`%s` define --mod-cor no trilho" % k, bool(achou))
+    isca = folha.replace('a[data-mod="nidus"]', 'a[data-mod="nidus-isca"]')
+    checar("  (isca) sem a linha do Nidus, ele volta ao azul",
+           not _re.search(r'\.radai-menu a\[data-mod="nidus"\]\{--mod-cor', isca))
+
+
+def teste_o_bolus_tem_icone_proprio():
+    secao("trilho: o 3D Printed Bolus tem icone proprio, distinto do DicomBridge")
+    import radai_ui as U
+    por = dict((i[0], i) for i in M.ITENS)
+    checar("o item do bolus usa a chave `bolus`", por["bolus"][2] == u"bolus",
+           por["bolus"][2])
+    svg = U.icone(u"bolus")
+    checar("a chave `bolus` desenha com o envelope de radai_ui.icone",
+           u'class="ui-ic"' in svg and u'viewBox="0 0 24 24"' in svg
+           and u'aria-hidden="true"' in svg and u'focusable="false"' in svg)
+    checar("  com as camadas curvas da porta, no traco efetivo de 1,6",
+           u'scale(.2857142857)' in svg and u'stroke-width="5.6"' in svg
+           and svg.count(u"<path") == 4, svg[:200])
+    h = M.html(u"bolus_gerar")
+    item = h[h.index(u'data-mod="bolus"'):]
+    item = item[:item.index(u"</a>")]
+    checar("o trilho mostra o icone novo no item do bolus",
+           u"scale(.2857142857)" in item, item[:160])
+    checar("  e so nele", h.count(u"scale(.2857142857)") == 1)
+    checar("  e o desenho e outro que o do DicomBridge",
+           U.icone(u"bolus") != U.icone(por["bridge"][2]))
+    checar("a chave `camadas` continua a mesma (nao foi trocada no lugar)",
+           u"scale(" not in U.icone(u"camadas"))
+
+
 def main():
     print("test_menu | barra lateral das telas de trabalho")
     for t in (teste_itens, teste_marcacao, teste_aplicar, teste_nunca_quebra,
               teste_escapa, teste_telas_ligadas,
               teste_o_idioma_e_o_fechar_aparecem,
-              teste_os_nomes_dos_modulos_tem_o_espaco):
+              teste_os_nomes_dos_modulos_tem_o_espaco,
+              teste_a_identidade_marca_so_as_ferramentas,
+              teste_o_trilho_pinta_cada_modulo, teste_o_bolus_tem_icone_proprio):
         try:
             t()
         except Exception as e:

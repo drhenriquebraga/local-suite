@@ -154,6 +154,8 @@ $script:RotOnde = $null
 $script:RotInstalador = $null
 $script:RotAceita = $null
 $script:ResultadoModo3 = ''
+$script:AtualizouSoCodigo = $null
+$script:VersaoAntesDoCodigo = ''
 $script:EstacaoFinal = $null
 # GUARDA: RADAI_ATUALIZAR_APP e RADAI_ATUALIZAR_APP_DE sao o contrato com o instalador anterior que baixou este; nao renomear.
 $script:PastaDaCascata = [string]$env:RADAI_ATUALIZAR_APP
@@ -1098,7 +1100,7 @@ function VersaoPublicada {
         try {
             $st = $_.Exception.Response.StatusCode.value__
             if ($st -eq 404) {
-                $conf.erro = ((T 'o repositorio e privado: no navegador, quem entra com uma conta autorizada ve as versoes, mas este programa nao usa conta e nao consegue compara-las. Isto nao e problema de internet. O instalador mais recente fica sempre em {0}') -f (LinkDoInstalador))
+                $conf.erro = ((T 'o endereco das versoes respondeu 404: ou ele esta errado, ou nao existe release publicada nele. Isto nao e problema de internet. O instalador mais recente fica sempre em {0}') -f (LinkDoInstalador))
             }
         } catch { }
     }
@@ -1185,11 +1187,133 @@ function PerguntarSeTentaDeNovo {
     return ([string]$r -eq 'Retry')
 }
 
-function GarantirAppFechado {
+function PortaDoApp {
     param([string]$Pasta)
+    $p = 8777
+    try {
+        $cfg = Join-Path $Pasta 'radai_watcher.config'
+        if (Test-Path -LiteralPath $cfg) {
+            foreach ($l in [System.IO.File]::ReadAllLines($cfg)) {
+                if ($l -match '^[\s﻿]*PORT\s*=\s*(\d+)') { $p = [int]$Matches[1] }
+            }
+        }
+    } catch { }
+    return $p
+}
+
+function PerguntarAoApp {
+    param([int]$Porta, [string]$Rota)
+    try {
+        $req = [System.Net.WebRequest]::Create('http://127.0.0.1:' + $Porta + $Rota)
+        # GUARDA: sem Proxy nulo o pedido ao 127.0.0.1 vai ao proxy do Windows.
+        $req.Proxy = $null
+        $req.Timeout = 3000
+        $resp = $req.GetResponse()
+        try {
+            $sr = New-Object System.IO.StreamReader($resp.GetResponseStream())
+            $txt = $sr.ReadToEnd()
+            $sr.Close()
+        } finally { $resp.Close() }
+        return ($txt | ConvertFrom-Json)
+    } catch { return $null }
+}
+
+function CampoDoApp {
+    param($Obj, [string]$Nome)
+    # GUARDA: o preparador roda em StrictMode; campo que falta na resposta do app nao pode derrubar a pergunta.
+    if (-not $Obj) { return $null }
+    $c = $Obj.PSObject.Properties[$Nome]
+    if ($c) { return $c.Value }
+    return $null
+}
+
+function EstadoDoAppAberto {
+    param([string]$Pasta)
+    $r = @{ aberto = $false; processando = $false; oque = '' }
+    if (-not $Pasta) { return $r }
+    $porta = PortaDoApp $Pasta
+    $p = PerguntarAoApp $porta '/api/pulso'
+    if (-not (CampoDoApp $p 'radai')) { return $r }
+    $r.aberto = $true
+    $s = PerguntarAoApp $porta '/api/status'
+    # GUARDA: os mesmos campos que o lancador le para perguntar antes de reabrir; sem resposta, conta como processando.
+    if (-not $s) { $r.processando = $true; $r.oque = 'não respondeu se está processando' }
+    elseif (CampoDoApp $s 'overnight') { $r.processando = $true; $r.oque = 'o turno da noite está aberto' }
+    elseif ((CampoDoApp $s 'ocupado') -or (CampoDoApp $s 'current')) { $r.processando = $true; $r.oque = 'há uma série em processamento' }
+    elseif (CampoDoApp $s 'turno_agendado') { $r.processando = $true; $r.oque = 'o turno da noite está na fila' }
+    return $r
+}
+
+function PerguntarSeProcessando {
+    param([string]$Pasta)
+    $e = EstadoDoAppAberto $Pasta
+    if (-not $e.processando) { return $true }
+    Registrar ('  o app aberto em ' + $Pasta + ': ' + $e.oque)
+    $r = [System.Windows.Forms.MessageBox]::Show(
+        ((T 'O app está aberto nesta máquina e {0}. Encerrar agora interrompe o que está rodando: a série volta para a fila, sem contar como falha.') -f (T $e.oque)) +
+        "`r`n`r`n" + (T 'Encerrar o app e seguir?'),
+        (T 'O app está processando'),
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Warning)
+    $sim = ([string]$r -eq 'Yes')
+    if ($sim) { Registrar '  a pessoa confirmou encerrar o app' }
+    else { Registrar '  a pessoa escolheu deixar o app aberto' 'alerta' }
+    return $sim
+}
+
+function FecharJanelasDoApp {
+    # GUARDA: so as janelas do perfil proprio do app (o --user-data-dir que termina em radai_janela); o navegador da pessoa nunca e tocado.
+    $n = 0
+    $procs = @()
+    try {
+        $procs = @(Get-CimInstance Win32_Process -Filter "Name='msedge.exe' OR Name='chrome.exe'" -ErrorAction Stop)
+    } catch { $procs = @() }
+    foreach ($p in $procs) {
+        $cl = [string]$p.CommandLine
+        if ($cl -match '--type=') { continue }
+        if ($cl -notmatch '--user-data-dir=[^"]*\\radai_janela("|\s|$)') { continue }
+        try {
+            $gp = Get-Process -Id ([int]$p.ProcessId) -ErrorAction Stop
+            if ($gp.MainWindowHandle -ne [IntPtr]::Zero) { [void]$gp.CloseMainWindow() }
+            if (-not $gp.WaitForExit(5000)) {
+                Stop-Process -Id $gp.Id -Force -ErrorAction SilentlyContinue
+            }
+            $n++
+        } catch { }
+    }
+    return $n
+}
+
+function EncerrarAppNoArranque {
+    if (-not $script:Instalado) { return }
+    $pasta = ([string]$script:Instalado.pasta).TrimEnd('\')
+    if (-not (MarcaDeInstalacaoAntiga $pasta)) { return }
+    if (-not (PerguntarSeProcessando $pasta)) {
+        Registrar '  o app continua aberto; o instalador pergunta de novo antes de trocar o codigo' 'alerta'
+        return
+    }
+    [void](GarantirAppFechado $pasta -JaPerguntou)
+}
+
+function ConcluirAtualizacao {
+    param($Inst, [string]$Como, [string]$De)
+    $script:PastaInstalada = ([string]$Inst.pasta).TrimEnd('\')
+    $script:AtualizouSoCodigo = @($Como, $De, $script:VERSAO_INSTALADOR)
+    try { AtualizarConclusao $script:PastaInstalada '' } catch { }
+    try { $abas.SelectedTab = $aba4 } catch { }
+}
+
+function GarantirAppFechado {
+    param([string]$Pasta, [switch]$JaPerguntou)
     # GUARDA: trocar codigo ou biblioteca por baixo do app aberto corrompe a
     # instalacao; quem encerra e o atualizador, que so mexe no Python da pasta.
     if (-not $Pasta -or -not (MarcaDeInstalacaoAntiga $Pasta)) { return $true }
+    if (-not $JaPerguntou -and -not (PerguntarSeProcessando $Pasta)) {
+        Registrar '  cancelado: o app esta processando e continua aberto; nada foi trocado' 'alerta'
+        return $false
+    }
+    $nJ = FecharJanelasDoApp
+    if ($nJ -gt 0) { Registrar ('  a janela do app foi fechada (' + $nJ + ')') }
     while ($true) {
         Registrar ('  conferindo se o app esta aberto em ' + $Pasta)
         $rc = RodarAtualizador $Pasta @('-SoEncerrar')
@@ -1447,6 +1571,11 @@ function AtualizarApp {
         return 'retrocesso'
     }
     Registrar '  cascata 2/4: comparo a impressao de requisitos da instalacao (_requisitos.json) com a deste instalador'
+    $script:VersaoAntesDoCodigo = $vInst
+    if (-not (PerguntarSeProcessando $pasta)) {
+        Registrar 'A atualizacao nao aconteceu: o app esta processando e continua aberto.' 'alerta'
+        return 'aberto'
+    }
     $rc = -1
     while ($true) {
         $rc = RodarAtualizador $pasta @('-SemPerguntar')
@@ -1455,6 +1584,8 @@ function AtualizarApp {
     }
     Registrar ''
     if ($rc -eq 0) {
+        $nJ = FecharJanelasDoApp
+        if ($nJ -gt 0) { Registrar ('  a janela do app antigo foi fechada (' + $nJ + ')') }
         Registrar 'ATUALIZADO: a impressao bateu, e so o codigo foi trocado, sem internet.' 'ok'
         $script:Instalado = AcharInstalacao
         try { PintarEstado } catch { }
@@ -1498,6 +1629,10 @@ function IniciarAtualizarApp {
         FecharAJanela
         return $fim
     }
+    if ($fim -eq 'codigo') {
+        ConcluirAtualizacao $Inst 'codigo' $script:VersaoAntesDoCodigo
+        return $fim
+    }
     if ($fim -eq 'tudo') {
         $script:CascataConferiuAVersao = $true
         AvisarAtualizarApp (T 'Esta versão precisa de bibliotecas ou modelos que a instalação não tem, e há internet aqui. O «Instalar / Atualizar app nesta máquina» segue para atualizar tudo na pasta instalada: aceite as licenças e clique em Atualizar tudo. A sua configuração fica.')
@@ -1519,6 +1654,7 @@ function IniciarAtualizarApp {
             AvisarAtualizarApp ((T 'Atualização cancelada. O pacote instalado nesta máquina (o bundle) é incompatível com a v{0} e impede o uso dela, e aqui não há internet para atualizá-lo. Traga um pacote atualizado, preparado numa máquina com internet por «Máquina com internet: montar um pacote para levar para a máquina offline», e clique de novo em «Instalar / Atualizar app nesta máquina». A instalação atual continua como estava.') -f $script:VERSAO_INSTALADOR) 'Warning'
             return 'cancelado'
         }
+        ConcluirAtualizacao $Inst 'pacote' ([string]$Inst.versao)
         return 'pacote'
     }
     return $fim
@@ -1567,7 +1703,8 @@ function RetomarAtualizarApp {
 
 function ListaDePreservados {
     $preserv = @('radai_watcher.config', '_dados.txt', '_bundle.txt',
-                 'calibracao', 'registro', 'radai_status.json')
+                 'calibracao', 'registro', 'radai_status.json',
+                 'nomes_proprios.json', 'protocolos_proprios.json')
     return $preserv
 }
 
@@ -2500,7 +2637,22 @@ O REGISTRO, PARA GUARDAR
   sendo ato médico, no sistema de planejamento.
 "@)
 
-    if ($script:Modo -eq '3') {
+    if ((Test-Path variable:script:AtualizouSoCodigo) -and $script:AtualizouSoCodigo) {
+        $como = [string]$script:AtualizouSoCodigo[0]
+        $de = [string]$script:AtualizouSoCodigo[1]
+        if (-not $de) { $de = '?' }
+        $para = [string]$script:AtualizouSoCodigo[2]
+        $tit4 = $(if ($como -eq 'pacote') { T 'PRONTO — ATUALIZADO A PARTIR DO PACOTE QUE VOCÊ TROUXE' }
+                  else { T 'PRONTO — APP ATUALIZADO NESTA MÁQUINA' })
+        $como4 = $(if ($como -eq 'pacote') { T 'O pacote que você trouxe foi instalado por cima, sem internet.' }
+                   else { T 'A impressão de requisitos bateu: só o código foi trocado, sem internet e sem baixar nada.' })
+        $txt4.Text = $tit4 + "`r`n`r`n  " + $como4 + "`r`n`r`n  " +
+            ((T 'Versão anterior: {0}. Versão instalada: {1}.') -f $de, $para) + "`r`n`r`n  " +
+            (T 'O programa está em') + "`r`n`r`n      " + $script:PastaInstalada + "`r`n`r`n  " +
+            (T 'A sua configuração, o registro de casos e os logs ficaram como estavam. Os atalhos da área de trabalho e do menu Iniciar foram refeitos.') +
+            "`r`n`r`n  " + (T 'O botão verde abaixo fecha este instalador e abre o app.') +
+            "`r`n`r`n`r`n  " + (T 'Ferramenta de apoio. Não validada para uso clínico.')
+    } elseif ($script:Modo -eq '3') {
         $txt4.Text = @"
 PRONTO — INSTALADO A PARTIR DO ARQUIVO QUE VOCÊ TROUXE
 
@@ -2518,10 +2670,11 @@ PRONTO — INSTALADO A PARTIR DO ARQUIVO QUE VOCÊ TROUXE
 PRIMEIRO USO
 
   1. A tela inicial pede o idioma e o aceite dos termos.
-  2. Logo depois, o primeiro uso pede o TPS de destino (Eclipse ou
-     Monaco) e a pasta das séries que o turno varre: sem ela o vigia
-     não varre nada. Para mudar depois: Configurações, ou no
-     ContourLab, em Rodar agora, Incluir Overnight Run.
+  2. Logo depois, o primeiro uso pede a pasta favorita, que é
+     opcional. A pasta que o turno varre se escolhe no ContourLab, em
+     Rodar agora, Incluir Overnight Run: sem ela o vigia não varre
+     nada. Os anéis saem no padrão Eclipse / Monaco; para Xio / Focal,
+     Configurações, Geral.
 
 
   Ferramenta de apoio. Não validada para uso clínico. Toda estrutura
@@ -2543,10 +2696,11 @@ PRIMEIRO USO
 PRIMEIRO USO
 
   1. A tela inicial pede o aceite dos termos.
-  2. Logo depois, o primeiro uso pede o TPS de destino (Eclipse ou
-     Monaco) e a pasta das séries que o turno varre. Para mudar depois:
-     Configurações, ou no ContourLab, em Rodar agora, Incluir Overnight Run.
-  3. Em Configurações, Diagnosticar e otimizar, clique em Diagnosticar:
+  2. Logo depois, o primeiro uso pede a pasta favorita, que é opcional.
+     A pasta que o turno varre se escolhe no ContourLab, em Rodar agora,
+     Incluir Overnight Run. Os anéis saem no padrão Eclipse / Monaco;
+     para Xio / Focal, Configurações, Geral.
+  3. Em Configurações, Diagnósticos e Registros, clique em Diagnosticar:
      tem de dar 0 faltando.
 
 
@@ -2578,12 +2732,13 @@ PRIMEIRO USO
 
   1. A tela inicial pede o idioma e o aceite dos termos — os cartões
      só aparecem depois dele
-  2. Logo depois, o primeiro uso pede o TPS de destino (Eclipse ou
-     Monaco) e a pasta das séries que o turno varre: sem ela o vigia
-     não varre nada. Para mudar depois: Configurações, ou no
-     ContourLab, em Rodar agora, Incluir Overnight Run
-  3. Em Configurações, Diagnosticar e otimizar, clique em Diagnosticar:
-     tem de dar 0 faltando
+  2. Logo depois, o primeiro uso pede a pasta favorita, que é
+     opcional. A pasta que o turno varre se escolhe no ContourLab, em
+     Rodar agora, Incluir Overnight Run: sem ela o vigia não varre
+     nada. Os anéis saem no padrão Eclipse / Monaco; para Xio / Focal,
+     Configurações, Geral
+  3. Em Configurações, Diagnósticos e Registros, clique em
+     Diagnosticar: tem de dar 0 faltando
 
 
 SE PRECISAR INSTALAR EM OUTRA ESTAÇÃO DEPOIS
@@ -4020,16 +4175,16 @@ if ($env:RADAI_PREPARADOR_AUTOTESTE) {
                 $script:URL_RELEASES = $urlAntes
                 $script:VersaoLa = $null
             }
-            if ($env:RADAI_PREPARADOR_URL_PRIVADA) {
+            if ($env:RADAI_PREPARADOR_URL_NAO_ACHADA) {
                 try {
                     $script:VersaoLa = $null
-                    $script:URL_RELEASES = $env:RADAI_PREPARADOR_URL_PRIVADA
+                    $script:URL_RELEASES = $env:RADAI_PREPARADOR_URL_NAO_ACHADA
                     $cf = VersaoPublicada
-                    [Console]::Out.WriteLine("AUTOCONF`tprivado`t" +
+                    [Console]::Out.WriteLine("AUTOCONF`t404`t" +
                         $(if ($cf.ok) { 'ok' } else { 'falhou' }) + "`t" +
                         [string]$cf.erro)
                 } catch {
-                    [Console]::Out.WriteLine("AUTOCONF`tprivado`tERRO`t" +
+                    [Console]::Out.WriteLine("AUTOCONF`t404`tERRO`t" +
                                              $_.Exception.Message)
                 } finally {
                     $script:URL_RELEASES = $urlAntes
@@ -4493,6 +4648,13 @@ if (-not $script:PastaDaCascata) {
 }
 if ($script:PastaDaCascata -and -not $env:RADAI_PREPARADOR_AUTOTESTE) {
     $form.Add_Shown({ RetomarAtualizarApp })
+}
+if (-not $script:PastaDaCascata -and -not $env:RADAI_PREPARADOR_AUTOTESTE) {
+    $form.Add_Shown({
+        try { EncerrarAppNoArranque } catch {
+            Sessao ('arranque: nao consegui conferir o app aberto (' + $_.Exception.Message + ')')
+        }
+    })
 }
 
 Sessao ('tamanho do pacote: ~' + (GBInteiro $script:PacoteGB) + ' GB, de ' +

@@ -7,8 +7,8 @@ import radai_archive
 import radai_menu
 import radai_web
 
-VERSAO_DOCS = "1.9"
-DATA_DOCS = "2026-10-20"
+VERSAO_DOCS = "2.0"
+DATA_DOCS = "2026-10-25"
 ARQUIVO_ACEITE = "aceite.json"
 
 IMPRESSOES_PUBLICADAS = {
@@ -18,15 +18,36 @@ IMPRESSOES_PUBLICADAS = {
     "1.7": "8d75736e7e460b276f0c1b855870c7024d2bff9a7de31a3a6a5f7c93b7f144f7",
     "1.8": "3d4a4f8773824f220e2e58d61b85522681a10a7ca78daf4618e151845f781ad5",
     "1.9": "087a47baff075f36e14b23ddac71396fc206f7ab9b611a0c88936b2f47948e1d",
+    "2.0": "c6b3c126af07cd56a14230008af944a09824c7d7f9ed51b834dcfdca4728aa97",
 }
 
 # GUARDA: versao publicada nao se retoca (mudou o texto, versao nova); so a
 # linha de uma versao ainda nao publicada se troca, e cada troca fica no dado
 # abaixo, com o que entrou no texto.
 RESSELAGENS_ANTES_DA_PUBLICACAO = {"1.4": 2, "1.5": 3, "1.6": 4, "1.7": 3,
-                                   "1.8": 6, "1.9": 2}
+                                   "1.8": 6, "1.9": 2,
+                                   "2.0": 2}
 
 IMPRESSOES_TROCADAS_ANTES_DA_PUBLICACAO = {
+    "2.0": (
+        ("4ed91a7fa1c7",
+         u"a janela achada pelo titulo, com a linha de comando so como "
+         u"recuo, e o F11 so na janela que nao cobre o monitor; o estado "
+         u"do otimizador tirado tambem dos quatro modelos do registro, so "
+         u"em pacote novo, com a modificacao no NOTICE; o Vascular pela "
+         u"segmentacao do ContourLab; o lado da ATM pelo plano medio; os "
+         u"dois eixos, a caixa sugerida e o fundo cego do aplicador; a "
+         u"escala medida e a ordem dos cortes da imagem do DicomBridge; e "
+         u"o aviso MIT do rt-utils no NOTICE"),
+        ("a876f8e0154f",
+         u"o estado do otimizador tirado dos pesos do TotalSegmentator nos "
+         u"pacotes montados e tambem na instalacao direta numa estacao, nos "
+         u"Termos, nos Creditos e no NOTICE; o NOTICE com o mapa de rotulos "
+         u"do NV-Segment-CT que viaja no instalador leve sob a Apache-2.0, "
+         u"que o repositorio do modelo da a todo arquivo que nao e peso; e "
+         u"a licenca do CADS open pela publicacao da variante, com o "
+         u"LICENSE_MODEL da raiz anterior a ela"),
+    ),
     "1.9": (
         ("6ff05d6480aa",
          u"o que o DicomBridge exporta sai em Implicit VR Little Endian nos "
@@ -153,7 +174,10 @@ PONTOS = [
      u"Toda estrutura sai como sugestão não aprovada — ApprovalStatus = "
      u"UNAPPROVED — com sufixo de procedência (_ai, _ts, _nv, _cds, _mse, "
      u"_lnl), e cada plugin grava o seu arquivo com um sufixo próprio de "
-     u"três letras, listado no NOTICE. Nenhuma tela deste aplicativo aprova "
+     u"três letras, listado no NOTICE. Com as tags próprias da estação, uma "
+     u"estrutura do entregue pode sair sem o sufixo, com o nome que a estação "
+     u"escolheu, e a descrição dela guarda o nome padrão e diz que é sugestão "
+     u"de IA não aprovada. Nenhuma tela deste aplicativo aprova "
      u"estrutura: a proteção é por desenho, não por recomendação."),
     ("revisao",
      u"A revisão é ato médico, feita no sistema de planejamento.",
@@ -193,7 +217,8 @@ PONTOS = [
      u"nascimento do paciente, numa pasta nova dentro da que você escolher — "
      u"a Downloads do usuário, de partida — e recusa a "
      u"pasta que o programa reconhece como sincronizada com a nuvem e a pasta "
-     u"que o vigia processa; a imagem convertida de JPEG ou PNG sai como "
+     u"que o vigia processa; a imagem convertida (JPEG, PNG, TIFF ou BMP) "
+     u"sai como "
      u"paciente DESCONHECIDO, e atribuí-la ao paciente certo é ato de quem a "
      u"importa no TPS. O vídeo do visor das Reconstruções 3D, o STL do bólus "
      u"e o arquivo do aplicador de braquiterapia vão para a pasta de "
@@ -212,10 +237,12 @@ PONTOS = [
      u"«Rodar agora» nem o FAST, nem o AUTO, nem um protocolo RT do "
      u"PERSONALIZADO liga uma delas. Ligar uma é ligar a chave dela no "
      u"PERSONALIZADO — e então o que ela devolve sai num arquivo próprio e, "
-     u"cru, também no conjunto do TotalSegmentator (STUDY_ts) quando ele é "
-     u"pedido, nunca no conjunto completo nem no entregue — ou pedir ali um "
+     u"cru, também no conjunto do TotalSegmentator (RadAI_TS) quando ele é "
+     u"pedido, nunca no conjunto completo nem no entregue —, escolher ali um "
+     u"protocolo próprio da estação que inclua achado, que pede a declaração "
+     u"a cada envio à fila, ou pedir ali um "
      u"protocolo de estudo das Reconstruções 3D, que não grava RTSTRUCT, só "
-     u"um mapa de rótulos na subpasta _RadAI da série. Nos dois casos o "
+     u"um mapa de rótulos na subpasta _RadAI da série. Nos três casos o "
      u"programa varre a imagem procurando, o log anuncia com a palavra "
      u"ACHADO, e o registro do caso guarda quais rodaram. O derrame pleural e "
      u"o pericárdico são anatomia do tórax: saem no conjunto completo, e no "
@@ -351,9 +378,10 @@ CONEXOES_AUTOMATICAS = (
                u"arranque, em segundo plano. Leva: um <code>GET</code> sem "
                u"corpo e sem parâmetro, com o cabeçalho <code>User-Agent: "
                u"radioterapia-ai-local-suite</code> — nada da estação, nada "
-               u"de paciente. Não baixa nada: se houver versão nova, avisa no "
-               u"log e na porta da suíte, com um aviso e um ponto na "
-               u"engrenagem.")},
+               u"de paciente. Sozinha, ela não baixa nada: se houver versão "
+               u"nova, avisa no log e na porta da suíte, com um aviso e um "
+               u"ponto na engrenagem; baixar o instalador é um ato seu, no "
+               u"«Atualizar agora» (abaixo).")},
     {"nome": u"Teste de internet do registro de casos",
      "destinos": ("pypi.org", "github.com"),
      "texto": (u"Destino: <code>pypi.org</code> e <code>github.com</code>. "
@@ -423,7 +451,7 @@ não opera, não hospeda e não acessa os dados de nenhum serviço.</p>
  <li><b>No Elastic RT</b>, ao abrir, a Fusão elástica não lê nenhuma pasta:
  cada uma das duas séries — a que se deforma e a de destino — é escolhida por
  você, no acervo desta estação ou numa pasta que você aponta — com o campo
- vazio, a pasta dos exames configurada —, e a fusão só começa no clique em
+ vazio, a tela pede a pasta —, e a fusão só começa no clique em
  «Fundir». Com as duas escolhidas, o programa lê o
  PatientID e a data de nascimento de cada uma, dentro do processo, só para
  compará-los: a tela recebe apenas se as duas parecem ser de pessoas
@@ -437,6 +465,16 @@ não opera, não hospeda e não acessa os dados de nenhum serviço.</p>
  não ser que o disco tenha mudado no meio, quando ele é lido de novo. O CD
  não é oferecido como destino da entrega, e a leitura pode ser
  cancelada.</li>
+ <li><b>A leitura de uma pasta que você aponta</b>, no «Rodar agora», no
+ «Ver segmentação», no DicomBridge, na Fusão elástica e no «Gerar bólus»:
+ ela roda em segundo plano, e as séries aparecem na tela conforme são
+ achadas, cada uma com o corte central primeiro. O filtro de data deixa de
+ fora a pasta de série que não mudou nos últimos dias — 1, 3, 7 (de
+ partida) ou 30, ou todas —, pela data de modificação da pasta, sem abrir
+ DICOM nenhum. O que a leitura achou — o caminho, a descrição e os
+ identificadores de cada série — fica na memória do processo, até 15 minutos
+ depois de ela terminar e no máximo oito leituras, e a leitura pode ser
+ parada.</li>
 </ul>
 
 <h2>3 · Onde esses dados ficam</h2>
@@ -554,6 +592,17 @@ tem armazenamento próprio fora dela. Os lugares, um por um:</p>
  entrega, que a leva para a primeira pasta de destino — a de séries DICOM e
  a de imagens. A seção 6 diz o que o programa apaga dali, quando — e o que
  ele não apaga.</li>
+ <li><b>Ao lado do arquivo de configuração</b> (o
+ <code>radai_watcher.config</code>, na pasta do programa, ou onde a variável
+ <code>RADAI_CONFIG</code> apontar): os nomes próprios das estruturas
+ (<code>nomes_proprios.json</code>: a chave «Padrão / Tags próprias» e, por
+ estrutura, o nome que a estação escolheu) e os protocolos próprios
+ (<code>protocolos_proprios.json</code>: de cada um, o nome, a modalidade, as
+ estruturas, as uniões e se ele procura achado) — nada de paciente. A
+ atualização os preserva, e o desinstalador oferece guardá-los, como faz com
+ o arquivo de configuração. No próprio arquivo de configuração vão também a
+ pasta favorita (<code>PASTA_FAVORITA</code>) e a marca de que o guia já
+ foi visto nesta estação (<code>GUIA_VISTO</code>).</li>
  <li><b>O acervo</b> (<code>calibracao\\</code>, na pasta do programa, ou onde o
  <code>_dados.txt</code> ou a variável <code>RADAI_CALIB_DIR</code> apontarem):
  o índice das séries contornadas (<code>acervo.jsonl</code>), com o PatientID,
@@ -613,7 +662,11 @@ tem armazenamento próprio fora dela. Os lugares, um por um:</p>
  pergunta —, e, quando a sessão anterior não fechou normalmente ou quando o
  motor parou antes de abrir o painel, as últimas linhas da saída da janela do
  motor, que são linhas do log da sessão (seção 2). Passando de 512 kB, ele
- guarda só a metade mais nova.</li>
+ guarda só a metade mais nova. Quando o motor para antes de abrir, a página
+ de carregamento mostra só o código de saída e «Tentar novamente»; para
+ atender esse botão, o lançador escuta só nesta estação
+ (<code>127.0.0.1</code>), numa porta que o Windows escolhe e com uma ficha
+ no endereço, por até 10 minutos.</li>
  <li><b>A fila</b>, em <code>C:\\RADIOTERAPIA_AI\\fila\\fila.json</code>, no
  disco do sistema — a variável <code>RADAI_FILA_DIR</code> a põe em outro
  lugar, e, com o acervo apontado por <code>RADAI_CALIB_DIR</code>, ela mora
@@ -656,7 +709,13 @@ tem armazenamento próprio fora dela. Os lugares, um por um:</p>
  interrompidos; e os casos recentes com falha, com o pseudônimo, a data e a
  hora, a versão, por onde a série entrou, o modo e o motivo curto —, e,
  antes de gravar, o programa confere que ele não traz UID, e recusa se
- trouxer.</li>
+ trouxer. A chave do pseudônimo fica num arquivo na pasta do registro
+ (<code>_pseudonimo.chave</code>), e a do registro de validação, na pasta
+ dele (<code>_pseudonimo.segredo</code>); numa pasta que o programa
+ reconhece como sincronizada com a nuvem ela não é gravada: vale só na
+ memória do programa, enquanto ele está aberto, e as telas de Configurações
+ dizem por quê. A chave que uma versão anterior já tenha gravado ali
+ continua sendo lida, e tirá-la da nuvem é ato do serviço.</li>
  <li><b data-radai-t="1">No perfil do usuário do Windows</b>, em
  <code>%LOCALAPPDATA%\\RADIOTERAPIA_AI</code>: o <code>em_uso.json</code>, que o
  programa grava enquanto está aberto, renova a cada 60 segundos e apaga quando
@@ -664,12 +723,14 @@ tem armazenamento próprio fora dela. Os lugares, um por um:</p>
  Workstation RT, do mesmo autor) não fechar o que é deste programa, e leva a
  versão do formato, o nome do programa, a hora, os números de processo do
  programa, dos processos dele e do navegador ligado ao painel, a porta e se há
- uma série sendo segmentada: nada de paciente; e o <code>otimizar.json</code>,
- que o «Otimizar» grava com os nomes dos programas que fechou e dos serviços
- que parou — só nomes, e a hora — e que o «Restaurar» apaga (Termos, seção
- 4.3); e, quando o programa é aberto pelo atalho, o
+ uma série sendo segmentada: nada de paciente; e, quando o programa é
+ aberto pelo atalho, o
  <code>motor_&lt;porta&gt;.json</code>, que diz se o motor está rodando, o
- número do processo e a hora: nada de paciente.</li>
+ número do processo e a hora: nada de paciente. Numa estação que usou uma
+ versão anterior, o programa apaga dali, no arranque, o
+ <code>otimizar.json</code> que o «Otimizar» de antes deixou (só nomes de
+ programas e de serviços, e a hora), e diz no log (Termos, seção
+ 4.3).</li>
  <li><b data-radai-t="1">No %TEMP% do usuário</b>, quando o programa é aberto pelo atalho: a
  saída da janela do motor, que roda sem janela
  (<code>radai_motor_&lt;porta&gt;.txt</code>) — as mesmas linhas do log da
@@ -678,9 +739,14 @@ tem armazenamento próprio fora dela. Os lugares, um por um:</p>
  o lançador abre no navegador antes de o programa responder
  (<code>radai_carregando_&lt;porta&gt;.html</code>, e o
  <code>radai_carregando_&lt;porta&gt;.js</code> com o estado da abertura), sem
- nada da estação nem de paciente; e o perfil próprio do navegador do
+ nada da estação nem de paciente; o perfil próprio do navegador do
  painel (<code>radai_janela</code>), com o armazenamento e o cache de páginas
- dele (o item abaixo).</li>
+ dele (o item abaixo); e, quando você pede o «Atualizar agora» (seção 4), a
+ pasta <code>radai_atualizar</code>, com o instalador baixado, que sai no
+ arranque seguinte, e a extração dele, que fica. O registro dessa
+ atualização (<code>radai_atualizar.log</code>, na pasta do programa) guarda
+ o que o atualizador mostra na janela dele, sem nada de paciente, e recomeça
+ quando passa de 1 MB.</li>
  <li><b data-radai-t="1">Na central de notificações do Windows.</b> Quando uma série termina,
  falha ou é adiada, o programa mostra uma notificação do Windows — no vigia e
  no «Rodar agora» —, e a página aberta, se você permitiu, uma do navegador.
@@ -698,21 +764,26 @@ tem armazenamento próprio fora dela. Os lugares, um por um:</p>
  as pastas para onde foram, o UID, a escolha e o rótulo, que leva a descrição
  da série —, por até 24 horas e no máximo 64 entregas, nunca em disco: ela
  serve para conferir no disco se o RTSTRUCT chegou a cada pasta e para pôr a
- série de novo na fila, e some quando o programa fecha.</li>
+ série de novo na fila, e some quando o programa fecha. No Nidus RT, as
+ malhas do 3D da caixa — que, numa série com a cabeça no campo, podem
+ mostrar o rosto —, no máximo 24 MB, apagadas quando a série fecha e depois
+ de 10 minutos sem uso, nunca em disco. E o que cada leitura de pasta achou
+ (seção 2).</li>
  <li><b data-radai-t="1">No navegador desta estação.</b> O armazenamento local do navegador
  guarda, além do idioma, preferências da tela — o tema (claro, escuro ou o
- do sistema), que se escolhe em Configurações ou no canto das telas do
+ do sistema), que sem escolha abre escuro e que se escolhe em Configurações
+ ou no canto das telas do
  aceite e do primeiro uso, onde ele é gravado antes mesmo do aceite, como o
  idioma; se o menu da esquerda fica expandido; se os avisos já foram
- pedidos — e, para cada série que avisou o fim ou a falha, os oito últimos
+ pedidos; o filtro de data das leituras de pasta — e, para cada série que avisou o fim ou a falha, os oito últimos
  dígitos do UID e a hora do aviso, que nada apaga. O armazenamento da aba, que
  o navegador apaga quando a aba fecha, guarda a pasta varrida no «Rodar agora»
  e, quando você abre uma série do lote no «Ver segmentação», o caminho da
  pasta dela e o UID inteiro, que essa tela apaga assim que os lê; sem dado
  de paciente, o endereço e o nome das telas que a aba visitou (até 40, sem a
  busca do endereço), para o «←» voltar por elas, a guia aberta nas telas que
- a lembram, se a barra da fila foi aberta ou recolhida à mão nesta aba, e se
- a tela anterior a mostrava aberta; no
+ a lembram, se a barra da fila foi aberta ou recolhida à mão nesta aba, se
+ a tela anterior a mostrava aberta e o passo do guia em que a aba está; no
  DicomBridge, de cada entrega com segmentação, o nome da pasta
  <code>DICOM_BRIDGE_</code>, os identificadores dos cartões que ele pôs na
  fila, com o estado de cada um, e um bilhete opaco — sem caminho e sem a
@@ -784,6 +855,28 @@ sobe.</p>
  <li><b>Os links</b> das telas e destes documentos (artigos, licenças, a
  página de versões, o instalador mais recente, a página do projeto e o relato
  de vulnerabilidade) abrem no seu navegador, como qualquer link.</li>
+ <li><b>O «Atualizar agora»</b>, no aviso de versão nova da porta ou no
+ cartão «Atualizar o programa» de Configurações: o programa baixa o
+ instalador da release mais nova do projeto (o
+ <code>_SETUP_LATEST.zip</code>, do endereço que a consulta de versão
+ devolveu — no GitHub, <code>github.com</code>, que entrega o arquivo por
+ <code>release-assets.githubusercontent.com</code>), com o mesmo
+ <code>User-Agent</code> da consulta e nada da estação nem de paciente. Ele
+ recusa a release que não publica a soma SHA-256 do arquivo, o endereço que
+ não é <code>https</code> e o arquivo que passa do tamanho publicado; confere
+ a soma antes de usar o arquivo, e recusa o pacote que grava fora da pasta da
+ extração, que é de outro projeto ou que diz outra versão. Com a série do
+ vigia, o lote do «Rodar agora» ou o turno da noite em andamento, ele espera
+ ou pergunta antes. Se só o código muda, o programa fecha, o atualizador roda
+ numa janela do Windows e o programa reabre sozinho, com a sua
+ configuração; se a versão nova precisa de um pacote novo de modelos, a tela
+ diz o tamanho e o tempo estimado do download e pede uma segunda confirmação
+ antes de abrir o preparador da versão nova, que segue com os pedidos do
+ preparador (acima).</li>
+ <li><b>O «Mapear nova unidade de rede»</b>, nos seletores de pasta: abre o
+ diálogo de mapeamento do próprio Windows, na sessão de quem está na estação.
+ O endereço, o usuário e a senha que você digita ali ficam com o Windows, e o
+ programa não os vê; depois, ele só lê de novo a lista de unidades.</li>
 </ul>
 <p>O programa não tem tela nem rota que baixe peso de modelo: os pesos vêm no
 pacote, que o preparador monta.</p>
@@ -800,8 +893,8 @@ pacote, que o preparador monta.</p>
  metade nele é apagada, e a tela diz qual destino não recebeu. Não há
  <code>.zip</code>: o sistema de planejamento lê a pasta. «Converter imagens
  para o TPS» lê o que você aponta — arquivos, uma pasta ou um CD (seção
- 2) —, converte as séries DICOM e as imagens JPEG ou PNG que você
- escolhe e as grava em «Entregar». <b>O DICOM vai como veio: cada corte leva
+ 2) —, converte as séries DICOM e as imagens (JPEG, PNG, TIFF ou BMP)
+ que você escolhe e as grava em «Entregar». <b>O DICOM vai como veio: cada corte leva
  o nome, o registro e a data de nascimento do paciente</b>, porque é assim que
  o sistema de planejamento o reconhece. Junto vai, por série, um recibo
  (<code>_RadAI\\recibo_conversao.json</code>) sem nome, registro,
@@ -812,9 +905,13 @@ pacote, que o preparador monta.</p>
  com mais destinos e segmentação pedida, a tela não entrega e diz por quê; a
  cópia recusa a pasta que sincroniza com a nuvem, e, antes de dizer
  «RTSTRUCT entregue», o programa confere no disco se as cópias chegaram. A
- imagem JPEG ou PNG entra no mesmo pipeline, sem segmentação: o ajuste dela
- — a espessura, obrigatória, a escala, confirmada ao lado do MPR, e a
- orientação, tirada da descrição da série — fica na etapa do diagnóstico, e
+ imagem — arrastada para a área de envio ou escolhida pelo «Importar
+ imagem», que abre o explorador de arquivos do navegador — entra no mesmo
+ pipeline, sem segmentação: o ajuste dela
+ — a espessura, obrigatória, a escala, digitada ou medida numa distância
+ conhecida da própria imagem, a ordem dos cortes, que você pode inverter, e
+ a orientação, tirada da descrição da série, com a escala e a ordem
+ conferidas ao lado do MPR antes de converter — fica na etapa do diagnóstico, e
  ela é convertida e entregue junto com as séries DICOM escolhidas, na mesma
  pasta nova. <b>A imagem não diz de quem é: cada série de imagem sai como
  paciente DESCONHECIDO</b>, com o seu próprio ID gerado, que diz de onde veio
@@ -823,7 +920,8 @@ pacote, que o preparador monta.</p>
  <code>LEIA-ME.txt</code> de uma linha mandando atribuí-la ao paciente certo
  no sistema de planejamento — ato de quem a importa (Termos, seção 4.5). O
  recibo dela (<code>_RadAI\\recibo_conversao_imagem.json</code>) guarda a
- geometria que você digitou e o ID gerado. Antes de gravar, o programa
+ geometria que você deu, se a ordem dos cortes foi invertida e o ID gerado.
+ Antes de gravar, o programa
  recusa o destino que ele reconhece como sincronizado com a nuvem e o que
  fica dentro da pasta que o vigia processa (o <code>ROOT</code>): gravar ali
  seria escrever no compartilhamento de produção.</li>
@@ -874,6 +972,16 @@ pacote, que o preparador monta.</p>
  nome da máquina cru nas etapas, entra no pacote com o pseudônimo, e o arquivo
  da estação não muda. O segredo do pseudônimo não entra no pacote.
  Enviar o <code>.zip</code> é ato seu.</li>
+ <li><b>O arquivo das configurações</b>: o «Exportar» de Configurações
+ baixa, para a pasta de downloads do navegador, um <code>.json</code> com as
+ chaves do arquivo de configuração — as pastas configuradas inclusive —,
+ menos as que são desta máquina (<code>DEVICE</code>, <code>PORT</code> e
+ <code>GUIA_VISTO</code>), mais os nomes próprios e os protocolos próprios.
+ Ele não leva a chave do pseudônimo, o acervo, a fila nem dado de paciente.
+ Ao importar, você marca as seções; o programa mostra o que vai mudar e não
+ grava o caminho que não existe nesta máquina, a pasta dos exames que não se
+ deixa ler e gravar aqui, o valor de <code>TPS_DESTINO</code> que esta
+ versão não aceita, nem o nome ou o protocolo que a validação recusa.</li>
  <li><b>O resumo do turno</b>, que a tela de Configurações mostra para você
  copiar: as últimas 24 horas do registro de casos — contagens, tempos,
  falhas por assinatura e uma linha por série, numerada (#1, #2…), com a
@@ -917,8 +1025,8 @@ todos declarados:</p>
  segmentação gravou ali: a cópia de trabalho, o que o TotalSegmentator, o
  NV-Segment-CT, o CADS, o MOOSE, os níveis cervicais e o modelo do encéfalo
  gravam a partir dela, e a cópia de cada RTSTRUCT. Duas dessas cópias saem
- antes: a do RadAI_OAR, que sai logo depois de gravada, e a do RadAI_OAR_Fast,
- que sai logo depois de gravada também. Se o programa cair no meio da série,
+ antes: a do RadAI_STUDY, que sai logo depois de gravada, e a do
+ RadAI_STUDY_Fast, que sai logo depois de gravada também. Se o programa cair no meio da série,
  a pasta fica, e as faxinas abaixo a alcançam;</li>
  <li>quando o «Rodar agora» começa uma série, ele apaga das pastas de
  trabalho o que tem o nome começando com <code>radai_</code>, em que nada — na
@@ -951,15 +1059,6 @@ todos declarados:</p>
  <li>o <b>cache por tarefa</b>: no arranque e a cada varredura do vigia, sai
  a entrada que não é lida há 14 dias e, se o cache passar de 20 GB, as mais
  antigas até ele caber;</li>
- <li>o <b data-radai-t="1">«Otimizar»</b>, em Configurações (Diagnosticar e otimizar), só
- depois de você confirmar a lista que ele mostra — os arquivos temporários e
- o cache do pip aparecem nela já marcados, e você pode desmarcá-los: apaga da
- pasta temporária o que não é modificado há
- mais de 6 horas — e isso alcança o que sobrou de uma série interrompida —;
- das pastas cujo nome começa com <code>radai_</code>, só as que ninguém está
- usando, pela mesma regra das faxinas acima; e apaga o cache do pip
- (<code>%LOCALAPPDATA%\\pip\\Cache</code>), que guarda cópias dos
- instaladores de biblioteca e nenhum dado de paciente;</li>
  <li>no arranque, o <b>índice do acervo</b> tira a entrada da série cuja pasta
  não existe mais — a entrada, e nenhum arquivo;</li>
  <li>o <b>«Rodar agora»</b>, ao gravar de novo uma série, substitui os
@@ -1025,7 +1124,8 @@ retenção é do serviço. O registro de validação
 657/2022 pede ao software de uso exclusivo do serviço.</p>
 <p><b>O desinstalador.</b> Ele remove a pasta do programa — e com ela o
 cache por tarefa, quando ele mora lá, como de fábrica —, e antes oferece
-guardar o arquivo de configuração, o acervo (<code>calibracao\\</code>), o
+guardar o arquivo de configuração, os nomes próprios e os protocolos
+próprios, o acervo (<code>calibracao\\</code>), o
 <code>registro\\</code> e os logs. Ele lista também o que ficou fora da
 pasta, e só o apaga se você confirmar, ou se ele for chamado com
 <code>-ApagarFora</code>: o que tem o nome começando com <code>radai_</code>
@@ -1039,7 +1139,7 @@ da pasta do programa junto com o acervo, pelo <code>_dados.txt</code>.
 <b>Ficam onde estão</b>, porque não moram na pasta do programa nem nessa
 lista: os <code>RS_RadAI_*</code> e as subpastas <code>_RadAI</code> ao lado
 das séries; o <code>%LOCALAPPDATA%\\RadAI_Watcher\\index.json</code>; o
-<code>em_uso.json</code> e o <code>otimizar.json</code> (seção 3); a fila
+<code>em_uso.json</code> (seção 3); a fila
 (<code>C:\\RADIOTERAPIA_AI\\fila</code>); o que o
 DicomBridge gravou; o que estiver em <code>OUT_DIR</code> e em
 <code>STATUS_DIR</code>; o acervo ou o log que tiverem sido postos fora da
@@ -1050,7 +1150,9 @@ pasta do programa; e o cache por tarefa apontado por
 <p>Pedidos de acesso, correção ou eliminação são atendidos pelo serviço, que
 controla os dados. Os arquivos são identificáveis pelo UID da série — na pasta
 do paciente, no índice local e no acervo; o registro de casos e o de validação
-usam pseudônimo, que só a estação que o gerou consegue recalcular.</p>
+usam pseudônimo, que só a estação que o gerou consegue recalcular — e,
+quando a pasta deles sincroniza com a nuvem, só enquanto o programa está
+aberto (seção 3).</p>
 
 <h2>8 · Contato</h2>
 <p>Sobre o software: a página do projeto,
@@ -1090,7 +1192,9 @@ ANVISA, marcação CE ou autorização da FDA, e <b>não deve ser usado como
 ferramenta clínica de produção</b>.</p>
 
 <p>As estruturas geradas saem como <b>sugestão não aprovada</b>
-(<code>ApprovalStatus = UNAPPROVED</code>), com sufixo de procedência no nome.
+(<code>ApprovalStatus = UNAPPROVED</code>), com sufixo de procedência no nome
+— ou, no entregue de uma estação com tags próprias, com o nome que ela
+escolheu e a procedência guardada na descrição de cada estrutura (seção 1.6).
 <b>A revisão e a aprovação são ato médico</b>, dentro do sistema de
 planejamento. Nada é aprovado automaticamente, e nenhuma configuração deste
 programa remove essa fronteira. E a fila não começa sem dizê-lo: o diálogo do
@@ -1102,7 +1206,8 @@ que tudo o que é gravado sai como sugestão não aprovada.</p>
 marcada como <code>EXTERNAL</code>: os compartimentos linfonodais cervicais
 saem como <code>CONTROL</code>, e todas as outras estruturas como
 <code>ORGAN</code>. A recusa fica dentro da função que escreve o arquivo, e
-não numa tela.</p>
+não numa tela, e vale também para o nome próprio que a estação dá a uma
+estrutura (seção 1.6).</p>
 
 <p>Isto é uma afirmação sobre o que os arquivos <b>declaram</b>. O conjunto
 <code>Skin</code> é uma <b>casca</b> de 5 mm, e casca sozinha não calcula dose:
@@ -1162,13 +1267,15 @@ obrigatória (seção 1.4).</p>
  (seção 4.1). A tarefa dos músculos de cabeça e pescoço, que traz os
  constritores da faringe, só roda com o pescoço confirmado pela anatomia
  (seção 4.1), mesmo com a chave dela ligada: a trava vence, e o log
- diz.</li>
+ diz. Com um protocolo próprio da estação ligado (seção 1.6), os protocolos
+ RT e a seleção livre se desligam, e as tarefas que as estruturas dele pedem
+ ficam ligadas e travadas.</li>
 </ul>
 <p>Nenhum dos três liga tarefa de achado por conta própria (seção 4.1).</p>
 
 <h2>1.2 · O que sai de cada série</h2>
 <ul>
- <li><b>O conjunto completo</b> (rótulo <code>STUDY_full</code>) leva tudo o
+ <li><b>O conjunto completo</b> (rótulo <code>RadAI_FULL</code>) leva tudo o
  que a base e as tarefas complementares produzem — as partes e os compostos
  (cada lobo e o pulmão de cada lado, cada costela e as costelas de cada lado),
  as cavidades do tronco, todos os músculos da tarefa dos músculos do tronco
@@ -1185,8 +1292,9 @@ obrigatória (seção 1.4).</p>
  intestinais — a <code>Bag_Bowel_ai</code> e a <code>Bag_Bowel_OAR_ai</code>
  (abaixo) —, os olhos — cada um o globo inteiro, com o cristalino
  dentro —, a pele, a parede torácica, o
- fêmur recortado na tuberosidade isquiática, as cristas ilíacas e o ânus
- (abaixo). Uma construção só sai quando a
+ fêmur recortado na tuberosidade isquiática, as cristas ilíacas e o ânus,
+ a mandíbula cheia, a laringe, as duas articulações temporomandibulares e a
+ soma dos pulmões (abaixo). Uma construção só sai quando a
  série trouxe o que ela precisa — a parede, as cavidades intestinais e o ânus
  dependem da cavidade do tronco —, e o log diz o que não saiu e por quê. O
  coração é a exceção:
@@ -1196,7 +1304,7 @@ obrigatória (seção 1.4).</p>
  modo a pede ali; e no PERSONALIZADO de uma TC, só quando você desliga a
  chave dela, que nasce ligada, e o log da série diz. Só a cabeça sólida da tarefa
  craniofacial fica fora dele: ela é um contorno externo.</li>
- <li><b>O conjunto entregue</b> (rótulo <code>RadAI_OAR</code>) é uma
+ <li><b>O conjunto entregue</b> (rótulo <code>RadAI_STUDY</code>) é uma
  <b>seleção</b> do completo: as estruturas de uma lista de permitidas,
  gravadas das máscaras finais do completo, antes dele, e iguais às do
  completo, para o sistema de planejamento
@@ -1216,6 +1324,15 @@ obrigatória (seção 1.4).</p>
  língua, os dentes, os processos estiloides e os arcos zigomáticos — ficam só
  no completo; e, sem o tórax identificado, os grandes vasos também. As
  carótidas (<code>A_Carotid_ai</code>) ficam só no completo em toda série.
+ A laringe (<code>Larynx_ai</code>), as articulações temporomandibulares
+ (<code>TMJ_L_ai</code> e <code>TMJ_R_ai</code>) e a mandíbula
+ (<code>Bone_Mandible_ai</code>) entram no entregue sempre que são
+ construídas. Numa série
+ de cabeça e pescoço sem o tórax identificado, a soma dos pulmões
+ (<code>Lungs_ai</code>) vai ao entregue no lugar dos dois pulmões, que
+ ficam no completo; nas outras, ela vai junto com eles. O encéfalo de uma RM
+ (<code>Brain_ai</code>) fica só no completo: o entregue de uma RM não leva
+ encéfalo.
  Dos níveis cervicais, vão ao entregue só a união e as parótidas do nível
  VIII (o quadro logo abaixo e a seção 4), e a parótida do entregue vem só
  daí: sem os níveis — no FAST, por exemplo — ou quando o nível VIII não
@@ -1238,9 +1355,13 @@ obrigatória (seção 1.4).</p>
  o platô medível, fica só o corte axial, e o log diz —, e a procedência gravada na
  estrutura diz isso («derivada por marco anatômico») — revisá-lo é conferir os
  planos de corte, e não só a borda. No PERSONALIZADO, o que você tirou com o «x»
- sai do entregue daquela série e fica no completo. O que ficou de fora da
- seleção aparece no log.</li>
- <li><b data-radai-t="1">O entregue do FAST</b> (rótulo <code>RadAI_OAR_Fast</code>, arquivo
+ sai do entregue daquela série e fica no completo; com um protocolo
+ próprio (seção 1.6), o entregue é a seleção dele. O que ficou de fora da
+ seleção aparece no log. No AUTO e no PERSONALIZADO, quando nenhuma
+ estrutura da seleção sai — numa RM em que só o encéfalo foi desenhado, por
+ exemplo —, o entregue não é gravado: o completo é a entrega, a série conta
+ como pronta, e o log diz «STUDY: saiu vazio».</li>
+ <li><b data-radai-t="1">O entregue do FAST</b> (rótulo <code>RadAI_STUDY_Fast</code>, arquivo
  <code>RS_RadAI_FAST_*</code>) leva as estruturas do entregue menos a
  cavidade intestinal (<code>Bag_Bowel_OAR_ai</code>) e o ânus
  (<code>Anus_ai</code>), que é recortado da outra cavidade — nenhuma das duas
@@ -1250,8 +1371,9 @@ obrigatória (seção 1.4).</p>
  pós-processamento do completo, com duas diferenças que o nome declara: os
  compostos são suavizados inteiros, e não parte a parte; e os pontos de cada
  contorno são reduzidos (Douglas–Peucker, com tolerância de 0,2 mm e pelo
- menos 3 pontos por contorno), menos nos nervos ópticos e nos constritores
- da faringe, que saem sem redução. O contorno com menos de 1 cm² de área fica
+ menos 3 pontos por contorno), menos nas estruturas finas — os nervos
+ ópticos, o quiasma, os constritores da faringe e a tireoide —, que saem sem
+ redução. O contorno com menos de 1 cm² de área fica
  como está, e o que mudaria de área em mais de 1% volta ao de antes. Essas
  duas guardas comparam cada contorno com ele mesmo antes da redução, e não
  são o teto da diferença entre os dois entregues. Medido em duas TC de tórax
@@ -1261,13 +1383,21 @@ obrigatória (seção 1.4).</p>
  vasculares podem diferir alguns por cento do AUTO, e quem usa o arquivo para
  um histograma dose-volume conta com isso. Não há conjunto completo ao lado
  dele.</li>
- <li><b>O TotalSegmentator cru</b> (<code>STUDY_ts</code>) é a saída do
+ <li><b>O TotalSegmentator cru</b> (rótulo <code>RadAI_TS</code>) é a saída do
  modelo sem pós-processamento nenhum — a referência contra a qual o resto se
  compara. A única mudança nele é o índice 26, que entra no sacro (abaixo).
  Ele só sai quando pedido, no PERSONALIZADO.</li>
  <li><b>Cada plugin</b> — uma tarefa opcional que não alimenta o conjunto
- completo — grava o seu próprio arquivo (<code>STUDY_</code> e o código dele),
- com o nosso pós-processamento; e cada modelo de comparação grava o seu.</li>
+ completo — grava o seu próprio arquivo (rótulo <code>RadAI_</code> e o
+ código dele, como <code>RadAI_ORB</code>), com o nosso pós-processamento; e
+ cada modelo de comparação grava o seu.</li>
+ <li><b>Os rótulos de antes.</b> Os conjuntos que uma versão anterior gravou,
+ com os rótulos <code>STUDY_full</code>, <code>RadAI_OAR</code>,
+ <code>RadAI_OAR_Fast</code> e <code>STUDY_</code> com o código, continuam
+ legíveis com os nomes que têm: nada do que está gravado é regravado, e a
+ série segmentada com os rótulos antigos conta como pronta. O nome do arquivo
+ (<code>RS_RadAI_</code>…) não mudou, e é por ele que o programa reconhece o
+ conjunto.</li>
 </ul>
 <div class="cx aviso">
 <p><b>Um risco declarado: uma região de drenagem no entregue.</b> Até a
@@ -1289,7 +1419,9 @@ o modelo erra, ela pode descer abaixo das clavículas: quando passa 30 mm do
 topo delas, a união não vai ao entregue daquela série, e a descrição de cada
 nível marca o estudo e manda conferir a extensão caudal antes de usar
 qualquer nível dela. Com pesos de outra versão que não a do mapa dos nomes
-(seção 4), a união sai com o nome neutro e não vai ao entregue.</p>
+(seção 4), a união sai com o nome neutro e não vai ao entregue. Antes da
+união, o nível IVb de cada lado perde a clavícula do mesmo lado, e a união
+sai recortada igual.</p>
 </div>
 <p><b>O índice 26 entra no sacro.</b> O TotalSegmentator dá um rótulo
 próprio a uma vértebra de transição lombossacra — o índice 26,
@@ -1325,7 +1457,9 @@ vasos, o compartimento mesorretal e, abaixo da borda inferior da articulação
 sacroilíaca — sem ela, do polo da cabeça femoral —, o que passa de 50 mm da
 parede anterior. A veia porta fica fora de toda conta. Depois de suavizada em
 20 mm, ela recebe de volta, inteiros, o estômago, o duodeno, o pâncreas e o
-delgado, e o cólon sem o reto, e sai como um volume só. Segue o atlas de Orton
+delgado, e o cólon sem o reto, e sai como um volume só; por último, depois
+de todas as subtrações, o furo de cada corte axial é preenchido. Segue o
+atlas de Orton
 et al. (2022), menos num ponto, que a descrição da estrutura diz: mantém o
 estômago e o pâncreas. A <code>Bag_Bowel_ai</code>, da receita anterior,
 também leva o pâncreas inteiro, e fica no completo.</p>
@@ -1353,14 +1487,46 @@ estruturas já segmentadas e, na metade anterior, junto das alças e da
 cavidade abdominal, o tecido a até 10 mm e um fechamento de 5 mm: o estoma, a
 gastrostomia, a hérnia e a parede fina sobre o ar da alça ficam dentro; a
 mesa e o braço separado ficam fora.</p>
-<p><b>O coração não desce pela veia cava.</b> Em todo corte em que o coração
-de radioterapia (<code>Heart_ai</code>) tem dois ou mais contornos, sai o que
-cruza a veia cava inferior e fica o do ápice. A suavização final dele é a do
-parênquima mais 3 mm fixos — 5,5 mm com a suavização padrão.</p>
+<p><b>O coração não desce pela veia cava, e não perde o pericárdio.</b> A
+veia cava inferior sai do coração de radioterapia (<code>Heart_ai</code>) só
+onde está separada dele — fora do pericárdio, do coração do modelo e do
+derrame pericárdico —: nenhum pixel desses três sai, e nenhum corte que os
+tem é descartado. Depois do derrame e do preenchimento dos furos de cada
+corte, saem dele o esôfago e os outros vizinhos de fora do pericárdio — os
+pulmões, a traqueia, as vértebras, o esterno, as costelas, as escápulas, as
+clavículas, o fígado, o estômago e o baço —, e o log diz quanto de cada. A
+suavização final dele é a do parênquima mais 3 mm fixos — 5,5 mm com a
+suavização padrão.</p>
 <p><b>As estruturas finas saem como o modelo as entregou.</b> Os nervos
-ópticos e os constritores da faringe saem sem suavização da máscara e, no
-FAST, sem redução de pontos do contorno; o corte em que eles têm um pixel de
-largura sai pelo contorno dos pixels.</p>
+ópticos, o quiasma, os constritores da faringe e a tireoide saem sem
+suavização da máscara e, no FAST, sem redução de pontos do contorno; o corte
+em que eles têm um pixel de largura sai pelo contorno dos pixels.</p>
+<p><b>A mandíbula sai cheia.</b> A <code>Bone_Mandible_ai</code> é a
+mandíbula da tarefa craniofacial com os dentes inferiores por cima, quando a
+série os tem, e com o furo de cada corte preenchido nos três planos; a
+suavização dela nunca tira área: o que sai é a união da suavizada com a
+cheia.</p>
+<p><b>A laringe, as articulações temporomandibulares e a soma dos
+pulmões</b> são recorte do completo, sem modelo novo. A laringe
+(<code>Larynx_ai</code>) soma e liga a cricoide, a cartilagem tireoide, o ar
+da laringe e a hipofaringe — com um fechamento de 3 mm e o furo de cada corte
+preenchido —, do corte logo abaixo da borda inferior do hioide ao último
+corte com a cricoide; sem o hioide ou sem a cricoide na série, ela não sai.
+Cada articulação temporomandibular (<code>TMJ_L_ai</code> e
+<code>TMJ_R_ai</code>) é o côndilo da mandíbula do lado, do corte em que o
+ramo se divide em dois contornos — o processo coronoide à frente, o côndilo
+atrás — ao topo do côndilo, com 1 mm de margem em 3D. O lado sai de um
+plano médio que passa pelo centro do crânio sem a mandíbula — na falta dele,
+do encéfalo, da vértebra C1 ou da C2 —, e só sem nenhum deles pelo meio da
+largura da mandíbula; numa mandíbula parcial sem essas estruturas na série, o lado pode
+sair trocado, e o log da série diz qual referência valeu. A soma dos pulmões
+(<code>Lungs_ai</code>) é o pulmão esquerdo e o direito do completo, como
+saíram, sem o derrame pleural.</p>
+<p><b>O encéfalo contém os ventrículos e a linha média.</b> No conjunto
+completo, os ventrículos e a linha média (a foice) do modelo do encéfalo em
+TC são
+recortados para dentro do encéfalo (<code>Brain_ai</code>): o que eles tinham
+fora dele sai, e o log diz.</p>
 
 <h2>1.3 · O que o programa tira antes de gravar</h2>
 <p>Até a versão 8.2, nenhuma regra do programa apagava estrutura: o que
@@ -1498,13 +1664,21 @@ ignorada».</p>
 
 <h2>1.5 · O primeiro uso, o sistema de planejamento e o fim do programa</h2>
 <p>Numa estação nova, o programa pede, nesta ordem: o idioma e o aceite destes
-documentos, na tela que abre antes de todas; depois, o sistema de
-planejamento de destino e a pasta dos exames, na tela do primeiro uso. As
-duas telas têm no canto o seletor de idioma e o de tema. O sistema de
-planejamento — dois botões, «Eclipse / Monaco» e «Xio / Focal (versões
-anteriores, ou outros que precisem de linha divisória nos anéis)» — vai para
-a chave <code>TPS_DESTINO</code> do arquivo de configuração e decide o
-desenho do furo no RTSTRUCT:</p>
+documentos, na tela que abre antes de todas; depois, na tela do primeiro
+uso, a pasta favorita, que é opcional — «Pular por agora», ou «Salvar e
+continuar» com o campo vazio, seguem sem ela —; e por fim mostra um guia dos
+primeiros passos sobre as telas de verdade, que se pula em qualquer passo,
+aparece uma vez por estação e se abre de novo em Configurações, na seção
+Geral («Ver o guia de novo»). As duas telas têm no canto o seletor de idioma
+e o de tema, e sem escolha o tema abre escuro. A pasta favorita é onde os
+seletores de pasta abrem, e a estrela de cada seletor a põe no campo; ela
+não muda a pasta que o vigia varre. <b>O primeiro uso não pergunta o sistema
+de planejamento</b>: com a chave <code>TPS_DESTINO</code> do arquivo de
+configuração vazia, ele grava nela o valor de «Eclipse / Monaco», e a
+estação que já tinha escolhido continua com a escolha. A troca — dois
+botões, «Eclipse / Monaco» e «Xio / Focal» — mora em Configurações, na seção
+Geral («Ajuste de contornos em anel»), e decide o desenho do furo no
+RTSTRUCT:</p>
 <ul>
  <li><b>Em todo sistema</b>, o texto que o programa escreve no RTSTRUCT — o
  nome e a descrição de cada estrutura, os rótulos — sai em ASCII, sem
@@ -1518,13 +1692,17 @@ desenho do furo no RTSTRUCT:</p>
  de área nula — a parte de um pixel de largura de uma estrutura fina — é
  refeito pelo contorno dos pixels, e não descartado; o que a suavização ou a
  redução de pontos fez cruzar volta ao de antes delas; e o log diz quantos
- de cada. O que o DicomBridge exporta — as séries DICOM e as imagens JPEG ou
- PNG que ele converte — sai também em <i>Implicit VR Little Endian</i>, nos
- dois sistemas.</li>
+ de cada. Numa série de corte não axial — a RM sagital ou coronal, a axial
+ oblíqua —, esse acabamento é feito no plano dos cortes da própria série, e
+ cada contorno sai no plano de um corte dela; o RTSTRUCT de uma série axial
+ sai como antes. Que o sistema de planejamento leia contorno fora do plano
+ axial depende dele, e se confere na importação. O que o DicomBridge
+ exporta — as séries DICOM e as imagens que ele converte — sai também em
+ <i>Implicit VR Little Endian</i>, nos dois sistemas.</li>
  <li><b>Com «Eclipse / Monaco»</b> (<code>TPS_DESTINO=eclipse</code>), o furo
  sai como um contorno separado, dentro do de fora.</li>
- <li><b>Com «Xio / Focal (versões anteriores, ou outros que precisem de linha
- divisória nos anéis)»</b> (<code>TPS_DESTINO=monaco</code>), o furo de cada
+ <li><b>Com «Xio / Focal»</b> — versões anteriores, ou outros que precisem
+ de linha divisória nos anéis — (<code>TPS_DESTINO=monaco</code>), o furo de cada
  contorno é ligado à borda externa por uma linha divisória — sem ela, a pele
  e a parede torácica chegariam preenchidas.</li>
  <li><b>Sem escolha</b>, o RTSTRUCT sai como em «Eclipse / Monaco», e o log
@@ -1559,7 +1737,52 @@ sem pergunta. E o atualizador e o instalador do pacote, antes de trocar o
 código, encerram o programa aberto daquela pasta — só o Python dela —: pedem
 o «Fechar tudo» e, se ele não sair, o encerram à força; se nem assim,
 perguntam se tentam de novo, e nada é copiado por cima do programa
-aberto.</p>
+aberto. O «Instalar / Atualizar app nesta máquina», ao abrir numa estação
+com o programa instalado, fecha as janelas do navegador do programa — só as
+do perfil próprio dele (<code>radai_janela</code>); o navegador da pessoa
+nunca é tocado — e o encerra; se o programa estiver processando — uma série,
+ou o turno da noite aberto ou agendado —, ele pergunta antes, e a série
+interrompida volta para a fila, sem contar como falha.</p>
+
+<h2>1.6 · As tags próprias e os protocolos próprios</h2>
+<p>Em Configurações, na seção Estruturas e Protocolos, a estação pode dar
+nome próprio às estruturas do entregue e montar protocolos próprios. Os dois
+valem só para o entregue — o do AUTO e do PERSONALIZADO e o do FAST —: o
+completo sai sempre com os nomes padrão, e os outros apps da suíte leem o
+completo ou o nome padrão.</p>
+<ul>
+ <li><b>As tags próprias.</b> Uma chave «Padrão / Tags próprias»: em
+ «Padrão», o entregue sai com os nomes padrão, com <code>_ai</code>, e os
+ nomes próprios ficam guardados sem valer. Com «Tags próprias», cada
+ estrutura do entregue que tem nome próprio sai com ele — que pode não ter o
+ sufixo de procedência —, e toda estrutura do entregue guarda na descrição
+ (<code>ROIDescription</code>) o nome padrão e «sugestao IA nao aprovada»,
+ com o algoritmo de geração <code>AUTOMATIC</code> e o
+ <code>UNAPPROVED</code> de sempre. O nome próprio tem até 16 caracteres,
+ só letras sem acento, números e sinais do teclado (ASCII), sem espaço no
+ começo nem no fim e sem contrabarra; não repete o nome de outra estrutura
+ do entregue nem de uma união; e não pode ser nome de alvo (começar por GTV,
+ CTV, ITV ou PTV) nem de contorno externo (BODY, External). A tela recusa o
+ nome com o motivo na linha, e o programa confere de novo ao gravar o
+ RTSTRUCT: o nome recusado sai como o padrão, e o log diz.</li>
+ <li><b>Os protocolos próprios.</b> Cada protocolo vale para uma modalidade
+ (TC ou RM) e escolhe as estruturas do entregue entre as que alimentam o
+ completo, com uniões — só por soma, cada uma com um nome que segue as regras
+ do nome próprio. Ele aparece no PERSONALIZADO do «Rodar agora», numa chave
+ com uma lista, só quando há protocolo da modalidade da série. Ligado, ele
+ desliga os protocolos RT e a seleção livre; as tarefas que as estruturas
+ dele pedem ficam ligadas e travadas; e o entregue daquela série é a seleção
+ dele, com a regra de região de sempre (o osso da pelve, por exemplo, só com
+ a pelve identificada). O vigia não usa protocolo próprio — roda sempre o
+ AUTO —, e o FAST também não. <b>Um protocolo próprio pode incluir
+ achado</b> (seção 4.1): então a declaração é pedida a cada envio à fila, o
+ log anuncia com a palavra <b data-radai-t="1">ACHADO</b>, e o resultado sai no arquivo próprio
+ do achado, nunca no entregue; sem a declaração, a tarefa de achado não
+ roda.</li>
+</ul>
+<p>Os nomes próprios e os protocolos moram ao lado do arquivo de
+configuração (a Política de Privacidade, seção 3, diz onde) e viajam no
+exportar das configurações (seção 4.3).</p>
 
 <h2>2 · O que ele não é</h2>
 <ul>
@@ -1610,11 +1833,14 @@ pode conferi-las abrindo os arquivos:</p>
  ficam depois de desinstalar o programa — a
  <a href="/politica-privacidade">Política de Privacidade</a> diz o que fica e
  onde.</li>
- <li><b>Nenhuma estrutura sai aprovada.</b> <code>UNAPPROVED</code> no arquivo e
- sufixo de procedência em cada nome. Os dois conjuntos entregues — o do AUTO
- e do PERSONALIZADO e o do FAST — se chamam, no próprio
- arquivo, <i>sugestão não aprovada</i>; os de comparação levam o rótulo
- <code>STUDY_</code> e dizem que não são o entregue. Não existe caminho no
+ <li><b>Nenhuma estrutura sai aprovada.</b> <code>UNAPPROVED</code> no arquivo e,
+ em cada nome, o sufixo de procedência — ou, com as tags próprias, o nome
+ padrão e «sugestao IA nao aprovada» na descrição da estrutura. Os dois
+ conjuntos entregues — o do AUTO e do PERSONALIZADO e o do FAST — se chamam,
+ no próprio arquivo, <i>sugestão não aprovada</i>; os outros levam o rótulo
+ <code>RadAI_</code> com o nome ou o código deles (<code>RadAI_FULL</code>,
+ <code>RadAI_TS</code>, <code>RadAI_NV</code>…) e dizem que não são o
+ entregue. Não existe caminho no
  programa que produza estrutura aprovada.</li>
 </ul>
 <p>A quarta é de outra natureza e vale dizer junto: <b>as métricas medem
@@ -1627,7 +1853,7 @@ inventar um número.</p>
 <ul>
  <li>Toda estrutura gerada é <b>sugestão não aprovada</b>
  (<code>ApprovalStatus = UNAPPROVED</code>), identificada por sufixo de
- procedência.</li>
+ procedência — ou, com as tags próprias, pela descrição dela.</li>
  <li>Qualquer contorno usado em tratamento deve ser <b>revisado e aprovado por
  profissional habilitado</b>, no sistema de planejamento, sob responsabilidade
  dele.</li>
@@ -1653,7 +1879,13 @@ estação de radioterapia.</p>
  na resolução dela — o ar em volta do paciente não é processado. Ele vem
  ligado de fábrica, pela chave <code>RECORTE_NO_CORPO</code> do arquivo de
  configuração. Nas tarefas de RM, e nas que já recortam por conta própria, a
- biblioteca não usa esse recorte.</li>
+ biblioteca não usa esse recorte. A partir da versão 8.7, nos pacotes
+ montados e também na instalação direta numa estação, o preparador tira dos
+ checkpoints dos pesos dele o estado do otimizador,
+ que só serve ao treino, depois de conferir o download: os pesos da rede
+ ficam idênticos byte a byte, cada arquivo leva dentro um aviso de
+ modificação, e o <code>NOTICE</code> declara a modificação, como a licença
+ pede; o peso que já estava na estação não é reescrito.</li>
  <li><b>NV-Segment-CT (NVIDIA)</b> — código Apache-2.0, <b>pesos sob a NVIDIA
  Open Model License</b>, que <b>permite uso comercial</b>. O cartão do modelo
  diz que ele é para pesquisa e não para uso clínico, e essa frase é do autor
@@ -1683,6 +1915,15 @@ estação de radioterapia.</p>
  encefálico, quiasma, cerebelo, ventrículos e linha média) — pesos sob
  <b>MIT</b>: uso comercial permitido.</li>
 </ul>
+<p>Nos pacotes montados a partir da versão 8.7 — e não na instalação direta
+numa estação —, o preparador tira o estado do otimizador também dos
+checkpoints dos níveis cervicais, do modelo do encéfalo em TC, do MOOSE e do
+CADS, só dos que ele baixou naquela montagem. Cada arquivo enxuto é
+conferido pela soma SHA-256 que o registro de modelos guarda para ele, e o
+que não bate fica como veio da origem; os pesos da rede ficam idênticos byte
+a byte, cada arquivo leva dentro o aviso da modificação, e o
+<code>NOTICE</code> a declara, como pedem a CC BY e a CC BY-SA. A estação
+aceita, de cada um, o arquivo da origem ou o enxuto.</p>
 <p>O modelo do encéfalo em TC entra no conjunto completo e roda só em TC: no
 AUTO quando o encéfalo está no campo, e no PERSONALIZADO pelos protocolos
 Crânio e Cabeça e Pescoço avançado ou pela chave dele. O tronco encefálico e o
@@ -1787,15 +2028,18 @@ confirmado pela anatomia, e o log diz quando ela fica de fora. Tarefa avulsa, ac
 comparação de modelos se pedem série a série, no PERSONALIZADO do «Rodar
 agora».</p>
 
-<p><b>Ligar é um ato, e os dois que existem estão no PERSONALIZADO do «Rodar
+<p><b>Ligar é um ato, e os três que existem estão no PERSONALIZADO do «Rodar
 agora».</b> O primeiro é ligar a chave da tarefa no PERSONALIZADO — ela nasce
 desligada, com o selo ACHADO, e nenhum protocolo RT a liga. Ligada assim, o
 log anuncia com a palavra <b data-radai-t="1">ACHADO</b>, o que ela devolve sai num arquivo próprio
-(<code>STUDY_</code> e o código dela) e, cru, também no conjunto do
-TotalSegmentator (<code>STUDY_ts</code>) quando ele é pedido, como toda saída
+(rótulo <code>RadAI_</code> e o código dela) e, cru, também no conjunto do
+TotalSegmentator (<code>RadAI_TS</code>) quando ele é pedido, como toda saída
 do modelo — nunca no
 conjunto completo nem no entregue —, e o registro do caso guarda quais rodaram, para que a resposta a "o que estava ligado naquela
-série?" não dependa da memória de ninguém. O segundo é pedir um protocolo de
+série?" não dependa da memória de ninguém. O segundo é escolher um
+protocolo próprio da estação que inclua achado (seção 1.6): a declaração é
+pedida a cada envio à fila, e o que a tarefa devolve segue a regra da chave.
+O terceiro é pedir um protocolo de
 estudo das Reconstruções 3D: o Anatomia Geral roda todas as tarefas do
 catálogo da modalidade, as de achado inclusive, e, na TC, pede também os
 níveis cervicais; o Anatomia Torácica roda as do tórax, os nódulos pulmonares
@@ -1950,6 +2194,27 @@ posto e o plano novo feito sobre ela.</p>
  canal, arredondados para fora. Nenhum
  dos dois leva nome, registro, data de exame ou UID, e o STL diz no cabeçalho
  que é rascunho não aprovado.</li>
+ <li><b>Quando o canal não cabe, o programa não gera, e diz por quê.</b>
+ Sem nenhum canal na caixa, a tela diz a colocação (e se foi o programa que
+ a escolheu), a direção dos canais, o melhor canal — o de menos trajeto sem
+ pele; no empate, o mais central —, quanto do trajeto dele tem pele e as
+ causas, separadas — falta pele sob o trajeto (e de que lado), a pele perto
+ demais do topo da caixa, ou um objeto acima da pele —, com a proposta de
+ cada uma. Um canal que cai no meio, com canais aceitos dos dois lados,
+ também impede a geração: o centro da área ficaria sem cateter, e isso é
+ risco de subcobertura; o canal que cai na borda continua como aviso.
+ Quando a caixa não dá nenhum canal útil — nenhum canal, ou um caído no
+ meio —, a recusa propõe uma caixa aparada, conferida traçando de novo os
+ canais nela, com o botão «Usar a caixa sugerida»: a caixa só muda com esse
+ clique, e o aplicador só sai quando você gera de novo. Com a direção dos
+ canais automática, o programa traça os canais nas duas direções
+ perpendiculares à colocação e fica com a que acomoda mais canais — no
+ empate, a de partida —, e o aviso e a ficha dizem qual escolheu. No canal de
+ fundo cego, a pele é exigida só até o fundo do canal. A
+ distância à pele e a curva do canal — e o raio mínimo que a ficha diz —
+ seguem a borda do volume parcial dos voxels do cruzamento de −300 HU, que
+ não oscila com a posição do voxel; só a face interna da peça segue o
+ cruzamento do limiar.</li>
  <li>Cada exportação é registrada em <code>radai_bolus_atos.log</code>, no
  acervo, antes de o arquivo sair; sem conseguir registrar, ele não sai.</li>
  <li>A face interna do aplicador é a superfície da pele do paciente: num
@@ -1957,47 +2222,24 @@ posto e o plano novo feito sobre ela.</p>
 </ul>
 
 <h2 id="estacao">4.3 · O que o programa faz na estação</h2>
-<p>Além de segmentar, o programa age sobre a estação em que roda. Cada ação
-abaixo é por ato seu, e diz no log o que fez:</p>
+<p>Além de segmentar, o programa age sobre a estação em que roda, e diz no
+log o que fez. <b>Ele não fecha programa nenhum e não para nem religa
+serviço do Windows</b>, nem mostra alerta para otimizar a estação: as
+medidas de memória e de disco continuam em
+Configurações, em Diagnósticos e Registros, e otimizar a estação é trabalho
+do kit dela. Numa estação que usou uma versão anterior, ele apaga no arranque
+o arquivo em que o otimizador de antes anotava o que tinha fechado (a
+Política de Privacidade, seção 3) e o registro de um turno da noite que
+pausava serviços (<code>_overnight_servicos.json</code>, na pasta do
+programa), com uma linha no log: o programa que foi fechado volta no
+próximo logon, e o serviço que ficou parado, no próximo arranque do
+Windows.</p>
 <ul>
- <li><b data-radai-t="1">O «Otimizar»</b> (em Configurações, Diagnosticar e otimizar)
- <b data-radai-t="1">fecha programas</b> para liberar memória antes de uma segmentação longa.
- Antes de fechar, ele mostra a lista do que vai fechar — só o que está em
- listas fechadas, copiadas do kit de otimização da estação (o Workstation RT,
- do mesmo autor); o programa desconhecido que tem janela aberta aparece
- desmarcado — e só fecha depois de você confirmar. Ele pede a cada programa
- que feche pela janela, quando ele tem uma, e, se ele não sair em meio
- segundo, <b>fecha à força: um documento não salvo naquele programa se
- perde</b>, e por isso a lista vem antes. Ele <b>nunca</b> toca: o próprio
- Radioterapia.AI (o processo dele, a janela que o abriu, os processos que ele
- abriu e todo programa numa pasta <code>RADIOTERAPIA_AI</code>); o navegador;
- o que roda de uma pasta clínica; os programas que as listas de protegidos e
- de preservados reconhecem pelo nome — visualizador, sistema de planejamento,
- prontuário, Office, backup, antivírus e agentes do TI, e o núcleo do Windows
- —, com a exceção do áudio, abaixo; o acesso remoto do TI; e a sessão de outro
- usuário. <b>A proteção é pelo
- nome e pela pasta, e só alcança o que as listas conhecem:</b> um programa
- clínico que elas não reconhecem — um sistema de planejamento de outro
- fabricante, por exemplo — aparece na lista como desconhecido, desmarcado, e
- fecha se você o marcar; não o marque. E a lista do áudio é consultada antes
- da de protegidos, como no kit: o utilitário de realce de áudio que as duas
- citam (o da Realtek, por exemplo) aparece marcado para fechar — o som
- continua. O disco que ele libera está na seção 6 da Política de Privacidade.
- Serviço do
- Windows, ele só para com
- administrador; sem administrador, age só nos programas desta sessão e diz
- isso. O «Restaurar» reabre o que sabe reabrir (Google Drive, OneDrive,
- Teams, LibreOffice), religa, com administrador, o serviço que ele parou, e
- diz que o resto volta no próximo logon.</li>
  <li><b data-radai-t="1">O Overnight Run</b> — o turno da noite — entra na fila como o último
- cartão, e abre quando a fila chega nele. Se você deixar marcado, ele pausa
- serviços do Windows de uma lista fechada (os mesmos que o «Otimizar»
- conhece), anotando antes o estado de cada um num arquivo ao lado do
- programa; sem administrador o Windows nega, e o log diz. Ao fechar o turno,
- religa só os que estavam rodando — o que ele não conseguir religar volta no
- próximo arranque do Windows. A pasta dos
+ cartão, e abre quando a fila chega nele. A pasta dos
  exames, as modalidades e os dias para trás que você escolhe ao pedir o turno
- vão para o arquivo de configuração. A folha tem dois botões: «Cancelar», que
+ vão para o arquivo de configuração, e a estrela do seletor da pasta põe nele
+ a pasta favorita. A folha tem dois botões: «Cancelar», que
  fecha sem mudar nada, e «Salvar e iniciar», que só se habilita depois que o
  programa confere que a pasta existe e se deixa ler — ao abrir a folha, ele só
  lê, sem gravar nada nela. Para saber se a pasta grava, o programa cria e
@@ -2007,7 +2249,47 @@ abaixo é por ato seu, e diz no log o que fez:</p>
  a fila parada ou pausada, «Salvar e iniciar» a inicia, e o turno começa
  quando ela chegar no card. Trocar a pasta com o turno aberto vale a partir
  do turno seguinte: o que está aberto segue na pasta em que abriu, e o
- cartão do turno diz isso.</li>
+ cartão do turno diz isso. Com o turno aberto, o programa pede ao Windows
+ para não suspender a estação, mesmo com a fila vazia; o vigia lê a pasta e
+ põe na fila a série sugerida de cada exame, no AUTO — a TC de simulação do
+ exame ou, num exame sem TC, a RM do exame, pela mesma regra no vigia e no
+ «Rodar agora» —; quando a fila esvazia depois de uma série pronta, ele varre
+ de novo na hora, e, sem nada novo, no intervalo. O cartão do turno fica
+ rodando até o turno ser encerrado; e o turno que volta à fila ao reabrir o
+ programa, esperando, abre sozinho quando nada está na frente dele.</li>
+ <li><b>A janela do programa.</b> Aberto pelo atalho, o programa abre o
+ navegador em modo de aplicativo e em tela cheia, num perfil próprio
+ (<code>radai_janela</code>); o F11 sai da tela cheia. Para pôr a janela em
+ tela cheia e para o «Minimizar» da porta, o motor acha a janela do programa
+ pelo título: a janela em modo de aplicativo, cujo título termina na ficha
+ que a tela põe nele, é aceita sem ler processo nenhum, e só quando o título
+ não basta ele confere pela linha de comando do processo do navegador que a
+ janela é do perfil próprio dele. Nenhuma janela de abas do navegador é
+ tocada, e a janela guardada se reconfere pelo processo dono e pela classe
+ dela. O motor manda o F11 uma vez por janela, e só se ela ainda não cobre o
+ monitor inteiro — antes, a traz para a frente —; quem saiu da tela cheia
+ pelo F11 não volta a ser posto nela. A pedido, ele a minimiza ou a
+ restaura. Uma linha no log do vigia diz por qual dos dois caminhos a janela
+ foi achada, sem o título nem a ficha; fora ela, nada disso é gravado em
+ disco.</li>
+ <li><b>A atualização com um clique.</b> O «Atualizar agora» — no aviso de
+ versão nova da porta e no cartão «Atualizar o programa» de Configurações —
+ baixa o instalador da release, confere a soma SHA-256 que a release publica
+ e, se só o código muda, fecha o programa, roda o atualizador numa janela do
+ Windows, refaz os atalhos e reabre o programa, com a sua configuração. Com
+ a série do vigia, o lote do «Rodar agora» ou o turno da noite em andamento,
+ ele espera ou pergunta antes; e, quando a versão nova precisa de um pacote
+ novo de modelos, a tela diz o tamanho e o tempo estimado e pede uma segunda
+ confirmação antes de abrir o preparador da versão nova. A Política de
+ Privacidade (seção 4) diz o que ele baixa e de onde.</li>
+ <li><b>Levar as configurações para outra máquina.</b> Em Configurações, o
+ «Exportar configurações» baixa um <code>.json</code> com o arquivo de
+ configuração da estação — sem o que é desta máquina: a placa, o
+ dispositivo, a porta e a marca do guia —, os nomes próprios e os protocolos
+ próprios; não viajam a chave do pseudônimo, o acervo nem a fila. O
+ «Importar configurações…» mostra, por seção, o que vai mudar, e grava só o
+ que você marcou; o caminho que não existe nesta máquina é avisado e não é
+ gravado.</li>
 </ul>
 
 <h2 id="video">4.4 · As Reconstruções 3D gravam o visor, e só por ato seu</h2>
@@ -2022,6 +2304,13 @@ série com a cabeça no campo pode mostrar o rosto</b>: é uma biometria, e vai
 para a pasta de downloads do navegador — a
 <a href="/politica-privacidade">Política de Privacidade</a> diz o que isso
 implica.</p>
+<p>A angiotomografia sintética das Reconstruções 3D (o «Vascular») tira o
+osso da projeção pela segmentação que o ContourLab gravou para a série — o
+RTSTRUCT dela, achado pelo UID, ou o mapa de rótulos —, lida só na memória
+do programa, como no Nidus RT, com um voxel de margem. Numa série com HU e
+sem segmentação com osso, ela usa um limiar de 700 HU, que leva junto o vaso
+calcificado e o vaso a menos de 2 mm do osso, e a tela diz qual dos dois
+valeu; sem HU, como na RM, e sem segmentação, o osso fica na projeção.</p>
 
 <h2 id="bridge">4.5 · O DicomBridge entrega o exame como veio, e a imagem sem dono sai DESCONHECIDO</h2>
 <p>O DicomBridge converte para o sistema de planejamento as séries que você
@@ -2032,21 +2321,44 @@ identidade dela. A série com um corte de imagem incompleta no arquivo
 (truncado, curto ou sem a imagem) não é convertida: a conversão a recusa
 inteira, sem gravar nada, e a tela manda copiá-la ou exportá-la de novo da
 origem.</p>
-<p>A <b>imagem JPEG ou PNG</b> entra no mesmo pipeline, sem segmentação, e é
-outra coisa: a imagem não diz de quem é. Cada série de imagem sai como
+<p>A <b>imagem</b> — JPEG, PNG, TIFF ou BMP, arrastada para a área de envio
+ou escolhida pelo «Importar imagem», o quarto botão do cartão de carregar,
+que abre o explorador de arquivos do navegador — entra no mesmo pipeline,
+sem segmentação, e é outra coisa: a imagem não diz de quem é. Cada série de imagem sai como
 paciente <b>DESCONHECIDO</b>, com o seu próprio ID gerado
 que diz de onde veio (<code>EXTERNO-</code> com a data, a hora e um sufixo
 aleatório curto, que separa duas estações no mesmo segundo), e a pasta da
 entrega leva um <code>LEIA-ME.txt</code> de uma linha mandando atribuí-la ao
-paciente certo. A escala e a espessura dela são digitadas por você, e não
-medidas pelo equipamento, e ela entra com referência espacial própria, não
-alinhada à TC: o registro com a TC é ato seu, no sistema de planejamento.</p>
+paciente certo. A escala e a espessura dela vêm de você, e não do
+equipamento: digitadas, ou a escala medida por você com dois cliques numa
+distância conhecida da própria imagem. A ordem dos cortes é a dos arquivos,
+e só você a inverte; a ordem trocada é um espelho que o registro com a TC não
+desfaz, e por isso a tela só converte depois que você confere, na
+reconstrução, a escala e a ordem dos cortes. Ela entra com referência
+espacial própria, não alinhada à TC: o registro com a TC é ato seu, no
+sistema de planejamento.</p>
 <div class="cx aviso">
 <p><b>Atribuir a série ao paciente certo é ato de quem a importa no sistema de
 planejamento.</b> Uma série DESCONHECIDO pode virar um paciente novo ou ser
 associada à pessoa errada, e o programa não tem como saber de quem é a
 imagem.</p>
 </div>
+
+<h2 id="nidus">4.6 · O Nidus RT projeta a TC, e o 3D da caixa fica na estação</h2>
+<p>O Nidus RT projeta a TC num plano, como a imagem de um arco em C, para
+desenhar a lápis sobre a projeção; ele não roda modelo. Os ângulos seguem a
+convenção do arco em C, a do DICOM: LAO põe o detector do lado esquerdo do
+paciente, e RAO do direito; CRA o inclina para a cabeça, e CAU para os pés.
+Towne é CRA 30, e Caldwell, CAU 15. A sala que ele mostra é ilustrativa —
+uma projeção paralela, sem ampliação, sem colisão e sem distância
+fonte–detector —, e não simula um equipamento. Enquanto um ângulo é
+arrastado, a projeção chega numa prévia em baixa resolução, e o lápis espera
+a projeção cheia.</p>
+<p><b>O 3D da caixa</b> mostra, em malhas, o que está dentro da caixa que você
+desenhou: o vaso por limiar, o osso da segmentação do ContourLab e a pele.
+<b>Numa série com a cabeça no campo, ele pode mostrar o rosto.</b> As malhas
+ficam só na memória do programa — no máximo 24 MB, apagadas quando a série
+fecha e depois de 10 minutos sem uso —, e nada do 3D da caixa se exporta.</p>
 
 <h2>5 · Dados de paciente</h2>
 <p>Você é responsável por ter base legal para tratar as imagens que aponta ao

@@ -281,15 +281,33 @@ def montar_app_limpo(destino, suite=None):
     return agora
 
 
+def nao_ignorados(pasta):
+    try:
+        r = subprocess.run(["git", "-C", pasta, "ls-files", "-co",
+                            "--exclude-standard", "-z"],
+                           capture_output=True, timeout=120)
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    return set(os.path.normcase(os.path.normpath(rel))
+               for rel in r.stdout.decode("utf-8", "replace").split("\0")
+               if rel)
+
+
 def montar_app(destino, suite=None):
     copiados = {}
     for pasta in pastas("app", suite):
+        # GUARDA: o que o .gitignore da pasta ignora e estado de execucao (config, registro, modelos) e nao entra na montagem.
+        permitidos = nao_ignorados(pasta)
         for atual, dirs, nomes in os.walk(pasta):
             dirs[:] = [d for d in dirs if d not in IGNORAR]
             for nome in nomes:
                 origem = os.path.join(atual, nome)
                 rel = os.path.relpath(origem, pasta)
                 chave = os.path.normcase(rel)
+                if permitidos is not None and chave not in permitidos:
+                    continue
                 if chave in copiados:
                     raise ComponenteDuplicado(
                         u"app/%s existe em dois lugares: %s e %s"

@@ -126,7 +126,7 @@ def _sem_script(t):
 
 
 def teste_a_porta_tem_o_fechar():
-    secao(u"o FECHAR APP: na porta, dentro da engrenagem, e so nela")
+    secao(u"o FECHAR APP: na porta, dentro do power, e so nele")
     import re as _re
     import radai_router
     import radai_menu
@@ -136,13 +136,16 @@ def teste_a_porta_tem_o_fechar():
     marc = _sem_script(porta)
     topo = marc[marc.find(u'<header class="ls-topo"'):]
     topo = topo[:topo.find(u"</header>")]
-    eng = _re.search(r'(?s)<details class="ls-engrenagem" data-radai-engrenagem>'
+    eng = _re.search(r'(?s)<details class="ls-ctl ls-engrenagem" data-radai-engrenagem>'
                      r'(.*?)</details>', topo)
     eng = eng.group(1) if eng else u""
-    checar(u"a porta tem a ancora do Fechar dentro da engrenagem do cabecalho",
-           u"data-radai-encerrar" in eng, topo[-300:])
-    checar(u"e a ancora nao mora fora dela",
-           u"data-radai-encerrar" not in marc.replace(eng, u""))
+    pwr = _re.search(r'(?s)<details class="ls-ctl ls-power" data-radai-power>'
+                     r'(.*?)</details>', topo)
+    pwr = pwr.group(1) if pwr else u""
+    checar(u"a porta tem a ancora do Fechar dentro do power do cabecalho",
+           u"data-radai-encerrar" in pwr, topo[-300:])
+    checar(u"e a ancora nao mora fora dele",
+           u"data-radai-encerrar" not in marc.replace(pwr, u""))
     checar(u"e o dialogo das duas saidas foi costurado",
            u'id="rx-veu"' in marc
            and all(m in marc for m in (u'id="rx-tudo"', u'id="rx-cancelar"')))
@@ -176,11 +179,11 @@ _BASE_HERMETICA = u"http://porta.radai.test"
 
 
 def _fechar_da_porta(pg):
-    s = pg.locator(u"[data-radai-engrenagem] summary")
+    s = pg.locator(u"[data-radai-power] summary")
     if s.count() == 1 and not pg.evaluate(
-            u"document.querySelector('[data-radai-engrenagem]').open"):
+            u"document.querySelector('[data-radai-power]').open"):
         s.click()
-    return pg.locator(u"[data-radai-engrenagem] [data-radai-encerrar] .rx-fechar")
+    return pg.locator(u"[data-radai-power] [data-radai-encerrar] .rx-fechar")
 
 
 def _abrir_o_dialogo(nav, pagina):
@@ -684,9 +687,10 @@ def teste_lock():
     for chamada in (u"_cancelar_o_trabalho_em_curso()",
                     u"encerrar_filhos_do_motor(",
                     u"soltar_os_locks_deste_processo()",
-                    u"_ov.encerrar(log=wlog)",
                     u"encerrar_sinalizacao()", u"ENCERRANDO.set()"):
         checar(u"  e chama %s" % chamada, chamada in fn)
+    checar(u"  e nao religa servico nenhum (a pausa de servicos saiu)",
+           u"_ov.encerrar(" not in fn and u"radai_overnight" not in fn)
     checar(u"  e o cancelamento vem antes de soltar os locks",
            fn.find(u"_cancelar_o_trabalho_em_curso()")
            < fn.find(u"soltar_os_locks_deste_processo()"))
@@ -750,7 +754,7 @@ def _no_navegador(base):
             pg = nav.new_page(viewport={"width": 1366, "height": 800})
             pg.goto(base + "/", wait_until="networkidle")
             bt = _fechar_da_porta(pg)
-            checar(u"[navegador] o FECHAR APP aparece no menu da engrenagem da porta",
+            checar(u"[navegador] o FECHAR APP aparece no menu do power da porta",
                    bt.count() == 1 and bt.is_visible(), str(bt.count()))
             if bt.count() != 1:
                 return
@@ -758,7 +762,7 @@ def _no_navegador(base):
                    bt.inner_text().strip() == u"FECHAR APP",
                    bt.inner_text())
             cb = bt.bounding_box()
-            checar(u"[navegador] no canto direito, sob a engrenagem",
+            checar(u"[navegador] no canto direito, sob o power",
                    bool(cb) and 1366 - (cb["x"] + cb["width"]) < 60
                    and cb["y"] < 160, u"%s" % cb)
             checar(u"[navegador] e a engrenagem esta no cabecalho da porta, sem trilho",
@@ -942,6 +946,7 @@ def teste_vivo():
     env["RADAI_CALIB_DIR"] = trab
     env["PYTHONIOENCODING"] = "utf-8:replace"
     env["LOCALAPPDATA"] = os.path.join(trab, "ad")
+    env["RADAI_REGISTRO_DIR"] = os.path.join(trab, "registro")
     env["RADAI_URL_VERSOES"] = "0"
     env["RADAI_NOTIFICACAO"] = "0"
 
@@ -2459,11 +2464,17 @@ def teste_fechar_pelo_x_no_navegador():
                 b.add_init_script(sem_relogio)
                 b.goto(base + u"/", wait_until="domcontentloaded")
                 time.sleep(4.0)
-                avisos0 = _jload(_pedir(porta, "/api/pulso")).get(
-                    "avisos_de_saida", 0)
+                d0 = _jload(_pedir(porta, "/api/pulso"))
+                avisos0 = d0.get("avisos_de_saida", 0)
+                checar(u"  (isca) antes de fechar, a saida ja nao esta "
+                       u"pendente: a espera que olhasse so esse campo "
+                       u"passaria sem o aviso, por isso ela espera o "
+                       u"contador de avisos subir",
+                       d0.get("saida_pendente") is False, repr(d0))
                 a.close()
-                time.sleep(1.0)
-                d = _jload(_pedir(porta, "/api/pulso"))
+                d = _esperar_o_pulso(porta, lambda e: e.get(
+                    "avisos_de_saida", 0) > avisos0 and e.get(
+                    "saida_pendente") is False)
                 checar(u"uma aba fecha: o aviso dela chega ao motor",
                        d.get("avisos_de_saida", 0) > avisos0, repr(d))
                 checar(u"  e a irma (sem relogio, so com o canal) acorda e "
@@ -2475,16 +2486,25 @@ def teste_fechar_pelo_x_no_navegador():
                 c.goto(base + u"/", wait_until="domcontentloaded")
                 x = ctx2.new_page()
                 x.goto(base + u"/", wait_until="domcontentloaded")
-                time.sleep(4.0)
+                import radai_pulso as _P
+                calmo = _esperar_o_pulso(porta, lambda e: float(e.get(
+                    "silencio_s") or 0) > _P.JANELA_DE_CORRIDA_S + 0.5,
+                    teto_s=20.0)
+                checar(u"  antes de fechar a aba, nenhuma pulsou na janela "
+                       u"de corrida (a irma que pulsou nela conta como viva)",
+                       float(calmo.get("silencio_s") or 0)
+                       > _P.JANELA_DE_CORRIDA_S, repr(calmo))
+                avisos1 = calmo.get("avisos_de_saida", 0)
                 x.close()
-                time.sleep(1.0)
-                d = _jload(_pedir(porta, "/api/pulso"))
+                d = _esperar_o_pulso(porta, lambda e: e.get(
+                    "avisos_de_saida", 0) > avisos1 and e.get(
+                    "saida_pendente") is True)
                 checar(u"  (isca) a irma sem o canal nao responde: a saida "
                        u"fica pendente", d.get("saida_pendente") is True,
                        repr(d))
                 c.reload(wait_until="domcontentloaded")
-                time.sleep(0.5)
-                d = _jload(_pedir(porta, "/api/pulso"))
+                d = _esperar_o_pulso(porta, lambda e: e.get(
+                    "saida_pendente") is False)
                 checar(u"  e qualquer pagina que pulsa a cancela",
                        d.get("saida_pendente") is False, repr(d))
                 time.sleep(5.0)
@@ -2531,6 +2551,51 @@ def _jload(t):
         return _json.loads(t)
     except Exception:
         return {}
+
+
+def _esperar_o_pulso(porta, condicao, teto_s=10.0, pausa_s=0.1):
+    fim = time.time() + teto_s
+    d = {}
+    while True:
+        try:
+            d = _jload(_pedir(porta, "/api/pulso"))
+        except Exception:
+            pass
+        if condicao(d) or time.time() >= fim:
+            return d
+        time.sleep(pausa_s)
+
+
+def teste_a_espera_do_aviso_consulta_ate_o_teto():
+    secao(u"a espera do aviso de saida consulta o motor ate um teto")
+    import json as _json
+    global _pedir
+    real = _pedir
+    inicio = [time.time()]
+
+    def motor_lento(porta, caminho, dados=None):
+        chegou = time.time() - inicio[0] >= 1.5
+        return _json.dumps({"avisos_de_saida": 1 if chegou else 0,
+                            "saida_pendente": False})
+    _pedir = motor_lento
+    try:
+        inicio[0] = time.time()
+        d = _esperar_o_pulso(0, lambda e: e.get("avisos_de_saida", 0) > 0)
+        checar(u"o aviso que chega 1,5 s depois (motor sob carga) e esperado",
+               d.get("avisos_de_saida") == 1, repr(d))
+        inicio[0] = time.time()
+        time.sleep(1.0)
+        fixo = _jload(_pedir(0, "/api/pulso"))
+        checar(u"  (isca) a pausa fixa de 1 s le o motor antes do aviso, e a "
+               u"checagem reprovaria", fixo.get("avisos_de_saida") == 0,
+               repr(fixo))
+        t0 = time.time()
+        _esperar_o_pulso(0, lambda e: False, teto_s=0.5)
+        dt = time.time() - t0
+        checar(u"  e o aviso que nunca chega para a espera no teto",
+               0.5 <= dt < 5.0, u"%.2f s" % dt)
+    finally:
+        _pedir = real
 
 
 def teste_a_reabertura_de_verdade():
@@ -2614,6 +2679,7 @@ def _motor_oculto(trab, porta, tolerancia, extra=None):
                 "RADAI_PULSO_S": str(tolerancia)})
     env.update(extra or {})
     env["LOCALAPPDATA"] = os.path.join(trab, "ad")
+    env["RADAI_REGISTRO_DIR"] = os.path.join(trab, "registro")
     env["TEMP"] = env["TMP"] = trab
     import json as _json
     import radai_consent as _CS
@@ -2837,7 +2903,9 @@ def main():
               teste_o_navegador_e_o_sucessor, teste_a_rota_de_reabrir,
               teste_a_pergunta_no_navegador,
               teste_a_pagina_de_carregamento, teste_os_lotes,
-              teste_motor_oculto_vivo, teste_fechar_pelo_x_no_navegador,
+              teste_motor_oculto_vivo,
+              teste_a_espera_do_aviso_consulta_ate_o_teto,
+              teste_fechar_pelo_x_no_navegador,
               teste_a_reabertura_de_verdade,
               teste_o_perfil_da_janela_depois_do_temp_reapontado):
         try:

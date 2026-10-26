@@ -49,15 +49,6 @@ def _texto(p):
 
 ALERTA_DA_PORTA = u"Ferramenta de apoio, não validada para uso clínico"
 
-TAGS = {
-    u"autocontorno": u"bancada de estudo",
-    u"bridge": u"Ponte até o TPS",
-    u"recon3d": u"Estudo anatômico",
-    u"nidus": u"Projeção Sintética",
-    u"elastic": u"Fusão elástica",
-    u"bolus": u"Inovação",
-}
-
 ALERTAS = {
     u"autocontorno": u"Material de estudo — 100% local. Nenhuma imagem sai desta rede",
     u"bridge": u"Processamento 100% local",
@@ -320,8 +311,7 @@ def _pagina_de_componentes(isca=None):
                u'</script>')
     p = U.aplicar(u'<!doctype html><html><head><meta charset="utf-8"></head>'
                   u'<body>%s</body></html>' % corpo)
-    if isca:
-        de, para = isca
+    for de, para in (isca or ()):
         checar(u"  (a isca acha o trecho que troca)", de in p, de[:60])
         p = p.replace(de, para)
     return p
@@ -379,6 +369,36 @@ def _medir_modal(pg):
     fechou = pg.evaluate(u"!document.querySelector('.ui-modal-veu')")
     voltou = pg.evaluate(u"document.activeElement && document.activeElement.id")
     return aberto, dentro, preso, fechou, voltou
+
+
+def _medir_pilha_de_modais(pg):
+    pg.evaluate(u"""(function(){
+      window.__fechou = []; window.__depois = 0;
+      uiModal({titulo:'Baixo', html:'<p>b</p>',
+               aoFechar:function(){ __fechou.push('baixo') }});
+      uiModal({titulo:'Cima', html:'<p>c</p>',
+               aoFechar:function(){ __fechou.push('cima') }});
+      window.__ouvinte = function(e){ if(e.key === 'Escape') window.__depois++ };
+      document.addEventListener('keydown', window.__ouvinte, true);
+    })()""")
+    pg.wait_for_timeout(350)
+    medir = (u"[__fechou.slice(), document.querySelectorAll('.ui-modal-veu').length,"
+             u" __depois]")
+    abertos = pg.evaluate(u"document.querySelectorAll('.ui-modal-veu.vis').length")
+    pg.keyboard.press(u"Escape")
+    pg.wait_for_timeout(350)
+    um = pg.evaluate(medir)
+    pg.keyboard.press(u"Escape")
+    pg.wait_for_timeout(350)
+    dois = pg.evaluate(medir)
+    pg.evaluate(u"document.removeEventListener('keydown', window.__ouvinte, true)")
+    return abertos, um, dois
+
+
+def _ok_pilha(m):
+    abertos, um, dois = m
+    return (abertos == 2 and um == [[u"cima"], 1, 0]
+            and dois == [[u"cima", u"baixo"], 0, 0])
 
 
 def _medir_morfo(pg):
@@ -491,6 +511,15 @@ def teste_os_componentes_no_navegador():
             checar(u"  a área diz que enviou", u"enviado" in (est or u""), est)
             checar(u"modal: abre, com o foco dentro, e prende o Tab",
                    _ok_modal(_medir_modal(pg)), u"")
+            abertos, um, dois = _medir_pilha_de_modais(pg)
+            checar(u"  dois modais empilhados: os dois abrem", abertos == 2,
+                   str(abertos))
+            checar(u"  o primeiro Esc fecha só o de cima, e o de baixo fica",
+                   um[:2] == [[u"cima"], 1], repr(um))
+            checar(u"  o segundo Esc fecha o de baixo", dois[:2] == [[u"cima", u"baixo"], 0],
+                   repr(dois))
+            checar(u"  o Esc para no modal: o ouvinte registrado depois não o recebe",
+                   um[2] == 0 and dois[2] == 0, repr((um[2], dois[2])))
             exp, canto, fora = _medir_morfo(pg)
             checar(u"morph: o botão diz que abriu", exp == u"true", exp)
             checar(u"  o painel abre inteiro (o canto de baixo é dele)",
@@ -522,29 +551,42 @@ def teste_os_componentes_no_navegador():
             nav.close()
 
         secao(u"as iscas dos componentes")
+        esc = (u"if(e.key === 'Escape'){ e.preventDefault(); "
+               u"e.stopImmediatePropagation(); fechar() }")
+        esc_que_segue = esc.replace(u"stopImmediatePropagation", u"stopPropagation")
+        pilha = u"if(!aberto || _MODAIS[_MODAIS.length - 1] !== m) return;"
+        sem_pilha = u"if(!aberto) return;"
         iscas = (
-            (u"abas sem a troca do painel", u"if(p) p.hidden = !sel;", u"",
+            (u"abas sem a troca do painel", [(u"if(p) p.hidden = !sel;", u"")],
              lambda pg, reg: _medir_abas(pg)[0][1] is False),
             (u"envio sem o caminho relativo",
-             u"fd.append('arquivos', x.arquivo, x.caminho);",
-             u"fd.append('arquivos', x.arquivo);",
+             [(u"fd.append('arquivos', x.arquivo, x.caminho);",
+               u"fd.append('arquivos', x.arquivo);")],
              lambda pg, reg: u'filename="EXAME/CT/IM0"' in _medir_envio(pg, reg)[1]),
-            (u"modal sem o Esc", u"if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); fechar() }",
-             u"if(false){}",
+            (u"modal sem o Esc", [(esc, u"if(false){}")],
              lambda pg, reg: _ok_modal(_medir_modal(pg))),
-            (u"morph que não abre", u"requestAnimationFrame(function(){ p.classList.add('aberto') });\n  setTimeout(function(){ p.classList.add('aberto') }, 40);",
-             u"",
+            (u"modal sem a pilha (o de baixo ouve primeiro e fecha no lugar do de cima)",
+             [(pilha, sem_pilha)],
+             lambda pg, reg: _ok_pilha(_medir_pilha_de_modais(pg))),
+            (u"o Esc de antes da pilha (um Esc fecha os dois)",
+             [(pilha, sem_pilha), (esc, esc_que_segue)],
+             lambda pg, reg: _ok_pilha(_medir_pilha_de_modais(pg))),
+            (u"o Esc que não para no modal (stopPropagation)",
+             [(esc, esc_que_segue)],
+             lambda pg, reg: _ok_pilha(_medir_pilha_de_modais(pg))),
+            (u"morph que não abre",
+             [(u"requestAnimationFrame(function(){ p.classList.add('aberto') });\n  setTimeout(function(){ p.classList.add('aberto') }, 40);",
+               u"")],
              lambda pg, reg: _medir_morfo(pg)[1] == u"painel"),
-            (u"visor sem a roda", u"ir(i + rumoCaudal(e.deltaY > 0 ? 1 : -1));",
-             u"",
+            (u"visor sem a roda", [(u"ir(i + rumoCaudal(e.deltaY > 0 ? 1 : -1));", u"")],
              lambda pg, reg: _medir_visor(pg, reg)[1] == 5),
-            (u"explorador que devolve vazio", u"try{ if(o.aoUsar) o.aoUsar(c) }",
-             u"try{ if(o.aoUsar) o.aoUsar('') }",
+            (u"explorador que devolve vazio",
+             [(u"try{ if(o.aoUsar) o.aoUsar(c) }", u"try{ if(o.aoUsar) o.aoUsar('') }")],
              lambda pg, reg: _medir_explorador(pg, reg)[1] == u"C:\\EXAMES"),
         )
-        for nome, de, para, passa in iscas:
+        for nome, trocas, passa in iscas:
             reg = {}
-            nav, ctx = _nav(pw, exe, {u"/c": _pagina_de_componentes((de, para))}, reg)
+            nav, ctx = _nav(pw, exe, {u"/c": _pagina_de_componentes(trocas)}, reg)
             try:
                 pg = ctx.new_page()
                 pg.goto(_BASE + u"/c", wait_until="networkidle")
@@ -564,20 +606,26 @@ def _ok_modal(m):
 
 
 def teste_a_porta():
-    secao(u"a porta: um título, seis cartões, o rodapé e a engrenagem com o Fechar")
+    secao(u"a porta: um título, seis cartões, o rodapé e os três controles")
     import html as _h
     p = _porta()
     m = _sem_script(p)
     topo = re.search(r'(?s)<header class="ls-topo.*?</header>', m)
     topo = topo.group(0) if topo else u""
-    eng = re.search(r'(?s)<details class="ls-engrenagem" data-radai-engrenagem>.*?</details>',
+    eng = re.search(r'(?s)<details class="ls-ctl ls-engrenagem" data-radai-engrenagem>.*?</details>',
                     topo)
     eng = eng.group(0) if eng else u""
+    pwr = re.search(r'(?s)<details class="ls-ctl ls-power" data-radai-power>.*?</details>', topo)
+    pwr = pwr.group(0) if pwr else u""
     checar(u"o cabeçalho da porta tem a engrenagem, com Configurações",
            u'href="/config"' in eng, topo[-300:])
-    checar(u"  e a âncora do FECHAR APP dentro dela",
-           u"data-radai-encerrar" in eng
-           and u"data-radai-encerrar" not in m.replace(eng, u""))
+    checar(u"  e a âncora do FECHAR APP no power, e só nele",
+           u"data-radai-encerrar" in pwr
+           and u"data-radai-encerrar" not in m.replace(pwr, u""))
+    checar(u"  e o minimizar antes dos dois",
+           u"data-radai-minimizar hidden>" in topo
+           and topo.index(u"data-radai-minimizar hidden>") < topo.index(u"data-radai-engrenagem>")
+           < topo.index(u"data-radai-power>"))
     checar(u"sem o trilho", u'class="radai-menu' not in m)
     checar(u"um título só", len(re.findall(r"<h1\b", m)) == 1)
     checar(u"a grade de módulos", u'class="ls-cards"' in m)
@@ -606,17 +654,36 @@ def _cartoes(p):
 
 
 def teste_as_mini_paginas():
-    secao(u"as mini-páginas: tag, frase, cartões, alerta e `?`")
+    secao(u"as mini-páginas: o nome em Anton com o final, a arte, o `?`, cartões e alerta")
     import html
     import radai_modules as M
     for chave in (u"autocontorno", u"bridge", u"recon3d", u"nidus", u"elastic",
                   u"bolus"):
         p = _mini(chave)
         m = _sem_script(p)
-        chip = re.search(r'<span class="md-chip">(.*?)</span>\s*<div class="md-tit"', m, re.S)
-        chip_t = html.unescape(re.sub(r"<[^>]+>", u"", chip.group(1))).strip() if chip else u""
-        checar(u"%s: a tag é «%s»" % (chave, TAGS[chave]),
-               chip_t.endswith(TAGS[chave]) and u"·" not in chip_t, chip_t)
+        mod = M.MODULOS[chave]
+        fim = mod[u"destaque"].strip()
+        checar(u"%s: o chip saiu (a composição do pacote de design)" % chave,
+               u"md-chip" not in m and u"chip" not in mod)
+        h1 = re.search(r'(?s)<h1 data-ls-fim="([^"]*)">(.*?)</h1>', m)
+        checar(u"  o h1 é o nome do registro, com o final «%s» em span" % fim,
+               bool(h1) and h1.group(1) == fim
+               and (u'<span class="ls-fim">%s</span>' % fim) in h1.group(2)
+               and html.unescape(re.sub(r"<[^>]+>", u"", h1.group(2)))
+               == mod[u"titulo"] + mod[u"destaque"], h1.group(0)[:160] if h1 else m[:200])
+        checar(u"  a arte do módulo, a mesma da porta, ao lado do nome",
+               re.search(r'<div class="md-simbolo" aria-hidden="true"><svg class="ls-icone', m)
+               is not None)
+        n = min(3, len(M.FERRAMENTAS[chave]))
+        checar(u"  o leiaute de %d cartão(ões)" % n, (u'class="md-pg md-n%d"' % n) in m)
+        checar(u"  o feixe atrás, decorativo",
+               re.search(r'<svg class="md-feixe"[^>]*aria-hidden="true"', m) is not None)
+        bal = re.search(r'(?s)<div class="md-tit">.*?</h1>(.*?)</span></span></div>', m)
+        bal = html.unescape(re.sub(r"<[^>]+>", u"", bal.group(1))) if bal else u""
+        checar(u"  a frase do módulo foi para o primeiro parágrafo do `?`",
+               bal.lstrip(u"? ").startswith(mod[u"frase"]), bal[:120])
+        fora_do_balao = re.sub(r'(?s)<span class="ui-balao">.*?</span></span>', u"", m)
+        checar(u"  e não está mais à vista", mod[u"frase"] not in _texto(fora_do_balao))
         if chave in FRASES:
             checar(u"  a frase do autor", FRASES[chave] in _texto(p))
         alertas = re.findall(r'<div class="ui-alerta[^"]*">.*?</span></div>', m, re.S)
@@ -666,7 +733,7 @@ def teste_as_frases_novas_tem_os_doze_idiomas():
     secao(u"toda frase nova está no dicionário, nos doze idiomas")
     import radai_phrases as F
     tab = dict((t[0], t) for t in F.TABELA)
-    novas = [ALERTA_DA_PORTA, _fronteira()] + list(TAGS.values()) \
+    novas = [ALERTA_DA_PORTA, _fronteira()] \
         + list(ALERTAS.values()) \
         + list(FRASES.values()) + list(CARTOES.values()) \
         + [n for (_m, n) in CARTOES] \
@@ -818,28 +885,53 @@ def teste_a_geometria_no_navegador():
                 # GUARDA: mede o molde com a barra no mesmo estado; aberta, ela desloca o centro.
                 pg.evaluate(u"window.uiDireita && window.uiDireita('1')")
                 pg.wait_for_timeout(150)
-                geo[k] = pg.evaluate(u"""(function(){
-                  var c=document.querySelector('.md-chip').getBoundingClientRect();
-                  var h=document.querySelector('.md-tit h1').getBoundingClientRect();
-                  var a=document.querySelector('.ui-alerta');
-                  var ar=a?a.getBoundingClientRect():{height:0};
-                  var fs=a?parseFloat(getComputedStyle(a).lineHeight)||18:18;
-                  return [Math.round(c.left), Math.round(c.top), Math.round(h.left),
-                          Math.round(h.top - c.bottom), Math.round(ar.height), fs,
-                          document.documentElement.scrollWidth, innerWidth]})()""")
+                geo[k] = pg.evaluate(_MEDIR_MINI)
             ref = geo[u"autocontorno"]
             for k, v in geo.items():
-                checar(u"%s: a tag no mesmo lugar do ContourLab" % k,
-                       abs(v[0] - ref[0]) <= 1 and abs(v[1] - ref[1]) <= 1,
-                       u"%r contra %r" % (v[:2], ref[:2]))
-                checar(u"  respiro de linha dupla entre a tag e o título",
-                       v[3] >= 24, str(v[3]))
-                checar(u"  o alerta numa linha só", 0 < v[4] <= v[5] * 1.5 + 17,
-                       repr(v[4:6]))
-                checar(u"  sem rolagem lateral", v[6] <= v[7], repr(v[6:]))
+                checar(u"%s: o nome no mesmo lugar do ContourLab" % k,
+                       abs(v[u"h1"][0] - ref[u"h1"][0]) <= 1
+                       and abs(v[u"h1"][1] - ref[u"h1"][1]) <= 1,
+                       u"%r contra %r" % (v[u"h1"], ref[u"h1"]))
+                checar(u"  o nome em Anton e o resto não", v[u"fonte"].startswith(u"Anton")
+                       and u"Anton" not in v[u"fonteCartao"], repr((v[u"fonte"], v[u"fonteCartao"])))
+                checar(u"  os cartões com o mesmo topo e a mesma altura",
+                       len(set(v[u"tops"])) == 1 and len(set(v[u"alturas"])) == 1,
+                       repr((v[u"tops"], v[u"alturas"])))
+                n = min(3, v[u"n"])
+                colunas = len(set(v[u"lefts"]))
+                checar(u"  %d cartão(ões) lado a lado" % n, colunas == n, repr(v[u"lefts"]))
+                if n < 3:
+                    checar(u"  o topo dos cartões é o do nome", abs(v[u"tops"][0] - v[u"h1"][1]) <= 2,
+                           repr((v[u"tops"], v[u"h1"])))
+                else:
+                    checar(u"  com três, os cartões descem para baixo do nome",
+                           v[u"tops"][0] >= v[u"h1"][1] + v[u"h1"][3], repr((v[u"tops"], v[u"h1"])))
+                checar(u"  [%s] o alerta numa linha só, no pé" % k,
+                       0 < v[u"alerta"][0] <= v[u"alerta"][1] * 1.5 + 27
+                       and v[u"alerta"][2] >= v[u"fundoCartoes"], repr(v[u"alerta"]))
+                checar(u"  [%s] sem rolagem lateral" % k, v[u"sw"] <= v[u"iw"],
+                       repr((v[u"sw"], v[u"iw"])))
         finally:
             ctx.close()
             nav.close()
+
+
+_MEDIR_MINI = u"""(function(){
+  var h=document.querySelector('.md-tit h1').getBoundingClientRect();
+  var cs=[].slice.call(document.querySelectorAll('.md-fer'));
+  var rs=cs.map(function(c){return c.getBoundingClientRect()});
+  var a=document.querySelector('.ui-alerta');
+  var ar=a?a.getBoundingClientRect():{height:0,top:0};
+  var fs=a?parseFloat(getComputedStyle(a).lineHeight)||18:18;
+  return {h1:[Math.round(h.left),Math.round(h.top),Math.round(h.width),Math.round(h.height)],
+          fonte:getComputedStyle(document.querySelector('.md-tit h1')).fontFamily,
+          fonteCartao:cs.length?getComputedStyle(cs[0].querySelector('h2')).fontFamily:'',
+          n:cs.length, tops:rs.map(function(r){return Math.round(r.top)}),
+          alturas:rs.map(function(r){return Math.round(r.height)}),
+          lefts:rs.map(function(r){return Math.round(r.left)}),
+          fundoCartoes:Math.max.apply(null,rs.map(function(r){return Math.round(r.bottom)})),
+          alerta:[Math.round(ar.height),fs,Math.round(ar.top)],
+          sw:document.documentElement.scrollWidth, iw:innerWidth}})()"""
 
 
 def teste_o_alerta_sobrevive_a_traducao():
@@ -1051,6 +1143,138 @@ def teste_as_telas_de_funcao_usam_a_cabeca():
            not _chama_a_cabeca(u"# radai_ui.cabeca_de_funcao\nx = 'cabeca_de_funcao'\n"))
 
 
+def _tela_de_ferramenta(chave):
+    import radai_menu
+    import radai_ui as U
+    corpo = (u'<main style="padding:30px">'
+             + U.cabeca_de_funcao(u"bolus", u"Gerar bólus", u"Uma frase.",
+                                  chave_modulo=u"bolus")
+             + U.passo(u"1", u"Escolha a série", u"<p>corpo</p>", ident=u"p1")
+             + u'<button type="button" id="bt_modal" class="ui-bt">abrir</button>'
+             + u'<button type="button" id="bt_pri" class="ui-bt pri">Salvar</button>'
+             + u'</main>')
+    return radai_menu.aplicar(
+        u'<!doctype html><html><head><meta charset="utf-8"><title>x</title></head>'
+        u'<body>%s</body></html>' % corpo, chave, com_tarefas=True)
+
+
+_MEDIR_IDENTIDADE = u"""(function(){
+  function cs(s){ var e=document.querySelector(s); return e?getComputedStyle(e):null }
+  function v(s,p){ var c=cs(s); return c?c[p]:'' }
+  var ina=document.querySelector('.radai-menu a:not(.on)[data-mod="bridge"] .ico');
+  return {topo:v('.rc-topo','backgroundColor'), topoBorda:v('.rc-topo','borderBottomColor'),
+          trilho:v('.radai-menu','backgroundColor'), trilhoBorda:v('.radai-menu','borderRightColor'),
+          barra:v('.radai-tarefas','backgroundColor'),
+          marca:v('.rc-marca .g','backgroundImage'),
+          inativo:ina?getComputedStyle(ina).color:'',
+          on:v('.radai-menu a.on','borderTopColor'), onCor:v('.radai-menu a.on','color'),
+          passo:v('.ps-cx','borderTopColor'), pri:v('#bt_pri','backgroundColor'),
+          tag:v('.ui-fn-tag','color'),
+          identidade:document.body.getAttribute('data-ls-identidade')||''}})()"""
+
+
+def _medir_tela(nav, pagina, tema, com_modal=False, hover=False):
+    reg = {}
+    ctx = nav.new_context(viewport={"width": 1280, "height": 800})
+    ctx.add_init_script(u"try{localStorage.setItem('radai_tema','%s')}catch(e){}" % tema)
+    _servir(ctx, {u"/t": pagina}, reg)
+    try:
+        pg = ctx.new_page()
+        pg.goto(_BASE + u"/t", wait_until="networkidle")
+        pg.wait_for_timeout(300)
+        r = pg.evaluate(_MEDIR_IDENTIDADE)
+        if hover:
+            pg.hover(u'.radai-menu a[data-mod="bridge"]')
+            pg.wait_for_timeout(250)
+            r[u"hover"] = pg.evaluate(
+                u"[getComputedStyle(document.querySelector('.radai-menu a[data-mod=\"bridge\"]')).color,"
+                u"getComputedStyle(document.querySelector('.radai-menu a[data-mod=\"bridge\"] .ico')).color]")
+            pg.mouse.move(700, 600)
+        if com_modal:
+            pg.evaluate(u"uiModal({titulo:'Escolher a série', html:'<p>x</p>',"
+                        u" origem:document.getElementById('bt_modal')})")
+            pg.wait_for_timeout(450)
+            r[u"modal"] = pg.evaluate(
+                u"[getComputedStyle(document.querySelector('.ui-modal')).borderTopColor,"
+                u"getComputedStyle(document.querySelector('.ui-modal-cab')).borderBottomColor]")
+        return r
+    finally:
+        ctx.close()
+
+
+def teste_a_identidade_das_telas_de_trabalho():
+    secao(u"identidade: os retoques das telas de trabalho, só no escuro e só nas ferramentas")
+    exe = _chromium()
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception:
+        sync_playwright = None
+    if not exe or sync_playwright is None:
+        print(u"    PULADO o navegador: sem Playwright ou sem Chromium")
+        return
+    import radai_ui as U
+    checar(u"a folha de identidade está na folha da casca, com o escopo do trabalho",
+           U.IDENTIDADE in U.folha()
+           and u'body[data-ls-identidade="trabalho"]' in U.IDENTIDADE
+           and u':root:not([data-tema="claro"])' in U.IDENTIDADE)
+    regras = [r for r in re.findall(r"([^{}]+)\{", U.IDENTIDADE) if r.strip()]
+    fora = [r for r in regras if u'body[data-ls-identidade="trabalho"]' not in r]
+    checar(u"  nenhuma regra dela sai do escopo", not fora, repr(fora[:3]))
+    proibidas = [p for p in (u"--accent", u"--mod-", u"--ok", u"--aviso", u"--perigo",
+                             u"--warn", u"--img-", u"--font-", u"--ui-painel-")
+                 if re.search(r"(?<![\w-])%s[\w-]*\s*:" % re.escape(p), U.IDENTIDADE)]
+    checar(u"  e ela não redefine ficha clínica, de ação, de módulo nem de imagem",
+           not proibidas, repr(proibidas))
+    ferramenta = _tela_de_ferramenta(u"bolus_gerar")
+    config = _tela_de_ferramenta(u"config")
+    with sync_playwright() as pw:
+        nav = pw.chromium.launch(executable_path=exe, headless=True)
+        try:
+            e = _medir_tela(nav, ferramenta, u"escuro", com_modal=True, hover=True)
+            checar(u"[escuro] a tela de ferramenta leva a marca", e[u"identidade"] == u"trabalho")
+            checar(u"[escuro] cabeçalho e trilho em #08111f, com o contorno #29374d",
+                   e[u"topo"] == u"rgb(8, 17, 31)" and e[u"trilho"] == u"rgb(8, 17, 31)"
+                   and e[u"topoBorda"] == u"rgb(41, 55, 77)"
+                   and e[u"trilhoBorda"] == u"rgb(41, 55, 77)", repr(e))
+            checar(u"[escuro] a barra da direita também", e[u"barra"] == u"rgb(8, 17, 31)",
+                   e[u"barra"])
+            checar(u"[escuro] o .ai da marca no gradiente da identidade",
+                   u"rgb(102, 196, 255)" in e[u"marca"] and u"rgb(180, 154, 236)" in e[u"marca"],
+                   e[u"marca"])
+            checar(u"[escuro] o ícone inativo do trilho em #9bb0cc",
+                   e[u"inativo"] == u"rgb(155, 176, 204)", e[u"inativo"])
+            checar(u"[escuro] e no hover ele acende com o texto do item (o defeito do pacote)",
+                   e[u"hover"][1] == e[u"hover"][0] and e[u"hover"][1] != u"rgb(155, 176, 204)",
+                   repr(e[u"hover"]))
+            checar(u"[escuro] a borda do módulo selecionado no ouro discreto",
+                   e[u"on"] == u"rgba(181, 156, 121, 0.4)", e[u"on"])
+            checar(u"[escuro] e a cor do módulo continua a do bólus",
+                   e[u"onCor"] == u"rgb(181, 214, 90)", e[u"onCor"])
+            checar(u"[escuro] o contorno do passo em #2c3a51",
+                   e[u"passo"] == u"rgb(44, 58, 81)", e[u"passo"])
+            checar(u"[escuro] o popup: invólucro no ouro e o cabeçalho com o divisor",
+                   e[u"modal"] == [u"rgba(181, 156, 121, 0.4)", u"rgb(41, 55, 77)"],
+                   repr(e[u"modal"]))
+            checar(u"[escuro] o botão verde e a tag do módulo não mudam",
+                   e[u"pri"] == u"rgb(18, 135, 63)" and e[u"tag"] == u"rgb(181, 214, 90)",
+                   repr((e[u"pri"], e[u"tag"])))
+            c = _medir_tela(nav, ferramenta, u"claro")
+            checar(u"[claro] a mesma tela fica com a casca de sempre",
+                   c[u"topo"] == u"rgb(247, 249, 252)" and c[u"inativo"] != u"rgb(155, 176, 204)",
+                   repr((c[u"topo"], c[u"inativo"])))
+            k = _medir_tela(nav, config, u"escuro")
+            checar(u"[escuro] fora das ferramentas (/config) nada muda",
+                   k[u"identidade"] == u"" and k[u"topo"] == u"rgb(15, 23, 41)"
+                   and k[u"inativo"] != u"rgb(155, 176, 204)", repr(k))
+            defeito = ferramenta.replace(u"a:not(.on):not(:hover) .ico", u"a:not(.on) .ico")
+            checar(u"  (a isca acha a regra do ícone)", defeito != ferramenta)
+            d = _medir_tela(nav, defeito, u"escuro", hover=True)
+            checar(u"  (isca) a regra do pacote, sem o :not(:hover), apaga o ícone no hover",
+                   d[u"hover"][1] == u"rgb(155, 176, 204)", repr(d[u"hover"]))
+        finally:
+            nav.close()
+
+
 def main():
     for t in (teste_os_componentes_existem, teste_os_helpers_montam_certo,
               teste_as_telas_de_funcao_usam_a_cabeca,
@@ -1059,7 +1283,8 @@ def main():
               teste_a_geometria_no_navegador, teste_as_abas_da_barra_da_direita,
               teste_o_mais_do_card_da_fila, teste_o_alerta_sobrevive_a_traducao,
               teste_o_bolus_diz_o_aplicador_e_o_risco,
-              teste_a_conversao_de_imagens_tem_destaque):
+              teste_a_conversao_de_imagens_tem_destaque,
+              teste_a_identidade_das_telas_de_trabalho):
         try:
             t()
         except Exception:

@@ -19,7 +19,7 @@ _MONTAGEM = {}
 # GUARDA: TPS_DESTINO tem tela propria (o primeiro uso, /primeiro-uso); caixa
 # de texto aqui aceitaria qualquer valor e seria uma segunda porta.
 FORA_DA_TELA = ("DRY_RUN", "SUAVIZAR_MM", "RECORTE_NO_CORPO", "IDIOMA",
-                "TASKS", "TPS_DESTINO")
+                "TASKS", "TPS_DESTINO", "GUIA_VISTO")
 
 
 def _tem_modulo(nome):
@@ -526,15 +526,9 @@ border-radius:50%;background:var(--text-muted,#a3b1c6);transition:transform .15s
 label.sw input:checked + .tr{background:var(--ok,#12873F)}
 label.sw input:checked + .tr::after{transform:translateX(16px);background:var(--ok-txt,#fff)}
 label.sw input:focus-visible + .tr{outline:2px solid var(--accent,#4DA3FF)}
-label.otm-l{display:flex;align-items:flex-start;gap:10px;margin:7px 0;
-  font-size:12px;font-weight:400;letter-spacing:0;line-height:1.45;
-  color:var(--text-muted,#a3b1c6);cursor:pointer}
-label.otm-l{--ui-check-cor:var(--ok,#12873F)}
-label.otm-l input{width:16px;flex:0 0 auto;margin:1px 0 0;padding:0;
-  accent-color:var(--ok,#12873F)}
-label.otm-l b{color:var(--text,#e6edf7);font-weight:600}
 .campo{background:var(--panel,#0c1322);border:1px solid var(--line,#1e293b);border-radius:8px;padding:11px 12px}
 .campo.destaque{border-color:var(--accent,#4DA3FF)}
+.campo .ui-fav{margin:7px 0 0 6px;padding:6px 9px;vertical-align:top}
 label{display:block;font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--accent,#4DA3FF);margin-bottom:5px}
 input,select{width:100%;box-sizing:border-box;background:var(--bg-0,#060d1a);color:var(--text,#e6edf7);
 border:1px solid var(--accent-line,#2a3d57);border-radius:6px;padding:8px 9px;font-size:13px;
@@ -624,6 +618,7 @@ a.cfg-card.perigo:hover{border-color:rgba(233,106,92,.55)}
 a.cfg-card[aria-current="true"]{border-color:var(--accent,#4DA3FF);
  background:var(--panel-2,#0f1729)}
 @media (prefers-reduced-motion:reduce){a.cfg-card{transition:none}}
+@CSS_ESTACAO@
 </style></head><body>
 <div class="topo">
  <div class="cabecalho">
@@ -647,7 +642,7 @@ a.cfg-card[aria-current="true"]{border-color:var(--accent,#4DA3FF);
  <a class="cfg-card" href="#ps_geral" data-alvo="ps_geral">
   <span class="cab"><span class="ic">@CFG_ICO_GERAL@</span><span class="n">1</span></span>
   <h3 data-radai-frase>Geral</h3>
-  <p data-radai-frase>Aparência clara ou escura, e o idioma das telas.</p>
+  <p data-radai-frase>Aparência, idioma, pasta favorita e o anel dos contornos.</p>
   <span class="st" id="cst_geral">&#8212;</span></a>
  <a class="cfg-card" href="#ps_processamento" data-alvo="ps_processamento">
   <span class="cab"><span class="ic">@CFG_ICO_PROCESSAMENTO@</span><span class="n">2</span></span>
@@ -664,11 +659,11 @@ a.cfg-card[aria-current="true"]{border-color:var(--accent,#4DA3FF);
   <h3 data-radai-frase>Pastas e porta</h3>
   <p data-radai-frase>Onde saem os arquivos, o log e o status, e a porta do painel.</p>
   <span class="st" id="cst_pastas">&#8212;</span></a>
- <a class="cfg-card" href="#ps_registro" data-alvo="ps_registro">
-  <span class="cab"><span class="ic">@CFG_ICO_REGISTRO@</span><span class="n">5</span></span>
-  <h3 data-radai-frase>Registro de casos</h3>
-  <p data-radai-frase>O que cada série ensinou, e o pacote e o relatório para enviar.</p>
-  <span class="st"><b id="cst_registro">?</b> <span data-radai-frase>caso(s) registrado(s)</span></span></a>
+ <a class="cfg-card" href="#ps_estruturas" data-alvo="ps_estruturas">
+  <span class="cab"><span class="ic">@CFG_ICO_ESTRUTURAS@</span><span class="n">5</span></span>
+  <h3 data-radai-frase>Estruturas e Protocolos</h3>
+  <p data-radai-frase>Os nomes das estruturas no STUDY e os seus protocolos de entrega.</p>
+  <span class="st" id="cst_estruturas">&#8212;</span></a>
  <a class="cfg-card" href="#ps_atualizar" data-alvo="ps_atualizar">
   <span class="cab"><span class="ic">@CFG_ICO_ATUALIZAR@</span><span class="n">6</span></span>
   <h3 data-radai-frase>Atualizar o programa</h3>
@@ -676,9 +671,9 @@ a.cfg-card[aria-current="true"]{border-color:var(--accent,#4DA3FF);
   <span class="st" id="cst_atualizar">@SUB_ATU@</span></a>
  <a class="cfg-card" href="#ps_limpar" data-alvo="ps_limpar">
   <span class="cab"><span class="ic">@CFG_ICO_DIAGNOSTICAR@</span><span class="n">7</span></span>
-  <h3 data-radai-frase>Diagnosticar e otimizar</h3>
-  <p data-radai-frase>Conferir a instalação, e liberar memória antes de um lote.</p>
-  <span class="st" id="cst_diagnosticar">&#8212;</span></a>
+  <h3 data-radai-frase>Diagnósticos e Registros</h3>
+  <p data-radai-frase>Conferir a instalação, e o registro de casos para enviar.</p>
+  <span class="st"><b id="cst_registro">?</b> <span data-radai-frase>caso(s) registrado(s)</span></span></a>
  <a class="cfg-card perigo" href="#secDesinst" data-alvo="secDesinst">
   <span class="cab"><span class="ic">@CFG_ICO_DESINSTALAR@</span><span class="n">8</span></span>
   <h3 data-radai-frase>Desinstalar</h3>
@@ -692,7 +687,7 @@ a.cfg-card[aria-current="true"]{border-color:var(--accent,#4DA3FF);
 <section class="ps-cx fechado" id="ps_geral" hidden>
  <h2 class="ps-cab" tabindex="0" role="button"><span class="ps-num">1</span>
   <span data-radai-frase>Geral</span>
-  <span class="ps-sub" id="subTema">&#8212;</span><span class="ui-ajuda" tabindex="0" aria-label="ajuda">?<span class="ui-balao"><p><b>As duas escolhas desta seção valem na hora</b>, sem reiniciar o vigia.</p><p>As outras chaves são lidas uma vez, no arranque, e valem para o lote da noite. O tema fica no navegador desta estação.</p></span></span>
+  <span class="ps-sub" id="subTema">&#8212;</span><span class="ui-ajuda" tabindex="0" aria-label="ajuda">?<span class="ui-balao"><p><b>As escolhas desta seção valem na hora</b>, sem reiniciar o vigia.</p><p>As outras chaves são lidas uma vez, no arranque, e valem para o lote da noite. O tema fica no navegador desta estação; na primeira abertura, ele é o escuro.</p></span></span>
   <span class="ps-seta">&#9662;</span></h2>
  <div class="ps-corpo">
   <label data-radai-frase>Aparência</label>
@@ -708,8 +703,7 @@ a.cfg-card[aria-current="true"]{border-color:var(--accent,#4DA3FF);
    interface</span><span class="ui-ajuda" tabindex="0" aria-label="ajuda">?<span class="ui-balao"><p>Vale para as telas, e para esta esta&ccedil;&atilde;o.</p><p><b>Nada do que se grava muda:</b> nome de estrutura, caminho e identificador de licen&ccedil;a ficam como est&atilde;o.</p><p>Termos e Pol&iacute;tica valem <b>em portugu&ecirc;s</b> &mdash; tradu&ccedil;&atilde;o jur&iacute;dica exige revisor, e enquanto n&atilde;o houver um, o original &eacute; o que responde.</p></span></span></label>
   <div class="linha" data-radai-idiomas data-radai-lang></div>
 
-  <label style="margin-top:14px" data-radai-frase>Primeiro uso</label>
-  <div class="linha"><a class="ui-bt op" id="refazerPrimeiroUso" href="/primeiro-uso?de=/config" data-radai-frase>Refazer o primeiro uso: TPS de destino e pasta das séries</a></div>
+@GERAL_ESTACAO@
  </div>
 </section>
 
@@ -738,13 +732,51 @@ a.cfg-card[aria-current="true"]{border-color:var(--accent,#4DA3FF);
 </section>
 
 <div id="campos"></div>
+<template id="cfg_fav_molde">@FAV_CFG@</template>
 
-<section class="ps-cx fechado" id="ps_registro" hidden>
- <h2 class="ps-cab" tabindex="0" role="button"><span class="ps-num">5</span>
-  <span data-radai-frase>Registro de casos</span>
-  <span class="ps-sub">&#8212; <b id="reg_n">?</b> <span data-radai-frase>caso(s) registrado(s)</span></span>
+@SECAO_ESTRUTURAS@
+
+<section class="ps-cx fechado" id="ps_atualizar" hidden>
+ <h2 class="ps-cab" tabindex="0" role="button"><span class="ps-num" id="numAtu">6</span>
+  <span data-radai-frase>Atualizar o programa</span>
+  <span class="ps-sub" id="subAtu">@SUB_ATU@</span><span class="ui-ajuda" tabindex="0" aria-label="ajuda">?<span class="ui-balao"><p>Abre a p&aacute;gina onde a vers&atilde;o mais recente do instalador &eacute; publicada.</p><p><b>Nada &eacute; baixado sozinho.</b> &laquo;Atualizar agora&raquo; baixa e roda o instalador quando voc&ecirc; clica: o app fecha, atualiza e reabre, e a configura&ccedil;&atilde;o, o acervo e os logs desta esta&ccedil;&atilde;o ficam.</p><p>Se esta esta&ccedil;&atilde;o n&atilde;o tem internet, abra o link em outra m&aacute;quina e traga o arquivo.</p></span></span>
   <span class="ps-seta">&#9662;</span></h2>
  <div class="ps-corpo">
+  <p class="sub" style="margin:0 0 10px" data-radai-frase>Esta estação está na
+   versão indicada acima. O instalador preserva a configuração, o acervo e
+   os logs desta estação.</p>
+  <div class="linha">
+   @BT_ATU_AGORA@
+   <a class="bt sec" id="lkAtu" target="_blank" rel="noopener"
+    href="@URL_VERSOES@"
+    data-radai-frase>Ver as versões publicadas</a>
+   @BT_INSTALADOR@
+  </div>
+  <p class="sub" style="margin:10px 0 0" data-radai-frase>Sem internet nesta
+   estação? Abra o link em outra máquina e traga o arquivo — o instalador
+   funciona sem rede.</p>
+ </div>
+</section>
+
+<section class="ps-cx fechado" id="ps_limpar" hidden>
+ <h2 class="ps-cab" tabindex="0" role="button"><span class="ps-num" id="numLimp">7</span>
+  <span data-radai-frase>Diagnósticos e Registros</span>
+  <span class="ps-sub" id="subLimp">&#8212;</span><span class="ui-ajuda" tabindex="0" aria-label="ajuda">?<span class="ui-balao"><p><b>Diagnosticar</b> confere a instala&ccedil;&atilde;o e a esta&ccedil;&atilde;o num clique e escreve tudo no log da barra da direita. N&atilde;o muda nada.</p><p><b>O registro de casos</b> guarda o que cada série ensinou, sem identificação de paciente, e monta o pacote e o relatório para enviar.</p></span></span>
+  <span class="ps-seta">&#9662;</span></h2>
+ <div class="ps-corpo">
+  <h4 class="cfg-sub" data-radai-frase>Diagnosticar</h4>
+  <div class="linha">
+   <button class="bt pri" id="btDiag" onclick="diagnosticar()"
+    data-radai-frase>Diagnosticar</button>
+  </div>
+  <p class="sub" style="margin:10px 0 6px" data-radai-frase>Diagnosticar
+   confere a instalação e a estação num clique — versões, pesos, GPU,
+   travas clínicas, memória e disco — e escreve tudo no log da
+   barra da direita.</p>
+  <div id="cfBarra" class="cf-barra" style="display:none"></div>
+  <div id="cfRel" class="cf-rel" style="display:none"></div>
+
+  <h4 class="cfg-sub"><span data-radai-frase>Registro de casos</span> &#8212; <b id="reg_n">?</b> <span data-radai-frase>caso(s) registrado(s)</span></h4>
   <p class="sub" style="margin:0 0 10px" data-radai-frase>Cada série contornada deixa aqui o que
    ela ensinou: a máquina, a série, os tempos, os achados e o log completo.
    <b>Sem identificação de paciente</b> — nem nome, nem registro, nem UID,
@@ -780,53 +812,6 @@ a.cfg-card[aria-current="true"]{border-color:var(--accent,#4DA3FF);
    <button class="bt sec" id="fila_liberar_bt" onclick="filaLiberar()"
            data-radai-frase>Liberar</button>
   </div>
- </div>
-</section>
-
-<section class="ps-cx fechado" id="ps_atualizar" hidden>
- <h2 class="ps-cab" tabindex="0" role="button"><span class="ps-num" id="numAtu">6</span>
-  <span data-radai-frase>Atualizar o programa</span>
-  <span class="ps-sub" id="subAtu">@SUB_ATU@</span><span class="ui-ajuda" tabindex="0" aria-label="ajuda">?<span class="ui-balao"><p>Abre a p&aacute;gina onde a vers&atilde;o mais recente do instalador &eacute; publicada.</p><p><b>Nada &eacute; baixado sozinho.</b> Voc&ecirc; escolhe, baixa e roda o instalador &mdash; ele preserva a configura&ccedil;&atilde;o, o acervo e os logs desta esta&ccedil;&atilde;o.</p><p>Se esta esta&ccedil;&atilde;o n&atilde;o tem internet, abra o link em outra m&aacute;quina e traga o arquivo.</p></span></span>
-  <span class="ps-seta">&#9662;</span></h2>
- <div class="ps-corpo">
-  <p class="sub" style="margin:0 0 10px" data-radai-frase>Esta estação está na
-   versão indicada acima. O instalador preserva a configuração, o acervo e
-   os logs desta estação.</p>
-  <div class="linha">
-   <a class="bt sec" id="lkAtu" target="_blank" rel="noopener"
-    href="@URL_VERSOES@"
-    data-radai-frase>Ver as versões publicadas</a>
-   @BT_INSTALADOR@
-  </div>
-  <p class="sub" style="margin:10px 0 0" data-radai-frase>Sem internet nesta
-   estação? Abra o link em outra máquina e traga o arquivo — o instalador
-   funciona sem rede.</p>
- </div>
-</section>
-
-<section class="ps-cx fechado" id="ps_limpar" hidden>
- <h2 class="ps-cab" tabindex="0" role="button"><span class="ps-num" id="numLimp">7</span>
-  <span data-radai-frase>Diagnosticar e otimizar</span>
-  <span class="ps-sub" id="subLimp">&#8212;</span><span class="ui-ajuda" tabindex="0" aria-label="ajuda">?<span class="ui-balao"><p><b>Diagnosticar</b> confere a instala&ccedil;&atilde;o e a esta&ccedil;&atilde;o num clique e escreve tudo no log da barra da direita. N&atilde;o muda nada.</p><p><b>Otimizar</b> fecha s&oacute; o que est&aacute; nas listas fechadas, e mostra antes. O que o programa n&atilde;o reconhece e tem janela aberta vem desmarcado.</p><p>O pr&oacute;prio Radioterapia.AI, o navegador, Vitrea, Eclipse, ARIA e o acesso remoto do TI <b>nunca</b> s&atilde;o tocados. Servi&ccedil;o do Windows, s&oacute; com administrador.</p></span></span>
-  <span class="ps-seta">&#9662;</span></h2>
- <div class="ps-corpo">
-  <div class="linha">
-   <button class="bt pri" id="btDiag" onclick="diagnosticar()"
-    data-radai-frase>Diagnosticar</button>
-   <button class="bt" id="btOtimPlano" onclick="limpCarregar()"
-    data-radai-frase>Otimizar</button>
-  </div>
-  <p class="sub" style="margin:10px 0 6px" data-radai-frase>Diagnosticar
-   confere a instalação e a estação num clique — versões, pesos, GPU,
-   travas clínicas, memória, disco e serviços — e escreve tudo no log da
-   barra da direita.</p>
-  <p class="sub" style="margin:0 0 6px" data-radai-frase>Otimizar mostra
-   antes o que vai fechar, pede confirmação e oferece Restaurar.</p>
-  <div id="cfBarra" class="cf-barra" style="display:none"></div>
-  <div id="cfRel" class="cf-rel" style="display:none"></div>
-  <div id="limpRel" style="display:none;margin-top:12px"></div>
-  <p class="msg" id="limpMsg"></p>
-
  </div>
 </section>
 
@@ -924,11 +909,6 @@ function limpBarra(pct){
   + cor + '"></div></div>';
 }
 
-function msgLimp(t){
- var e = el('limpMsg'); if(!e) return;
- if(window.uiTexto) uiTexto(e, t); else e.textContent = t;
-}
-
 function diagnosticar(){
  var b = el('btDiag'); if(b) b.disabled = true;
  cfBarra('diagnosticando... o relatório vai para o log da barra da direita');
@@ -953,146 +933,12 @@ function diagnosticar(){
    var st = el('subLimp');
    if(st && window.uiTexto) uiTexto(st, '— ' + m.livre_mb + ' MB livres');
    else if(st) st.textContent = '— ' + m.livre_mb + ' MB livres';
-   var cd = el('cst_diagnosticar');
-   if(cd) cd.textContent = m.livre_mb + ' MB';
   }
   try{ if(window.radaiTfLog) window.radaiTfLog(); }catch(e){}
  }).catch(function(e){
   if(b) b.disabled = false;
   cfBarra('falhou: '+esc(''+e), 'ruim');
  });
-}
-
-var OTIM_CLASSES = {app:'do próprio programa', navegador:'do navegador',
-  clinico:'de pasta clínica', protegido:'protegidos (clínico, segurança, Windows)',
-  remoto:'de acesso remoto', preservar:'preservados (Office, prontuário, Citrix)'};
-function limpCaixa(cls, valor, marcado, titulo, detalhe){
- return '<label class="otm-l"><input type="checkbox" class="' + cls + '"'
-  + (marcado ? ' checked' : '') + ' value="' + esc(valor) + '">'
-  + '<span><b>' + esc(titulo) + '</b>'
-  + (detalhe ? (' &mdash; ' + detalhe) : '') + '</span></label>';
-}
-function limpCarregar(){
- var alvo = el('limpRel');
- msgLimp('listando o que roda nesta sessão...');
- fetch('/api/otimizar/plano', {method:'POST'}).then(function(r){return r.json()})
- .then(function(d){
-  if(d.erro){ msgLimp('nada será fechado: ' + d.erro); return; }
-  var h = '<h4 class="cfg-sub">O que o Otimizar vai fechar</h4>';
-  var it = d.itens || [];
-  if(!it.length){
-   h += '<p class="sub" style="margin:0">Nada das listas fechadas está aberto nesta sessão.</p>';
-  }
-  it.forEach(function(i){
-   h += limpCaixa('opt-proc', i.nome, i.marcado, i.rotulo,
-     esc(i.n) + ' processo(s), ' + esc(i.mem_mb) + ' MB'
-     + (i.nota ? ('<br>' + esc(i.nota)) : ''));
-  });
-  var sv = d.servicos || [];
-  if(sv.length){
-   h += '<h4 class="cfg-sub">Serviços do Windows</h4>';
-   sv.forEach(function(s){
-    h += limpCaixa('opt-serv', s.nome, s.marcado, s.nome, esc(s.porque));
-   });
-  } else if(d.aviso_servicos){
-   h += '<p class="sub" style="margin:10px 0 0">' + esc(d.aviso_servicos) + '</p>';
-  }
-  var dc = d.disco || [];
-  if(dc.length){
-   h += '<h4 class="cfg-sub">Espaço em disco</h4>';
-   dc.forEach(function(i){
-    h += limpCaixa('opt-disco', i.chave, i.marcado, i.rotulo,
-      esc(i.mb) + ' MB<br>' + esc(i.porque));
-   });
-  }
-  var pr = d.protegidos || {}, pp = [];
-  Object.keys(OTIM_CLASSES).forEach(function(k){
-   if(pr[k]) pp.push(pr[k] + ' ' + OTIM_CLASSES[k]);
-  });
-  if(pp.length){
-   h += '<p class="sub" style="margin:10px 0 0">Nunca tocados nesta sessão: '
-     + esc(pp.join(' · ')) + '.</p>';
-  }
-  h += '<div class="linha" style="margin-top:12px">'
-    + '<button class="bt" id="btOtim">Fechar o que está marcado</button>'
-    + (d.restauravel ? '<button class="bt sec" id="btRestaurar">Restaurar</button>' : '')
-    + '</div>';
-  if(window.uiHTML) uiHTML(alvo, h); else alvo.innerHTML = h;
-  alvo.style.display = '';
-  msgLimp('');
-  try{ alvo.scrollIntoView({block:'nearest'}); }catch(e){}
- }).catch(function(e){ msgLimp('não consegui listar: ' + e); });
-}
-
-function limpMarcados(cls){
- return [].slice.call(document.querySelectorAll('.' + cls + ':checked'))
-   .map(function(x){return x.value});
-}
-
-document.addEventListener('click', function(ev){
- var b = ev.target.closest && ev.target.closest('#btOtim');
- if(b){ otimAplicar(b); return; }
- var r = ev.target.closest && ev.target.closest('#btRestaurar');
- if(r){ otimRestaurar(r); }
-});
-
-function otimAplicar(b){
- var procs = limpMarcados('opt-proc'), servs = limpMarcados('opt-serv'),
-     discos = limpMarcados('opt-disco');
- if(!procs.length && !servs.length && !discos.length){
-  msgLimp('nada marcado.'); return;
- }
- if(!confirm('Vou fechar agora:\\n\\n'
-   + (procs.length ? ('  ' + procs.join(', ') + '\\n') : '')
-   + (servs.length ? ('  serviços: ' + servs.join(', ') + '\\n') : '')
-   + (discos.length ? ('  apagar: ' + discos.join(', ') + '\\n') : '')
-   + '\\nDocumento aberto nesses programas e não salvo se perde. '
-   + 'O Restaurar reabre Google Drive, OneDrive, Teams e LibreOffice; '
-   + 'o resto volta no próximo logon.\\n\\nFechar?')) return;
- b.disabled = true;
- msgLimp('fechando... uma linha por processo no log da barra da direita');
- try{ if(window.radaiAbrirLog) window.radaiAbrirLog(); }catch(e){}
- fetch('/api/otimizar/aplicar', {method:'POST',
-   headers:{'Content-Type':'application/json'},
-   body: JSON.stringify({nomes: procs, servicos: servs, discos: discos})})
- .then(function(r){return r.json()})
- .then(function(d){
-  if(d.erro){ msgLimp('ERRO: ' + d.erro); b.disabled = false; return; }
-  var alvo = el('limpRel');
-  var h = '<p class="sub" style="margin:0"><b>' + (d.fechados||[]).length
-    + '</b> programa(s) fechado(s), <b>' + (d.mb||0) + ' MB</b> de memória'
-    + ((d.servicos_parados||[]).length ? (', ' + d.servicos_parados.length
-        + ' serviço(s) parado(s)') : '')
-    + (d.mb_disco ? (', ' + d.mb_disco + ' MB de disco') : '') + '.</p>';
-  if((d.ficaram||[]).length){
-   h += '<p class="sub" style="margin:6px 0 0">Ficaram abertos: '
-     + esc(d.ficaram.map(function(x){return x.nome + ' (' + x.motivo + ')'})
-       .join(', ')) + '.</p>';
-  }
-  h += '<div class="linha" style="margin-top:12px">'
-    + (d.restauravel ? '<button class="bt sec" id="btRestaurar">Restaurar</button>' : '')
-    + '</div>';
-  if(window.uiHTML) uiHTML(alvo, h); else alvo.innerHTML = h;
-  msgLimp('');
-  try{ if(window.radaiTfLog) window.radaiTfLog(); }catch(e){}
- }).catch(function(e){ msgLimp('' + e); b.disabled = false; });
-}
-
-function otimRestaurar(b){
- b.disabled = true;
- msgLimp('restaurando...');
- fetch('/api/otimizar/restaurar', {method:'POST'})
- .then(function(r){return r.json()})
- .then(function(d){
-  if(d.erro){ msgLimp('ERRO: ' + d.erro); b.disabled = false; return; }
-  var t = 'reabertos: ' + ((d.reabertos||[]).join(', ') || 'nenhum');
-  if((d.nao_achados||[]).length) t += ' · abra pelo menu Iniciar: ' + d.nao_achados.join(', ');
-  if((d.no_logon||[]).length) t += ' · voltam no próximo logon: ' + d.no_logon.length;
-  if((d.servicos||[]).length) t += ' · serviços religados: ' + d.servicos.join(', ');
-  msgLimp(t);
-  b.style.display = 'none';
-  try{ if(window.radaiTfLog) window.radaiTfLog(); }catch(e){}
- }).catch(function(e){ msgLimp('' + e); b.disabled = false; });
 }
 
 function abrirPasta(){
@@ -1264,6 +1110,20 @@ function montarGrupos(d, campoDe){
  if(cp) cp.textContent='PORT='+(val('PORT')||'?');
  numerar();
  procCarregar();
+ if(window.estFavoritaProcurar) window.estFavoritaProcurar();
+ cfgFavoritaEstrela();
+}
+
+function cfgFavoritaEstrela(){
+ var campo = el('f_PASTA_FAVORITA'), m = el('cfg_fav_molde');
+ if(!campo || !m || !m.content || el('cfg_fav_estrela') || !window.uiFavoritaLigar) return;
+ var b = m.content.firstElementChild;
+ if(!b) return;
+ b = b.cloneNode(true);
+ b.id = 'cfg_fav_estrela';
+ var depois = el('fav_procurar') || campo;
+ depois.parentNode.insertBefore(b, depois.nextSibling);
+ window.uiFavoritaLigar(b);
 }
 
 function cardModulo(n, titulo, qtd, campos){
@@ -1370,6 +1230,11 @@ function regEstado(){
   if(n) n.textContent = d.erro ? '?' : String(d.casos||0);
   if(c) c.textContent = d.erro ? '?' : String(d.casos||0);
   if(d.erro) regFalha(d.erro);
+  else if(d.aviso){
+   var m = el('reg_msg');
+   if(m && window.uiTexto) uiTexto(m, d.aviso); else if(m) m.textContent = d.aviso;
+   try{ if(window.radaiRetraduzir) window.radaiRetraduzir() }catch(e){}
+  }
   var p = el('reg_papel');
   if(p && d.papel) p.value = d.papel;
  }).catch(function(e){
@@ -1532,7 +1397,7 @@ window.addEventListener('radai-tema', function(){ pintarTema() });
 // GUARDA: se a folha do sistema nao foi costurada (instalacao sem
 // radai_ui), a tela ainda abre -- so sem seletor de tema.
 if(typeof uiTema === 'function') pintarTema();
-</script></body></html>"""
+</script>@JS_ESTACAO@</body></html>"""
 
 
 PAGINA = PAGINA.replace(u"@CSS_REGISTRO@", CSS_REGISTRO)
@@ -1547,7 +1412,8 @@ _ICONES_CFG = {
                       u'M3.5 10H7M3.5 14H7M17 10h3.5M17 14h3.5"/>',
     u"ritmo": u'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
     u"pastas": u"ui:pasta",
-    u"registro": u"ui:manual",
+    u"estruturas": u'<path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1 1 0 0 1 0 1.4'
+                   u'l-7.3 7.3a1 1 0 0 1-1.4 0z"/><circle cx="8.3" cy="8.3" r="1.6"/>',
     u"atualizar": u'<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/>'
                   u'<path d="M19.5 4.5v4h-4"/>',
     u"diagnosticar": u'<path d="M3 12h4l2.5-6 5 12 2.5-6H21"/>',
@@ -1577,6 +1443,32 @@ def _com_icones_cfg(pagina):
 
 
 PAGINA_CONFIG = _com_icones_cfg(PAGINA_CONFIG)
+
+
+def _com_estacao(pagina):
+    try:
+        import radai_config_estacao
+        return radai_config_estacao.aplicar(pagina)
+    except Exception:
+        for marca in (u"@GERAL_ESTACAO@", u"@SECAO_ESTRUTURAS@",
+                      u"@CSS_ESTACAO@", u"@JS_ESTACAO@"):
+            pagina = pagina.replace(marca, u"")
+        return pagina
+
+
+PAGINA_CONFIG = _com_estacao(PAGINA_CONFIG)
+
+
+def _com_favorita(pagina):
+    try:
+        import radai_ui
+        estrela = radai_ui.botao_favorita(u"f_PASTA_FAVORITA")
+    except Exception:
+        estrela = u""
+    return pagina.replace(u"@FAV_CFG@", estrela)
+
+
+PAGINA_CONFIG = _com_favorita(PAGINA_CONFIG)
 
 
 PAGINA_LOG = u"""<!doctype html><html><head><meta charset="utf-8">
@@ -1638,7 +1530,7 @@ label.chk{font-size:12px;color:var(--text-muted);display:flex;align-items:center
   <label class="chk"><input type="checkbox" id="auto" checked> atualizar sozinho</label>
   <label class="chk"><input type="checkbox" id="fim" checked> rolar para o fim</label>
   <button onclick="copiar()">Copiar tudo</button>
-  <button onclick="carregar()">Atualizar agora</button>
+  <button onclick="carregar()">Recarregar o log</button>
  </div>
  <div id="log"></div>
  <div class="sub" id="logmeta" style="margin:8px 0 0"></div>
@@ -1890,6 +1782,15 @@ def montar(app, ler_vigia=None, config=None):
                                       recarregar=recarregar)
         except Exception:
             pass
+        try:
+            import radai_config_estacao
+            radai_config_estacao.montar(
+                app, caminho, chaves=list(cfg.get("chaves") or []),
+                modelo=modelo, registrar=registrar,
+                versao=lambda: _carimbo_entrega().get("versao") or u"")
+        except Exception as e:
+            _MONTAGEM["radai_config_estacao"] = "%s: %s" % (type(e).__name__,
+                                                            str(e)[:200])
 
     @app.post("/api/pastas")
     async def _api_pastas(request: Request):
@@ -1900,49 +1801,6 @@ def montar(app, ler_vigia=None, config=None):
         return radai_config.listar_pastas(str(c.get("caminho") or ""),
                                           str(c.get("arquivos") or ""),
                                           str(c.get("busca") or ""))
-
-    @app.post("/api/limpador")
-    async def _api_limpador():
-        def _fazer():
-            try:
-                import radai_cleaner as LP
-                return LP.laudo()
-            except Exception as e:
-                return {"erro": "%s: %s" % (type(e).__name__, e)}
-        return await radai_web.no_threadpool(_fazer)
-
-    @app.post("/api/limpador/liberar")
-    async def _api_limpador_liberar(request: Request):
-        try:
-            c = await request.json() or {}
-        except Exception:
-            c = {}
-        chave = str(c.get("chave") or "")
-
-        def _fazer():
-            try:
-                import radai_cleaner as LP
-                return LP.liberar(chave)
-            except Exception as e:
-                return {"ok": False, "mb": 0,
-                        "msg": "%s: %s" % (type(e).__name__, e)}
-        return await radai_web.no_threadpool(_fazer)
-
-    @app.post("/api/limpador/parar")
-    async def _api_limpador_parar(request: Request):
-        try:
-            c = await request.json() or {}
-        except Exception:
-            c = {}
-        nome = str(c.get("nome") or "")
-
-        def _fazer():
-            try:
-                import radai_cleaner as LP
-                return LP.parar_servico(nome)
-            except Exception as e:
-                return {"ok": False, "msg": "%s: %s" % (type(e).__name__, e)}
-        return await radai_web.no_threadpool(_fazer)
 
     def _log_do_vigia(msg):
         try:
@@ -1965,7 +1823,7 @@ def montar(app, ler_vigia=None, config=None):
             import time as _t
             t0 = _t.time()
             raiz, porta = _raiz_e_porta()
-            cf, ld, pl, eu = {}, {}, {}, {}
+            cf, ld, eu = {}, {}, {}
             try:
                 import radai_station_check as CE
                 cf = CE.conferir(root=raiz or "", porta=porta or 0)
@@ -1975,60 +1833,14 @@ def montar(app, ler_vigia=None, config=None):
             try:
                 import radai_cleaner as LP
                 ld = LP.laudo()
-                pl = LP.plano_de_otimizacao(com_disco=False)
                 eu = LP.ler_em_uso()
-                for linha in LP.linhas_do_diagnostico(cf, ld, pl, eu):
+                for linha in LP.linhas_do_diagnostico(cf, ld, eu):
                     _log_do_vigia(linha)
             except Exception as e:
                 return {"erro": "%s: %s" % (type(e).__name__, e)}
             return {"ok": True, "resumo": cf.get("resumo") or {},
                     "conferencia": cf, "memoria": ld.get("memoria") or {},
                     "segundos": round(_t.time() - t0, 1)}
-        return await radai_web.no_threadpool(_fazer)
-
-    @app.post("/api/otimizar/plano")
-    async def _api_otimizar_plano():
-        def _fazer():
-            try:
-                import radai_cleaner as LP
-                d = LP.plano_de_otimizacao()
-                est = LP.ler_estado_otimizar()
-                d["restauravel"] = bool(est.get("fechados")
-                                        or est.get("servicos"))
-                return d
-            except Exception as e:
-                return {"erro": "%s: %s" % (type(e).__name__, e)}
-        return await radai_web.no_threadpool(_fazer)
-
-    @app.post("/api/otimizar/aplicar")
-    async def _api_otimizar_aplicar(request: Request):
-        try:
-            c = await request.json() or {}
-        except Exception:
-            c = {}
-
-        def _lista(k):
-            v = c.get(k) or []
-            return [str(x) for x in v][:200] if isinstance(v, list) else []
-
-        def _fazer():
-            try:
-                import radai_cleaner as LP
-                return LP.otimizar(_lista("nomes"), _lista("servicos"),
-                                   _lista("discos"), log=_log_do_vigia,
-                                   pid_app=os.getpid())
-            except Exception as e:
-                return {"erro": "%s: %s" % (type(e).__name__, e)}
-        return await radai_web.no_threadpool(_fazer)
-
-    @app.post("/api/otimizar/restaurar")
-    async def _api_otimizar_restaurar():
-        def _fazer():
-            try:
-                import radai_cleaner as LP
-                return LP.restaurar(log=_log_do_vigia)
-            except Exception as e:
-                return {"erro": "%s: %s" % (type(e).__name__, e)}
         return await radai_web.no_threadpool(_fazer)
 
     @app.post("/api/desinstalar/pasta")
@@ -2102,7 +1914,9 @@ def montar(app, ler_vigia=None, config=None):
                  "radai_bolus_screen",
                  "radai_provenance_screen",
                  "radai_queue_state",
-                 "radai_tabela_acervo"):
+                 "radai_tabela_acervo",
+                 "radai_janela", "radai_roteiro", "radai_atualizar",
+                 "radai_varrer"):
         if not _tem_modulo(nome):
             continue
         try:
@@ -2114,8 +1928,10 @@ def montar(app, ler_vigia=None, config=None):
                     mod.montar(app, ler_vigia)
                 elif nome == "radai_provenance_screen":
                     mod.montar(app, cfg)
-                elif nome == "radai_bolus_screen":
+                elif nome in ("radai_bolus_screen", "radai_janela"):
                     mod.montar(app, cfg.get("registrar"))
+                elif nome == "radai_atualizar":
+                    mod.montar(app, ler_vigia, cfg.get("registrar"))
                 else:
                     mod.montar(app)
         except Exception as e:
@@ -2153,13 +1969,24 @@ def montar(app, ler_vigia=None, config=None):
                     if url != u"#" else u"") or u""
         except Exception:
             link = u""
+        try:
+            import radai_version
+            nova = bool(radai_version.para_a_tela().get("nova"))
+        except Exception:
+            nova = False
+        agora = (u'<button type="button" class="pri" id="btAtuAgora" '
+                 u'onclick="if(window.radaiAtualizarAgora) '
+                 u'window.radaiAtualizarAgora()" data-radai-frase>'
+                 u'Atualizar agora</button>') if nova else u""
         if link:
-            bt = (u'<a class="bt pri" id="lkInst" target="_blank" '
+            bt = (u'<a class="bt %s" id="lkInst" target="_blank" '
                   u'rel="noopener" href="%s" data-radai-frase>Baixar o '
-                  u'instalador mais recente</a>' % _html.escape(link))
+                  u'instalador mais recente</a>'
+                  % (u"sec" if nova else u"pri", _html.escape(link)))
         else:
             bt = u""
         p = (p.replace(u"@URL_VERSOES@", url)
+              .replace(u"@BT_ATU_AGORA@", agora)
               .replace(u"@BT_INSTALADOR@", bt)
               .replace(u"@SUB_ATU@", sub or u"&#8212;"))
         try:
@@ -2188,8 +2015,14 @@ def montar(app, ler_vigia=None, config=None):
         r = resumo_do_registro()
         if r.get("erro"):
             return {"erro": r["erro"]}
+        aviso = u""
+        try:
+            import radai_records as RG
+            aviso = RG.aviso_do_segredo()
+        except Exception:
+            aviso = u""
         return {"casos": r["casos"], "primeiro": r["primeiro"],
-                "ultimo": r["ultimo"], "papel": r["papel"]}
+                "ultimo": r["ultimo"], "papel": r["papel"], "aviso": aviso}
 
     @app.post("/api/registro/exportar")
     async def _registro_exportar(request: Request):

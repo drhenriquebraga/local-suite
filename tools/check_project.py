@@ -149,17 +149,47 @@ def checar_sintaxe():
             checar("compila: %s" % rel, False, "linha %s: %s" % (e.lineno, e.msg))
 
 
+def _nomes_do_alvo(alvo, achados):
+    if isinstance(alvo, ast.Name):
+        achados.add(alvo.id)
+    elif isinstance(alvo, (ast.Tuple, ast.List)):
+        for e in alvo.elts:
+            _nomes_do_alvo(e, achados)
+    elif isinstance(alvo, ast.Starred):
+        _nomes_do_alvo(alvo.value, achados)
+
+
 def nomes_de_modulo(arv):
     achados = set()
-    for no in arv.body:
+    pilha = list(arv.body)
+    blocos = (ast.Try,) + ((ast.TryStar,) if hasattr(ast, "TryStar") else ())
+    while pilha:
+        no = pilha.pop(0)
         if isinstance(no, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             achados.add(no.name)
         elif isinstance(no, ast.Assign):
             for alvo in no.targets:
-                if isinstance(alvo, ast.Name):
-                    achados.add(alvo.id)
-        elif isinstance(no, ast.AnnAssign) and isinstance(no.target, ast.Name):
-            achados.add(no.target.id)
+                _nomes_do_alvo(alvo, achados)
+        elif isinstance(no, (ast.AnnAssign, ast.AugAssign)):
+            _nomes_do_alvo(no.target, achados)
+        elif isinstance(no, ast.Import):
+            for a in no.names:
+                achados.add(a.asname or a.name.split(".")[0])
+        elif isinstance(no, ast.ImportFrom):
+            for a in no.names:
+                if a.name != "*":
+                    achados.add(a.asname or a.name)
+        elif isinstance(no, blocos):
+            pilha.extend(no.body)
+            for h in no.handlers:
+                pilha.extend(h.body)
+            pilha.extend(no.orelse)
+            pilha.extend(no.finalbody)
+        elif isinstance(no, ast.If):
+            pilha.extend(no.body)
+            pilha.extend(no.orelse)
+        elif isinstance(no, (ast.With, ast.AsyncWith)):
+            pilha.extend(no.body)
     return achados
 
 
@@ -666,6 +696,92 @@ def checar_orfaos_da_v85_apagados():
                                  if x != "radai_thorax.py"]
     checar("  (isca) um nome a menos no $ORFAOS reprova",
            bool(_defeitos_do_ciclo_apagado({}, o2, ORFAOS_DA_V85)))
+
+
+def _saidos_desde_a_ultima_tag(pasta):
+    import subprocess
+
+    def g(*args):
+        try:
+            p = subprocess.run(["git", "-C", pasta] + list(args),
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.DEVNULL,
+                               universal_newlines=True, timeout=30)
+        except Exception:
+            return None
+        return p.stdout if p.returncode == 0 else None
+    tag = (g("describe", "--tags", "--abbrev=0") or "").strip()
+    saida = g("diff", "--name-status", "-M", tag, "HEAD", "--", "app",
+              "tools") if tag else None
+    if saida is None:
+        return None
+    return [l.split("\t")[1] for l in saida.splitlines()
+            if l[:1] in ("D", "R") and "\t" in l]
+
+
+def _no_orfaos(rel):
+    if rel.startswith("app/"):
+        return rel[4:].replace("/", "\\")
+    if rel.startswith("tools/"):
+        return rel.replace("/", "\\")
+    return None
+
+
+def _saidos_sem_orfao(saidos, orfaos, vivos):
+    defeitos = []
+    for rel in sorted(set(saidos)):
+        alvo = _no_orfaos(rel)
+        if alvo is None or alvo.lower() in vivos:
+            continue
+        for arq, lista in sorted(orfaos.items()):
+            if alvo.lower() not in set(x.lower() for x in lista):
+                defeitos.append("%s saiu e o $ORFAOS de %s nao tem %s"
+                                % (rel, arq, alvo))
+    return defeitos
+
+
+def checar_o_que_saiu_vai_ao_orfaos():
+    print(NL + "[4d] O que saiu de app/ e tools/ desde a ultima tag esta no $ORFAOS")
+    _fontes, orfaos = _fontes_e_orfaos_da_limpeza()
+    a, b = orfaos.get("installer/INSTALL.ps1"), orfaos.get("packager/UPDATE.ps1")
+    checar("o $ORFAOS e' o mesmo no INSTALL.ps1 e no UPDATE.ps1",
+           bool(a) and a == b, "INSTALL=%d UPDATE=%d nomes" % (len(a or []),
+                                                                len(b or [])))
+    pastas = [(RAIZ, "Suite")] + [(p, d.get("nome") or os.path.basename(p))
+                                  for p, d in _componentes.componentes(RAIZ)]
+    saidos, vivos, sem_git = [], set(), []
+    for pasta, nome in pastas:
+        lista = _saidos_desde_a_ultima_tag(pasta)
+        if lista is None:
+            sem_git.append(nome)
+        else:
+            saidos += lista
+        for sub in ("app", "tools"):
+            base = os.path.join(pasta, sub)
+            for raiz, dirs, arqs in os.walk(base):
+                dirs[:] = [x for x in dirs if x != "__pycache__"]
+                for x in arqs:
+                    rel = os.path.relpath(os.path.join(raiz, x), pasta)
+                    alvo = _no_orfaos(rel.replace(os.sep, "/"))
+                    if alvo:
+                        vivos.add(alvo.lower())
+    if sem_git:
+        _componentes.pulado(u"[4d] sem Git ou sem tag em %s" % ", ".join(sem_git))
+    d = _saidos_sem_orfao(saidos, orfaos, vivos)
+    checar("todo arquivo que saiu desde a ultima tag esta no $ORFAOS dos dois "
+           "(%d saido(s))" % len(set(saidos)), not d, "; ".join(d[:6]))
+    orf = {"packager/UPDATE.ps1": ["radai_x.py"],
+           "installer/INSTALL.ps1": ["radai_x.py"]}
+    checar("  (isca) um modulo que saiu e nao esta no $ORFAOS reprova",
+           bool(_saidos_sem_orfao(["app/radai_y.py"], orf, set())))
+    checar("  (isca) uma bateria que saiu de tools/ e falta num dos dois reprova",
+           bool(_saidos_sem_orfao(["tools/test_y.py"],
+                                  {"packager/UPDATE.ps1": ["tools\\test_y.py"],
+                                   "installer/INSTALL.ps1": []}, set())))
+    checar("  (isca) o que saiu e esta nos dois passa",
+           not _saidos_sem_orfao(["app/radai_x.py"], orf, set()))
+    checar("  (isca) o que so' mudou de pasta (continua em app/) passa",
+           not _saidos_sem_orfao(["app/radai_y.py"], orf, {"radai_y.py"}))
 
 
 def checar_ciclo_de_calibracao_apagado():
@@ -2623,7 +2739,6 @@ def checar_motor_que_alimenta_vem_ligado():
             checar("`%s` alimenta a entrega (%d estrutura(s)) e nasce LIGADO"
                    % (m["cod"], quantas), ligado,
                    "desligado, o arquivo que a revisao usa sai sem elas")
-        # guarda: qualquer valor de fabrica passava.
         else:
             checar("`%s` nao alimenta a entrega e nasce DESLIGADO" % m["cod"],
                    not ligado,
@@ -3114,8 +3229,9 @@ def checar_cadeia_do_full():
            RS.POR_COD["oar"]["sufixo"] == RS.POR_COD["full"]["sufixo"])
     checar("infixos unicos entre conjuntos e plugins",
            len(infixos) == len(set(infixos)), ", ".join(sorted(infixos)))
-    longos = [c["cod"] for c in RS.PLUGINS if len("STUDY_" + c["cod"]) > 16]
-    checar("o rotulo `STUDY_<cod>` de todo plugin cabe no SH de 16",
+    longos = [c["cod"] for c in RS.PLUGINS
+              if len(RS.rotulo_dicom(c["cod"])) > 16]
+    checar("o rotulo `RadAI_<COD>` de todo plugin cabe no SH de 16",
            not longos, ", ".join(longos))
     checar("todo plugin tem sufixo de 3 letras (a cauda de 16 e inviolavel)",
            all(len(p["sufixo"]) == 4 for p in RS.PLUGINS),
@@ -3692,27 +3808,19 @@ def checar_variaveis_de_ambiente():
            "citar no comentario e registro; atribuir e o defeito")
 
 
-def checar_getattr_de_nome_inventado():
-    print("\n[22] `getattr` de nome que existe no modulo")
-    modulos = {}
-    for nome in _componentes.nomes("app"):
-        if nome.endswith(".py"):
-            try:
-                arv = ast.parse(io.open(_componentes.fonte("app/" + nome), encoding="utf-8",
-                                        errors="replace").read())
-            except SyntaxError:
-                continue
-            modulos[nome[:-3]] = nomes_de_modulo(arv)
-
-    achados, olhados = [], 0
-    for nome in _componentes.nomes("app"):
+def _getattr_inventados(fontes):
+    arvores = {}
+    for nome, texto in sorted(fontes.items()):
         if not nome.endswith(".py"):
             continue
         try:
-            arv = ast.parse(io.open(_componentes.fonte("app/" + nome), encoding="utf-8",
-                                    errors="replace").read())
+            arvores[nome] = ast.parse(texto)
         except SyntaxError:
             continue
+    modulos = dict((nome[:-3], nomes_de_modulo(arv))
+                   for nome, arv in arvores.items())
+    achados, olhados = [], 0
+    for nome, arv in sorted(arvores.items()):
         for no in ast.walk(arv):
             if not (isinstance(no, ast.Call)
                     and getattr(no.func, "id", "") == "getattr"):
@@ -3730,6 +3838,31 @@ def checar_getattr_de_nome_inventado():
             if atrib.value not in modulos[mod]:
                 achados.append("%s linha %d: getattr(%s, %r)"
                                % (nome, no.lineno, mod, atrib.value))
+    return achados, olhados
+
+
+def checar_getattr_de_nome_inventado():
+    print("\n[22] `getattr` de nome que existe no modulo")
+    fontes = {}
+    for nome in _componentes.nomes("app"):
+        if nome.endswith(".py"):
+            fontes[nome] = io.open(_componentes.fonte("app/" + nome),
+                                   encoding="utf-8", errors="replace").read()
+    achados, olhados = _getattr_inventados(fontes)
+    isca = {"m.py": u"try:\n    from x import mapa as MAPA\n"
+                    u"except Exception:\n    MAPA = {}\n"
+                    u"import os as _os\nimport a.b\n"
+                    u"if _os.name == 'nt':\n    def so_no_windows():\n"
+                    u"        pass\nA, (B, *C) = 1, (2, 3)\n",
+            "u.py": u"import m\n"
+                    u"getattr(m, 'MAPA'); getattr(m, '_os'); getattr(m, 'a')\n"
+                    u"getattr(m, 'so_no_windows'); getattr(m, 'C')\n"
+                    u"getattr(m, 'INVENTADO')\n"}
+    ach_isca, olh_isca = _getattr_inventados(isca)
+    checar("  (isca) nome definido no try/except, no if e por import com alias "
+           "passa; o inventado reprova",
+           olh_isca == 6 and ach_isca == ["u.py linha 4: getattr(m, 'INVENTADO')"],
+           "%d olhados: %s" % (olh_isca, ach_isca))
 
     checar("achei `getattr` sobre modulo do projeto", olhados >= 1, str(olhados))
     for a in achados:
@@ -3818,8 +3951,9 @@ def checar_rotas_vivas():
         return False
     print("  ok     toda rota chamada pelo JavaScript existe no app")
 
-    faltam = [r for r in ("/api/lote/varrer", "/api/pipeline/iniciar",
-                          "/api/fila/estado", "/api/fila/cancelar")
+    faltam = [r for r in ("/api/varrer/iniciar", "/api/varrer/estado",
+                          "/api/pipeline/iniciar", "/api/fila/estado",
+                          "/api/fila/cancelar")
               if r not in vivas]
     if faltam:
         print("  FALHA  o «Rodar agora» esta sem API: %s" % ", ".join(faltam))
@@ -4249,11 +4383,18 @@ def checar_acervo_isolado_nas_baterias():
     return True
 
 
-def _vigias_filhos_sem_localappdata(fonte, nome=u"?"):
+def _vigias_filhos_sem_localappdata(fonte, nome=u"?", chave="LOCALAPPDATA"):
     try:
         arv = ast.parse(fonte)
     except SyntaxError as e:
         return 0, [u"%s nao compila: %s" % (nome, e)]
+    herda_do_topo = chave != "LOCALAPPDATA" and any(
+        isinstance(no, ast.Assign) and any(
+            isinstance(a, ast.Subscript) and isinstance(a.slice, ast.Constant)
+            and a.slice.value == chave
+            and isinstance(a.value, ast.Attribute) and a.value.attr == "environ"
+            for a in no.targets)
+        for no in arv.body)
     pai = {}
     for no in ast.walk(arv):
         for filho in ast.iter_child_nodes(no):
@@ -4269,7 +4410,7 @@ def _vigias_filhos_sem_localappdata(fonte, nome=u"?"):
     def dict_com_lad(v):
         return (isinstance(v, ast.Call)
                 and getattr(v.func, "id", None) == "dict"
-                and any(k.arg == "LOCALAPPDATA" for k in v.keywords))
+                and any(k.arg == chave for k in v.keywords))
 
     def troca_lad(escopo, nome_env):
         for no in ast.walk(escopo):
@@ -4283,7 +4424,7 @@ def _vigias_filhos_sem_localappdata(fonte, nome=u"?"):
                         and isinstance(alvo.value, ast.Name)
                         and alvo.value.id == nome_env
                         and isinstance(alvo.slice, ast.Constant)
-                        and alvo.slice.value == "LOCALAPPDATA"):
+                        and alvo.slice.value == chave):
                     return True
         return False
 
@@ -4305,25 +4446,26 @@ def _vigias_filhos_sem_localappdata(fonte, nome=u"?"):
         onde = u"%s:%d" % (nome, getattr(no, "lineno", 0))
         if not env:
             defeitos.append(u"%s sobe o vigia sem `env=` (herda a "
-                            u"LOCALAPPDATA de quem roda)" % onde)
+                            u"%s de quem roda)" % (onde, chave))
             continue
         v = env[0]
-        if dict_com_lad(v):
+        if herda_do_topo or dict_com_lad(v):
             continue
         if isinstance(v, ast.Name) and troca_lad(funcao_de(no), v.id):
             continue
         defeitos.append(u"%s sobe o vigia com um ambiente que nao troca a "
-                        u"LOCALAPPDATA" % onde)
+                        u"%s" % (onde, chave))
     return achadas, defeitos
 
 
 def checar_vigia_filho_isola_localappdata():
     import io as _io
-    print(NL + "[26b] Bateria que sobe o vigia isola a LOCALAPPDATA do filho")
+    print(NL + "[26b] Bateria que sobe o vigia isola a LOCALAPPDATA e o "
+          "registro de casos do filho")
     d = os.path.join(RAIZ, "tools")
     if not os.path.isdir(d):
         return True
-    total, baterias, defeitos = 0, 0, []
+    total, baterias, defeitos, defeitos_reg = 0, 0, [], []
     fonte_shutdown = u""
     for nome in _componentes.nomes("tools", RAIZ):
         if not (nome.startswith("test_") and nome.endswith(".py")):
@@ -4337,6 +4479,31 @@ def checar_vigia_filho_isola_localappdata():
             baterias += 1
         total += n
         defeitos.extend(dd)
+        defeitos_reg.extend(_vigias_filhos_sem_localappdata(
+            t, nome, "RADAI_REGISTRO_DIR")[1])
+    checar(u"toda bateria que sobe o vigia isola o registro de casos do filho "
+           u"(RADAI_REGISTRO_DIR; senao a chave do pseudonimo e o caso em "
+           u"andamento vao para o app\\registro da oficina, que sincroniza)",
+           not defeitos_reg, u"; ".join(defeitos_reg[:6]))
+    sem_reg = u"".join(
+        ln for ln in fonte_shutdown.splitlines(True)
+        if u"RADAI_REGISTRO_DIR" not in ln)
+    checar(u"  (isca) o test_shutdown sem o RADAI_REGISTRO_DIR do filho, a "
+           u"checagem acusa",
+           sem_reg != fonte_shutdown and bool(_vigias_filhos_sem_localappdata(
+               sem_reg, u"isca", "RADAI_REGISTRO_DIR")[1]))
+    herda = (u"import os, subprocess, sys\n"
+             u"os.environ['RADAI_REGISTRO_DIR'] = 'x'\n"
+             u"def f():\n"
+             u"    subprocess.Popen([sys.executable, 'app/radai_watcher.py'],\n"
+             u"                     env=dict(os.environ, LOCALAPPDATA='y'))\n")
+    sem_topo = herda.replace(u"os.environ['RADAI_REGISTRO_DIR'] = 'x'\n", u"")
+    checar(u"  o registro isolado no topo da bateria vale para o filho que "
+           u"herda o ambiente; (isca) sem ele, a checagem acusa",
+           not _vigias_filhos_sem_localappdata(
+               herda, u"herda", "RADAI_REGISTRO_DIR")[1]
+           and bool(_vigias_filhos_sem_localappdata(
+               sem_topo, u"isca3", "RADAI_REGISTRO_DIR")[1]))
     checar(u"achei as baterias que sobem o vigia de verdade (%d chamada(s) "
            u"em %d bateria(s))" % (total, baterias),
            total >= 5 and baterias >= 4)
@@ -4366,12 +4533,13 @@ def checar_limpeza_das_baterias():
     declara = re.compile(r"adotar_prefixo\s*\(\s*[\"']([^\"']+)[\"']")
 
     d = os.path.join(RAIZ, "tools")
-    faltando, n_bat = [], 0
+    faltando, n_bat, fontes = [], 0, {}
     for nome in _componentes.nomes("tools", RAIZ):
         if not (nome.startswith("test_") and nome.endswith(".py")):
             continue
         txt = io.open(_componentes.fonte("tools/" + nome, RAIZ), encoding="utf-8",
                       errors="replace").read()
+        fontes[nome] = txt
         criados = set(cria.findall(txt)) | set(cria2.findall(txt))
         if not criados:
             continue
@@ -4386,6 +4554,16 @@ def checar_limpeza_das_baterias():
         checar("prefixo criado e nao declarado em %s" % f, False)
     checar("toda pasta temporaria criada tem limpeza declarada", not faltando,
            "; ".join(faltando[:3]))
+    sem_prefixo = [a for a in _temporarias_fora_da_faxina(fontes)
+                   if a.endswith(":")]
+    checar("nenhuma bateria cria pasta temporaria sem prefixo (sem ele nem a "
+           "limpeza da bateria nem a faxina a reconhecem)", not sem_prefixo,
+           "; ".join(sem_prefixo[:4]))
+    isca = {"test_isca.py": u"import tempfile\na = tempfile.mkdtemp()\n"
+                            u"b = tempfile.mkdtemp(prefix='radai_ok_')\n"}
+    checar("  (isca) o `mkdtemp()` sem prefixo e acusado, e o com prefixo nao",
+           [a for a in _temporarias_fora_da_faxina(isca) if a.endswith(":")]
+           == ["test_isca.py:"], str(_temporarias_fora_da_faxina(isca)))
 
     aj = os.path.join(d, "_cleanup.py")
     checar("`tools/_cleanup.py` existe", os.path.isfile(aj))
@@ -4417,6 +4595,79 @@ def checar_limpeza_das_baterias():
             "_outras_execucoes(bases) if candidatas else []", "[]"))
         checar("  (isca) sem a consulta ao cadastro, a leitura acusa",
                not _isca[0], str(_isca))
+
+
+PREFIXO_DA_FAXINA = "radai_"
+PENDENTES_DA_FAXINA = {}
+
+
+def _temporarias_fora_da_faxina(fontes):
+    achados = []
+    for nome, texto in sorted(fontes.items()):
+        try:
+            arv = ast.parse(texto)
+        except SyntaxError:
+            continue
+        consts = {}
+        for no in arv.body:
+            if (isinstance(no, ast.Assign) and isinstance(no.value, ast.Constant)
+                    and isinstance(no.value.value, str)):
+                for alvo in no.targets:
+                    if isinstance(alvo, ast.Name):
+                        consts[alvo.id] = no.value.value
+        for no in ast.walk(arv):
+            if not isinstance(no, ast.Call):
+                continue
+            f = no.func
+            if (f.attr if isinstance(f, ast.Attribute)
+                    else getattr(f, "id", "")) != "mkdtemp":
+                continue
+            kw = dict((k.arg, k.value) for k in no.keywords if k.arg)
+            if "dir" in kw or len(no.args) >= 3:
+                continue
+            p = kw.get("prefix", no.args[1] if len(no.args) >= 2 else None)
+            if p is None:
+                valor = ""
+            elif isinstance(p, ast.Constant) and isinstance(p.value, str):
+                valor = p.value
+            elif isinstance(p, ast.Name) and p.id in consts:
+                valor = consts[p.id]
+            else:
+                continue
+            if not valor.startswith(PREFIXO_DA_FAXINA):
+                achados.append("%s:%s" % (nome, valor))
+    return achados
+
+
+def checar_temporarias_do_app_na_faxina():
+    print("\n[21c] Pasta temporaria que o app cria cai na faxina do arranque")
+    try:
+        vigia = io.open(_componentes.fonte("app/radai_watcher.py", RAIZ),
+                        encoding="utf-8", errors="replace").read()
+    except Exception:
+        vigia = ""
+    checar("a faxina do arranque varre `%s*` (radai_watcher.limpar_temporarios)"
+           % PREFIXO_DA_FAXINA,
+           ('glob("%s*")' % PREFIXO_DA_FAXINA) in vigia)
+    fontes = _fontes_do_app()
+    achados = set(_temporarias_fora_da_faxina(fontes))
+    novos = sorted(achados - set(PENDENTES_DA_FAXINA))
+    checar("toda pasta temporaria do app comeca por `%s` (%d arquivo(s) lidos)"
+           % (PREFIXO_DA_FAXINA, len(fontes)), not novos and len(fontes) > 50,
+           "; ".join(novos))
+    for k, motivo in sorted(PENDENTES_DA_FAXINA.items()):
+        print("  PENDENTE  %s -- %s" % (k, motivo))
+    consertados = sorted(set(PENDENTES_DA_FAXINA) - achados)
+    checar("  e nenhuma pendencia declarada ja foi consertada (tire-a da "
+           "lista PENDENTES_DA_FAXINA)", not consertados, "; ".join(consertados))
+    isca = {"x.py": u"import tempfile\nP = 'tmp_'\n"
+                    u"a = tempfile.mkdtemp()\nb = tempfile.mkdtemp(prefix=P)\n"
+                    u"c = tempfile.mkdtemp(prefix='radai_ok_')\n"
+                    u"d = tempfile.mkdtemp(prefix='z', dir='q')\n"}
+    checar("  (isca) sem prefixo e com prefixo fora da faxina sao acusados; "
+           "`radai_` e `dir=` passam",
+           sorted(_temporarias_fora_da_faxina(isca)) == ["x.py:", "x.py:tmp_"],
+           str(_temporarias_fora_da_faxina(isca)))
 
 
 def checar_chaves_repetidas():
@@ -4681,14 +4932,10 @@ def checar_dado_de_literatura_embarcado():
     OF.checar_dado_de_literatura_embarcado(sys.modules[__name__])
 
 
-def checar_tamanhos_declarados():
-    print("\n[23] Tamanho declarado no registro de modelos")
-    sys.path.insert(0, os.path.join(RAIZ, "app"))
-    import radai_models as V
-
+def _medir_tamanhos_declarados(V, modelos, pasta_de):
     redondos, divergentes, medidos = [], [], 0
-    for ident, m in V.MODELOS.items():
-        d = V.pasta_do_modelo(ident)
+    for ident, m in modelos.items():
+        d = pasta_de(ident)
         for chave in ("arquivos", "volumes"):
             for rel, tam in (m.get(chave) or []):
                 if tam is None:
@@ -4701,9 +4948,41 @@ def checar_tamanhos_declarados():
                     real = alvo.stat().st_size if alvo.exists() else None
                 except OSError:
                     real = None
-                if real is not None and real != int(tam):
+                if (real is not None
+                        and real not in V._tamanhos_aceitos(m, rel, tam)):
                     divergentes.append("%s/%s: declarado %d, no disco %d"
                                        % (ident, rel, tam, real))
+    return redondos, divergentes, medidos
+
+
+def checar_tamanhos_declarados():
+    print("\n[23] Tamanho declarado no registro de modelos")
+    sys.path.insert(0, os.path.join(RAIZ, "app"))
+    import radai_models as V
+    from pathlib import Path
+
+    redondos, divergentes, medidos = _medir_tamanhos_declarados(
+        V, V.MODELOS, V.pasta_do_modelo)
+
+    t = _temporaria("radai_c23_")
+    try:
+        for nome, n in (("orig", 1001), ("enx", 601), ("outro", 777)):
+            os.makedirs(os.path.join(t, nome))
+            with open(os.path.join(t, nome, "ck.pth"), "wb") as f:
+                f.write(b"\0" * n)
+        m = {"arquivos": [("ck.pth", 1001)],
+             "enxuto": {"ck.pth": (601, "0" * 64)}}
+        _r, div_isca, _n = _medir_tamanhos_declarados(
+            V, {k: m for k in ("orig", "enx", "outro")},
+            lambda ident: Path(t) / ident)
+    finally:
+        _apagar(t)
+    checar("  (isca) o checkpoint enxuto do registro no disco passa",
+           not any(x.startswith("enx/") for x in div_isca), str(div_isca))
+    checar("  (isca) o original no disco passa",
+           not any(x.startswith("orig/") for x in div_isca), str(div_isca))
+    checar("  (isca) um tamanho que nao e nem o original nem o enxuto reprova",
+           any(x.startswith("outro/") for x in div_isca), str(div_isca))
 
     checar("ha tamanho declarado para conferir", medidos > 0, "%d" % medidos)
     for r in redondos:
@@ -4848,7 +5127,10 @@ def checar_consulta_de_versao_nao_leva_nada():
     PERMITIDOS = {
         "radai_models.py": u"baixa peso de modelo, na maquina de preparo",
         "radai_watcher.py": u"dispara a consulta de versao (nao a faz)",
-        "radai_version.py": u"a consulta de versao",
+        "radai_version.py": u"a consulta de versao, automatica, e o download "
+                            u"do instalador da release, por ato declarado "
+                            u"(baixar_instalador, que so o radai_atualizar "
+                            u"chama, conferido pelo sha256 da release)",
         "radai_lancador.py": u"so 127.0.0.1: pergunta ao painel local se "
                              u"ele subiu, antes de abrir o navegador",
         "radai_station_check.py": u"bind local, para saber se a porta "
@@ -4933,8 +5215,40 @@ def checar_consulta_de_versao_nao_leva_nada():
     checar(u"e nao carrega identificador de maquina nem de paciente",
            not campos, u", ".join(campos))
 
+    def _quem_baixa_o_instalador(fontes):
+        quem = set()
+        for nome_f, texto in fontes.items():
+            try:
+                arv_f = _ast.parse(texto)
+            except Exception:
+                continue
+            for no in _ast.walk(arv_f):
+                if isinstance(no, _ast.Call) and (
+                        getattr(no.func, "attr", None)
+                        or getattr(no.func, "id", None)) == "baixar_instalador":
+                    quem.add(nome_f)
+        return quem
+    fontes_app = {}
+    for nome in _componentes.nomes("app"):
+        if nome.endswith(".py"):
+            try:
+                fontes_app[nome] = io.open(_componentes.fonte("app/" + nome),
+                                           encoding="utf-8").read()
+            except Exception:
+                continue
+    quem_baixa = _quem_baixa_o_instalador(fontes_app)
+    checar(u"o instalador da release so se baixa pelo radai_atualizar, por "
+           u"ato declarado", quem_baixa == {"radai_atualizar.py"},
+           u", ".join(sorted(quem_baixa)))
+    _isca_baixa = dict(fontes_app, **{
+        "radai_isca.py": u"import radai_version as V\n"
+                         u"V.baixar_instalador({}, u'')\n"})
+    checar(u"  (isca) outro modulo que baixe o instalador e acusado",
+           _quem_baixa_o_instalador(_isca_baixa)
+           == {"radai_atualizar.py", "radai_isca.py"})
+
     AUTOMATICOS = ("radai_version.py", "radai_records.py")
-    POR_ATO = ("radai_models.py",)
+    POR_ATO = ("radai_models.py", "radai_version.py")
     LOCAIS = ("radai_station_check.py", "radai_watcher.py",
               "radai_lancador.py")
     classes = set(AUTOMATICOS) | set(POR_ATO) | set(LOCAIS)
@@ -5889,6 +6203,7 @@ def main():
                checar_chaves_da_v83,
                checar_arquivos, checar_ciclo_de_calibracao_apagado,
                checar_orfaos_da_v85_apagados,
+               checar_o_que_saiu_vai_ao_orfaos,
                checar_dicom,
                checar_sem_dado_de_paciente_no_repositorio,
                checar_js_das_telas,
@@ -5922,6 +6237,7 @@ def main():
                checar_pacote_leve_completo,
                checar_rotas_vivas,
                checar_acervo_isolado_nas_baterias,
+               checar_temporarias_do_app_na_faxina,
                checar_vigia_filho_isola_localappdata,
                checar_limpeza_das_baterias,
                checar_chaves_repetidas,

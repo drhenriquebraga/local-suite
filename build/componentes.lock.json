@@ -1,11 +1,11 @@
 {
-  "_leia": "A versão de cada app que o empacotador baixa com --dos-repositorios. A tag é a do repositório do app; o sha256 é o do zipball baixado naquela tag, e prova identidade com o que foi conferido (não autenticidade). Tag nula: o app ainda não publicou versão, e o download para.",
+  "_leia": "A versão de cada app que o empacotador baixa com --dos-repositorios. A tag é a do repositório do app; arvore_sha256 é o sha256 do manifesto da árvore extraída (uma linha «<sha256 do arquivo>  <caminho relativo, sem a pasta de topo do zip>» por arquivo, em ordem, com os bytes como o zip os entrega), e prova identidade com o que foi conferido (não autenticidade). Os bytes do zip não entram: o GitHub não os promete estáveis. Tag nula: o app ainda não publicou versão, e o download para. Escrever: python build/baixar_componentes.py --travar <tag>.",
   "componentes": [
-    {"nome": "CONTOURLAB", "repositorio": "radioterapia-ai/contourlab", "tag": "v8.6", "sha256": "f9d56970ea363b44e5699983f497e417ed9e8843f21fba1012f2b83f74fc2381"},
-    {"nome": "DICOM_BRIDGE", "repositorio": "radioterapia-ai/dicom-bridge", "tag": "v8.6", "sha256": "a633e51086038092d1616a129d06a2d4686bead2154e7a0954e32a0b63c76f71"},
-    {"nome": "RECON_3D", "repositorio": "radioterapia-ai/recon-3d", "tag": "v8.6", "sha256": "aaa17ec88be6a34a6971475ed4f76b5b8e032229b2cc2e6eeb901fc9dc6a5d62"},
-    {"nome": "NIDUS_RT", "repositorio": "radioterapia-ai/nidus-rt", "tag": "v8.6", "sha256": "5ba8dc7040da32969eb51f4308222f4aa7de7e1456092b5529375081add1fabd"},
-    {"nome": "ELASTIC_RT", "repositorio": "radioterapia-ai/elastic-rt", "tag": "v8.6", "sha256": "f60d9022e885cf41f468935802efe957e18b94851ad16d9af1840185e0dd63a6"},
-    {"nome": "3D_PRINTED_BOLUS", "repositorio": "radioterapia-ai/3d-printed-bolus", "tag": "v8.6", "sha256": "b6a595ab4042f26ea53e795a8d6a0f91119d6f80ebe2d209b59737d95640ed08"}
+    {"nome": "CONTOURLAB", "repositorio": "radioterapia-ai/contourlab", "tag": "v8.7", "arvore_sha256": "07bd55e078033e1870bbeae546bb34448f44786529ec0c82f1e00c306508d00b"},
+    {"nome": "DICOM_BRIDGE", "repositorio": "radioterapia-ai/dicom-bridge", "tag": "v8.7", "arvore_sha256": "37cbeea981a1739f1c72ca09110fe5dbb72042e71df0e83bead5d9a3e401feb4"},
+    {"nome": "RECON_3D", "repositorio": "radioterapia-ai/recon-3d", "tag": "v8.7", "arvore_sha256": "6639366f76a1a6916e42286d61e8d5971d0767a6474ef20320a88a9646762818"},
+    {"nome": "NIDUS_RT", "repositorio": "radioterapia-ai/nidus-rt", "tag": "v8.7", "arvore_sha256": "bc6f93ff7c024b954c45702e23fc6d846d74d37c52fcc11a65e6a3e59faa2ab6"},
+    {"nome": "ELASTIC_RT", "repositorio": "radioterapia-ai/elastic-rt", "tag": "v8.7", "arvore_sha256": "ac9da5e2c3f8fbe90f62768ec53b08470b14a3589d30b7a6d9612406009e647f"},
+    {"nome": "3D_PRINTED_BOLUS", "repositorio": "radioterapia-ai/3d-printed-bolus", "tag": "v8.7", "arvore_sha256": "a35b3ceb966757d2e4cbc0a8f944b3a703948fe09629e902485b5f0bdc7701bb"}
   ]
 }

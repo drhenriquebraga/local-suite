@@ -207,7 +207,8 @@ def _chave_da_serie(s):
 _ESCOLHA = ("modo", "tasks_extra", "motores_extra", "topo",
             "estudos", "modo_v81",
             "protocolos", "tasks", "comparacao", "oar_fora", "legado_v82",
-            "substituir", "protocolos_3d", "so_pos", "so_pos_falharam")
+            "substituir", "protocolos_3d", "so_pos", "so_pos_falharam",
+            "protocolo_proprio", "achado_declarado")
 
 
 def _projecao_da_escolha(carga):
@@ -484,7 +485,7 @@ def config_do_turno():
     with _TRAVA:
         for c in _CARDS:
             if c.get("tipo") == Q.OVERNIGHT:
-                fora = {"pausar_servicos": bool(c.get("pausar_servicos", True))}
+                fora = {}
                 tmp = dict((c.get("carga") or {}).get("temporarios") or {})
                 if tmp:
                     fora["temporarios"] = tmp
@@ -519,6 +520,20 @@ def fechar_turno(estado, motivo=u""):
         for k, c in enumerate(_CARDS):
             if c.get("tipo") == Q.OVERNIGHT:
                 c2 = Q.terminar(c, estado)
+                c2["motivo"] = (u"%s" % (motivo or u""))[:240]
+                _CARDS[k] = c2
+                break
+        else:
+            return False
+    _gravar()
+    return True
+
+
+def marcar_turno_aberto(motivo=u""):
+    with _TRAVA:
+        for k, c in enumerate(_CARDS):
+            if c.get("tipo") == Q.OVERNIGHT:
+                c2 = Q.terminar(c, Q.RODANDO)
                 c2["motivo"] = (u"%s" % (motivo or u""))[:240]
                 _CARDS[k] = c2
                 break
@@ -569,12 +584,11 @@ def _temporarios_do_pedido(tmp):
     return fora
 
 
-def overnight(ligado=True, rotulo=u"Turno da noite", pausar_servicos=True,
-              temporarios=None):
+def overnight(ligado=True, rotulo=u"Turno da noite", temporarios=None):
     with _TRAVA:
         atuais = [c for c in _CARDS if c.get("tipo") != Q.OVERNIGHT]
         if ligado:
-            extra = {"pausar_servicos": bool(pausar_servicos)}
+            extra = {}
             tmp = _temporarios_do_pedido(temporarios)
             if tmp:
                 extra["carga"] = {"temporarios": tmp}
@@ -1294,11 +1308,12 @@ def estado_da_gravacao():
 ESCOLHA_PERSISTIDA = ("modo", "tasks", "protocolos", "protocolos_3d",
                       "comparacao", "oar_fora", "substituir", "so_pos",
                       "modalidade", "tasks_extra", "motores_extra", "topo",
-                      "estudos", "complemento_de_memoria")
+                      "estudos", "complemento_de_memoria",
+                      "protocolo_proprio", "achado_declarado")
 CAMPOS_DO_ARQUIVO = ("id", "tipo", "origem", "executor", "estado", "uid",
                      "fim", "criado", "dono", "pendentes_por_memoria",
                      "tentativa_complemento", "ja_concluida",
-                     "pausar_servicos", "complemento", "trava_solta")
+                     "complemento", "trava_solta")
 CAMPOS_DO_INDICE = ("pasta", "rotulo", "copiar_rs_para", "mensagem", "motivo",
                     "faltou", "sem_estrutura", "nao_contornavel")
 
@@ -1436,6 +1451,9 @@ def carregar(log=None):
             continue
         if Q.executor(e) == Q.VIGIA and estado == Q.ESPERANDO:
             continue
+        # GUARDA: o turno aberto acaba com o processo que o abriu; o card dele nao volta como turno a abrir nem como falha.
+        if Q.e_turno(e) and estado == Q.RODANDO:
+            continue
         c = dict(e)
         ind = indice.get(e["id"]) or {}
         for k in CAMPOS_DO_INDICE:
@@ -1503,7 +1521,8 @@ def ao_fechar():
                 c2["mensagem"] = FRASE_FECHOU_NO_MEIO
                 _CARDS[k] = c2
         fica = [c for c in _CARDS
-                if not (c.get("estado") == Q.PRONTO and c.get("tipo") == Q.SERIE)]
+                if not (c.get("estado") == Q.PRONTO and c.get("tipo") == Q.SERIE)
+                and not (Q.e_turno(c) and c.get("estado") == Q.RODANDO)]
         del _CARDS[:]
         _CARDS.extend(fica)
     return _gravar()
@@ -1568,7 +1587,6 @@ def montar(app):
         try:
             c = await _corpo(request)
             overnight(bool(c.get("ligado", True)),
-                      pausar_servicos=bool(c.get("pausar_servicos", True)),
                       temporarios=c.get("temporarios"))
             return _pacote()
         except Exception as e:

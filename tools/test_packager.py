@@ -1141,7 +1141,11 @@ def teste_o_montador_acha_o_que_o_pacote_leva():
                 os.environ["RADAI_COMPONENTES_DIR"] = _antes
     finally:
         shutil.rmtree(_repo, ignore_errors=True)
-    _nomes_leve = [n for n, _c in E.coletar()]
+    try:
+        _nomes_leve = [n for n, _c in E.coletar()]
+    except SystemExit as _e:
+        _nomes_leve = []
+        checar(u"o empacotador coleta o instalador leve", False, str(_e))
     checar(u"o preparo da porta (npm) nao viaja; o porta.js pronto, sim",
            not any(n.startswith(u"build/porta/") for n in _nomes_leve)
            and u"app/porta/porta.js" in _nomes_leve)
@@ -2095,6 +2099,11 @@ def _rodar_lote(bat, extra=None, tirar=("RADAI_CONFIG",)):
     amb = dict(os.environ)
     for k in tirar:
         amb.pop(k, None)
+    amb.setdefault("RADAI_NAVEGADOR", "0")
+    # GUARDA: o lancador grava a pagina de carregamento e o console do motor no temporario, um arquivo por porta.
+    proprio = tempfile.mkdtemp(prefix="radai_prep_lote_")
+    for k in ("TMPDIR", "TEMP", "TMP", "RADAI_TMP"):
+        amb[k] = proprio
     amb.update(extra or {})
     try:
         p = subprocess.run(["cmd", "/c", bat], stdin=subprocess.DEVNULL,
@@ -2178,8 +2187,30 @@ def teste_o_motor_sobe_sem_janela():
         checar(u"o Python do fantoma roda", not motivo, motivo)
         if motivo:
             return
+        temp_do_lote = os.path.join(base, u"temp_do_lote")
+        os.makedirs(temp_do_lote)
+        geral = tempfile.gettempdir()
+
+        def do_lancador(pasta):
+            try:
+                return set(x for x in os.listdir(pasta)
+                           if x.startswith((u"radai_carregando_",
+                                            u"radai_motor_")))
+            except OSError:
+                return set()
+        antes = do_lancador(geral)
         tela, rc = _rodar_lote(os.path.join(prog, "launchers",
-                                            "start_watcher.cmd"))
+                                            "start_watcher.cmd"),
+                               extra={"TMPDIR": temp_do_lote,
+                                      "TEMP": temp_do_lote,
+                                      "TMP": temp_do_lote,
+                                      "RADAI_TMP": temp_do_lote})
+        checar(u"o lancador gravou a pagina de carregamento no temporario do "
+               u"lote (a medida abaixo nao e vazia)",
+               bool(do_lancador(temp_do_lote)), sorted(do_lancador(temp_do_lote)))
+        checar(u"  e nada no temporario de quem roda a bateria",
+               not (do_lancador(geral) - antes),
+               sorted(do_lancador(geral) - antes))
         checar(u"painel no ar: o lote sai com 0 e diz que o painel subiu",
                rc == 0 and u"Panel is up" in tela, u"rc=%s %s" % (rc, tela[-300:]))
         checar(u"  pelo caminho sem janela (o recuo visivel nao rodou)",
@@ -2443,7 +2474,7 @@ def _parentese_nos_instaladores(base):
 def _parentese_no_rodar_com_bundle(base):
     lote = io.open(os.path.join(RAIZ, "rodar_com_bundle.cmd"),
                    encoding="ascii").read()
-    abre = u'start "" http://127.0.0.1:8777/'
+    abre = u'if not "%RADAI_NAVEGADOR%"=="0" start "" http://127.0.0.1:%PORTA%/'
     checar(u"rodar_com_bundle: achei a linha que abre o navegador para calar",
            abre in lote)
     if abre not in lote:
@@ -2468,6 +2499,7 @@ def _parentese_no_rodar_com_bundle(base):
     io.open(os.path.join(repo, "app", "radai_watcher.py"), "w").write(
         u"import os, sys\n"
         u"print('REGISTRO=[%s]' % os.environ.get('RADAI_REGISTRO_DIR', ''))\n"
+        u"print('ACERVO=[%s]' % os.environ.get('RADAI_CALIB_DIR', ''))\n"
         u"sys.exit(3)\n")
     bat = os.path.join(repo, "rodar_com_bundle.cmd")
     tela, rc = _rodar_lote(bat, tirar=("RADAI_CONFIG", "RADAI_REGISTRO_DIR",
@@ -2482,6 +2514,20 @@ def _parentese_no_rodar_com_bundle(base):
                               tirar=("RADAI_CONFIG", "RADAI_CALIB_DIR"))
     checar(u"  e quem ja definiu RADAI_REGISTRO_DIR manda",
            (u"REGISTRO=[%s]" % ja) in tela2, tela2[-200:])
+    isolado = os.path.join(base, u"acervo isolado (1)")
+    cfg = os.path.join(base, u"isolado.config")
+    io.open(cfg, "w", encoding="ascii", newline="\r\n").write(
+        u"# config da prova\nROOT=\nPORT = 8799\n")
+    tela4, _rc4 = _rodar_lote(bat, extra={"RADAI_CALIB_DIR": isolado,
+                                          "RADAI_CONFIG": cfg},
+                              tirar=("RADAI_REGISTRO_DIR",))
+    checar(u"  e quem ja definiu RADAI_CALIB_DIR manda: o _dados.txt nao "
+           u"desfaz o isolamento de uma prova",
+           (u"ACERVO=[%s]" % isolado) in tela4
+           and (u"REGISTRO=[%s\\registro]" % isolado) in tela4, tela4[-300:])
+    checar(u"  e o painel do banner e o da PORT do config",
+           u"http://127.0.0.1:8799/" in tela4
+           and u"http://127.0.0.1:8777/" not in tela4, tela4[-400:])
     os.remove(os.path.join(repo, "_dados.txt"))
     tela3, _rc3 = _rodar_lote(bat, tirar=("RADAI_CONFIG", "RADAI_REGISTRO_DIR",
                                           "RADAI_CALIB_DIR"))
@@ -2746,8 +2792,8 @@ def teste_autoteste_percorre_a_tela():
             pass
     _srv404 = _hs.ThreadingHTTPServer(("127.0.0.1", 0), _Nao)
     _th.Thread(target=_srv404.serve_forever, daemon=True).start()
-    amb["RADAI_PREPARADOR_URL_PRIVADA"] = (u"http://127.0.0.1:%d/releases/latest"
-                                           % _srv404.server_address[1])
+    amb["RADAI_PREPARADOR_URL_NAO_ACHADA"] = (u"http://127.0.0.1:%d/releases/latest"
+                                       % _srv404.server_address[1])
     try:
         p = subprocess.Popen(
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
@@ -2882,12 +2928,26 @@ def teste_autoteste_percorre_a_tela():
            rede[0] == u"falhou",
            u"%s -- ERRO aqui e excecao dentro de VersaoPublicada" % str(rede))
 
-    priv = por_caso.get(u"privado") or [u"", u""]
-    checar(u"o 404 (repositorio privado) e' exercido no autoteste",
+    priv = por_caso.get(u"404") or [u"", u""]
+    checar(u"o 404 e' exercido no autoteste",
            priv[0] == u"falhou", str(priv)[:160])
     _pt = priv[1] if len(priv) > 1 else u""
-    checar(u"  e a frase diz que o navegador LOGADO ve e o programa nao",
-           u"conta autorizada" in _pt and u"nao usa conta" in _pt, _pt[:160])
+
+    def _diz_o_404(t):
+        return (u"respondeu 404" in t and u"esta errado" in t
+                and u"release publicada" in t and u"privad" not in t
+                and u"conta" not in t)
+    checar(u"  e a frase diz o que um 404 quer dizer com o repositorio "
+           u"publico: endereco errado ou release que nao existe",
+           _diz_o_404(_pt), _pt[:160])
+    checar(u"  (isca) a frase de antes, que dizia repositorio privado, e "
+           u"acusada", not _diz_o_404(
+               u"o repositorio e privado: no navegador, quem entra com uma "
+               u"conta autorizada ve as versoes, mas este programa nao usa "
+               u"conta e nao consegue compara-las."))
+    checar(u"  e a frase de repositorio privado saiu do preparador",
+           u"o repositorio e privado" not in io.open(
+               alvo, encoding="utf-8-sig").read())
     checar(u"  e da o link permanente do instalador",
            u"/releases/latest/download/" in _pt
            and _pt.rstrip().endswith(u"_SETUP_LATEST.zip"), _pt[-120:])
@@ -4645,6 +4705,497 @@ def _zip_de_peso(caminho, pasta, macosx=False, extra=(), peso=b"P" * 4096):
             z.writestr(nome, dado)
 
 
+_SINTETICO = (
+    "import collections, sys\n"
+    "import numpy as np\n"
+    "import torch\n"
+    "g = torch.Generator().manual_seed(7)\n"
+    "enc = torch.randn(3, 4, 5, generator=g)\n"
+    "w = collections.OrderedDict()\n"
+    "w['encoder.stages.0.conv.weight'] = enc\n"
+    "w['decoder.encoder.stages.0.conv.weight'] = enc\n"
+    "w['encoder.stages.0.norm.num_batches_tracked'] = torch.tensor(5)\n"
+    "w['seg_layers.0.weight'] = torch.linspace(-1, 1, 12).half()\n"
+    "w['seg_layers.0.bias'] = enc[1, 2]\n"
+    "ck = {'network_weights': w,\n"
+    "      'optimizer_state': {'state': {0: {'momentum_buffer':\n"
+    "          torch.randn(400, 250, generator=g)}},\n"
+    "                          'param_groups': [{'lr': 0.01}]},\n"
+    "      'grad_scaler_state': None,\n"
+    "      'logging': {'train_losses': [0.5, float('nan'), np.float64(0.25)],\n"
+    "                  'epoca': np.arange(3)},\n"
+    "      '_best_ema': np.float32(0.9), 'current_epoch': 999,\n"
+    "      'init_args': {'plans': {'x': 1}, 'configuration': '3d_fullres',\n"
+    "                    'fold': 0},\n"
+    "      'trainer_name': 'nnUNetTrainer',\n"
+    "      'inference_allowed_mirroring_axes': (0, 1, 2)}\n"
+    "modo = sys.argv[2] if len(sys.argv) > 2 else 'cheio'\n"
+    "if modo == 'lightning':\n"
+    "    ck = {'state_dict': w, 'optimizer_states': [1]}\n"
+    "torch.save(ck, sys.argv[1])\n"
+)
+
+_ESTRAGAR = (
+    "import sys, torch\n"
+    "ck = torch.load(sys.argv[1], map_location='cpu', weights_only=False)\n"
+    "if sys.argv[3] == 'um_ulp':\n"
+    "    t = ck['network_weights']['seg_layers.0.weight']\n"
+    "    t.view(torch.int16)[0] += 1\n"
+    "elif sys.argv[3] == 'sem_init_args':\n"
+    "    ck.pop('init_args')\n"
+    "ck.pop('optimizer_state', None)\n"
+    "torch.save(ck, sys.argv[2])\n"
+    "print(ck.get('radai_modificacao', ''))\n"
+)
+
+
+def _python_do_pacote():
+    try:
+        b = io.open(os.path.join(RAIZ, "_bundle.txt"),
+                    encoding="utf-8-sig").read().strip()
+    except Exception:
+        return u""
+    py = os.path.join(b, "python", "python.exe") if b else u""
+    return py if os.path.isfile(py) else u""
+
+
+def _no_python_do_pacote(py, script, *args):
+    r = subprocess.run([py, "-B", "-c", script] + [str(a) for a in args],
+                       capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", timeout=600,
+                       env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+    return r.returncode, (r.stdout or u"") + (r.stderr or u"")
+
+
+def teste_o_estado_do_otimizador_sai_e_a_rede_fica():
+    secao(u"o enxugar dos checkpoints: sai o estado do otimizador, a rede "
+          u"fica byte a byte")
+    import hashlib as _hl
+    import types as _types
+    C = _modulo_do_motor()
+    base = tempfile.mkdtemp(prefix="radai_prep_enxugar_")
+    ditas = []
+    _log = C.log
+    try:
+        C.log = lambda m="": ditas.append(u"%s" % m)
+        pesos = os.path.join(base, "ts_weights")
+        pasta = os.path.join(pesos, "Dataset9101_fantoma")
+        fold = os.path.join(pasta, "nnUNetTrainer__nnUNetPlans__3d_fullres",
+                            "fold_0")
+        os.makedirs(fold)
+        io.open(os.path.join(fold, "checkpoint_final.pth"), "wb").write(b"x")
+        io.open(os.path.join(fold, "debug.json"), "wb").write(b"{}")
+        achados = [p.name for p in C.checkpoints_da_pasta(pasta)]
+        checar(u"acha os checkpoints da pasta do dataset, e so eles (%s)"
+               % achados, achados == ["checkpoint_final.pth"], achados)
+        r = C.enxugar_pasta_de_peso("nao_existe_python.exe", pasta, pesos, {})
+        checar(u"sem o Python do pacote, nada se mexe e o log diz que o "
+               u"estado do otimizador fica",
+               r == [] and io.open(os.path.join(fold, "checkpoint_final.pth"),
+                                   "rb").read() == b"x"
+               and any(u"fica" in d for d in ditas), ditas[-1:])
+        fonte = ler("build/configurar_ambiente.py")
+        checar(u"o enxugar so roda depois do download conferido e extraido "
+               u"(e nunca no peso que ja estava no disco)",
+               _chamada_depois_de(fonte, "instalar_peso_ts",
+                                  "enxugar_pasta_de_peso",
+                                  "_extrair_como_a_biblioteca")
+               and _chamada_depois_de(fonte, "instalar_peso_ts",
+                                      "enxugar_pasta_de_peso",
+                                      "conferir_peso_ts"))
+        isca = fonte.replace(u"_extrair_como_a_biblioteca(zip_, pai, "
+                             u"item[\"pasta\"])", u"pass", 1)
+        checar(u"(isca) sem a extracao antes, a checagem de ordem reprova",
+               isca != fonte and not _chamada_depois_de(
+                   isca, "instalar_peso_ts", "enxugar_pasta_de_peso",
+                   "_extrair_como_a_biblioteca"))
+        tl = os.path.join(base, "b", "python", "Lib", "site-packages", "torch",
+                          "lib")
+        os.makedirs(tl)
+        outra = os.path.join(base, "b", "python", "Lib", "outra.lib")
+        for n_ in ("torch_cpu.dll", "torch_cpu.lib", "c10.lib", "c10.dll"):
+            io.open(os.path.join(tl, n_), "wb").write(b"z" * 10)
+        io.open(outra, "wb").write(b"z")
+        tirado = C.tirar_lib_do_torch(os.path.join(base, "b"))
+        checar(u"as .lib do torch saem do pacote, as .dll ficam, e nada fora "
+               u"de torch\\lib muda (%s)" % sorted(os.listdir(tl)),
+               tirado == 20 and sorted(os.listdir(tl))
+               == ["c10.dll", "torch_cpu.dll"] and os.path.isfile(outra))
+        checar(u"e so no pacote novo: a instalacao no lugar nao perde arquivo",
+               _chamada_sob_condicao(fonte, "etapa_libs", "tirar_lib_do_torch",
+                                     u"instalar"))
+        isca2 = fonte.replace(u'    if not ctx.get("instalar"):\n        '
+                              u'tirar_lib_do_torch(ctx["bundle"])',
+                              u'    tirar_lib_do_torch(ctx["bundle"])', 1)
+        checar(u"(isca) a chamada sem a condicao seria acusada",
+               isca2 != fonte and not _chamada_sob_condicao(
+                   isca2, "etapa_libs", "tirar_lib_do_torch", u"instalar"))
+        py = _python_do_pacote()
+        if not py:
+            checar(u"PULADO: nao ha pacote montado nesta maquina "
+                   u"(_bundle.txt); o enxugar com o torch nao foi provado",
+                   True)
+            return
+        ck = os.path.join(fold, "checkpoint_final.pth")
+        cod, saida = _no_python_do_pacote(py, _SINTETICO, ck)
+        checar(u"o checkpoint sintetico (nnU-Net, com estado do otimizador) "
+               u"foi gravado no Python do pacote", cod == 0, saida[-300:])
+        original = os.path.join(base, "original.pth")
+        shutil.copy2(ck, original)
+        soma0 = _hl.sha256(open(ck, "rb").read()).hexdigest()
+        r = C.enxugar_checkpoint(py, ck)
+        checar(u"o estado do otimizador saiu (%s: %s -> %s bytes)"
+               % (r.get("estado"), r.get("bytes_antes"), r.get("bytes_depois")),
+               r.get("estado") == "enxugado"
+               and r.get("bytes_depois", 1e12) < r.get("bytes_antes", 0) / 2
+               and r.get("sha256_antes") == soma0
+               and r.get("sha256_depois") == _hl.sha256(
+                   open(ck, "rb").read()).hexdigest(), r)
+        checar(u"e nenhum arquivo de passagem sobrou na pasta",
+               sorted(os.listdir(fold)) == ["checkpoint_final.pth",
+                                            "debug.json"], os.listdir(fold))
+        cmp_ = C.comparar_checkpoints(py, original, ck)
+        checar(u"a rede e as outras entradas sao identicas byte a byte "
+               u"(%s tensores, digest %s)" % (cmp_.get("tensores"),
+                                               (cmp_.get("digest_a") or u"")[:12]),
+               cmp_.get("estado") == "iguais" and cmp_.get("tensores") == 5
+               and cmp_.get("digest_a") == cmp_.get("digest_b")
+               == r.get("digest_rede"), cmp_)
+        cod, aviso = _no_python_do_pacote(py, _ESTRAGAR, ck,
+                                          os.path.join(base, "lixo.pth"),
+                                          "nada")
+        checar(u"o arquivo enxuto leva o aviso de modificacao dentro dele",
+               u"optimizer_state removido" in aviso, aviso[-200:])
+        for modo, chave in (("um_ulp", "network_weights"),
+                            ("sem_init_args", "init_args")):
+            estragado = os.path.join(base, "isca_%s.pth" % modo)
+            _no_python_do_pacote(py, _ESTRAGAR, original, estragado, modo)
+            c2 = C.comparar_checkpoints(py, original, estragado)
+            checar(u"(isca) %s: a comparacao acusa (%s)"
+                   % (modo, c2.get("diferem")),
+                   c2.get("estado") == "diferentes"
+                   and chave in (c2.get("diferem") or []), c2)
+        r2 = C.enxugar_checkpoint(py, ck)
+        checar(u"rodar de novo nao mexe no arquivo ja enxuto",
+               r2.get("estado") == "sem_estado_do_otimizador"
+               and _hl.sha256(open(ck, "rb").read()).hexdigest()
+               == r.get("sha256_depois"), r2)
+        outro = os.path.join(base, "lightning.pth")
+        _no_python_do_pacote(py, _SINTETICO, outro, "lightning")
+        s_outro = _hl.sha256(open(outro, "rb").read()).hexdigest()
+        r3 = C.enxugar_checkpoint(py, outro)
+        checar(u"checkpoint que nao e do nnU-Net fica como veio",
+               r3.get("estado") == "nao_e_nnunet"
+               and _hl.sha256(open(outro, "rb").read()).hexdigest() == s_outro,
+               r3)
+
+        www = os.path.join(base, "www", "v9-weights")
+        os.makedirs(www)
+        _no_python_do_pacote(py, _SINTETICO, os.path.join(base, "ck9102.pth"))
+        bruto = open(os.path.join(base, "ck9102.pth"), "rb").read()
+        _zip_de_peso(os.path.join(www, "Dataset9102_fantoma.zip"),
+                     "Dataset9102_fantoma", peso=bruto)
+        S = _Servidor(os.path.join(base, "www"))
+        _tab, _time = C.tabela_da_biblioteca, C.time
+        try:
+            C.time = _types.SimpleNamespace(time=time.time,
+                                            sleep=lambda s: None)
+            C.tabela_da_biblioteca = lambda p, t, extra=(), env=None: {
+                "base": S.base, "velhos": [], "versao_ts": "fantoma",
+                "itens": [{"id": 9102, "pasta": "Dataset9102_fantoma",
+                           "rel_path": "", "zip": "Dataset9102_fantoma.zip",
+                           "url": "%s/v9-weights/Dataset9102_fantoma.zip"
+                                  % S.base, "de_onde": "fantoma"}]}
+            ofi = os.path.join(base, "oficina")
+            os.makedirs(ofi)
+            pesos2 = os.path.join(base, "ts2")
+            falhas = C.baixar_pesos_ts(py, ["fantoma"], pesos2,
+                                       os.path.join(base, "cache"),
+                                       oficina=ofi)
+            rel = ("Dataset9102_fantoma/nnUNetTrainer__nnUNetPlans__3d_fullres"
+                   "/fold_0/checkpoint_final.pth")
+            no_disco = os.path.join(pesos2, *rel.split("/"))
+            recibo = json.load(io.open(os.path.join(ofi, C.RECIBO_DO_ENXUGAR),
+                                       encoding="utf-8"))
+            checar(u"no download conferido, o preparo tira o estado do "
+                   u"otimizador e grava o recibo com as duas somas",
+                   not falhas and os.path.getsize(no_disco) < len(bruto) / 2
+                   and (recibo.get(rel) or {}).get("sha256_antes")
+                   == _hl.sha256(bruto).hexdigest()
+                   and (recibo.get(rel) or {}).get("sha256_depois")
+                   == _hl.sha256(open(no_disco, "rb").read()).hexdigest(),
+                   (falhas, recibo))
+            checar(u"e o log diz o que saiu e que a rede ficou identica",
+                   any(u"estado do otimizador removido" in d
+                       and u"identicos" in d for d in ditas), ditas[-6:])
+            shutil.copy2(os.path.join(base, "ck9102.pth"), no_disco)
+            C.baixar_pesos_ts(py, ["fantoma"], pesos2,
+                              os.path.join(base, "cache"), oficina=ofi)
+            checar(u"o peso que ja estava no disco nao e reescrito (a estacao "
+                   u"instalada nao muda)",
+                   open(no_disco, "rb").read() == bruto)
+        finally:
+            C.tabela_da_biblioteca, C.time = _tab, _time
+            S.fechar()
+        man = os.path.join(base, "man")
+        os.makedirs(man)
+        from pathlib import Path as _P
+        ctx = {"projeto": "LOCAL_SUITE", "versao": "9.9", "so_cpu": True,
+               "cuda": "cpu", "bundle": _P(base), "cache": _P(base) / "c",
+               "destino": _P(ofi)}
+        C._escrever_manifesto(ctx, man)
+        texto = io.open(os.path.join(man, "MANIFESTO.txt"),
+                        encoding="utf-8").read()
+        checar(u"o MANIFESTO lista o checkpoint enxuto, com as duas somas e "
+               u"a prova da rede", u"SEM O ESTADO DO OTIMIZADOR" in texto
+               and (recibo.get(rel) or {}).get("sha256_antes", u"?") in texto
+               and u"identicos byte a byte" in texto)
+    finally:
+        C.log = _log
+        shutil.rmtree(base, ignore_errors=True)
+
+
+_SINTETICO_V1 = (
+    "import collections, sys\n"
+    "import torch\n"
+    "g = torch.Generator().manual_seed(11)\n"
+    "w = collections.OrderedDict()\n"
+    "w['conv_blocks_context.0.blocks.0.conv.weight'] = torch.randn(\n"
+    "    4, 1, 3, 3, 3, generator=g)\n"
+    "w['conv_blocks_context.0.blocks.0.instnorm.weight'] = torch.ones(4)\n"
+    "w['seg_outputs.0.weight'] = torch.randn(21, 4, 1, 1, 1, generator=g)\n"
+    "ck = {'epoch': 1000, 'state_dict': w,\n"
+    "      'optimizer_state_dict': {'state': {0: {'momentum_buffer':\n"
+    "          torch.randn(400, 250, generator=g)}},\n"
+    "          'param_groups': [{'lr': 0.01, 'momentum': 0.99}]},\n"
+    "      'lr_scheduler_state_dict': None,\n"
+    "      'plot_stuff': ([0.5, 0.4], [0.6, 0.5], [0.1, 0.2], [0.7]),\n"
+    "      'best_stuff': (0, 0.4, 0.4, 900),\n"
+    "      'amp_grad_scaler': {'scale': 65536.0}}\n"
+    "torch.save(ck, sys.argv[1])\n"
+)
+
+_LER_AVISO = (
+    "import sys, torch\n"
+    "ck = torch.load(sys.argv[1], map_location='cpu', weights_only=False)\n"
+    "print(ck.get('radai_modificacao', ''))\n"
+    "print(sorted(ck))\n"
+)
+
+
+def teste_o_enxugar_dos_modelos_do_registro():
+    secao(u"o enxugar dos modelos do registro: nnU-Net v1 e v2, enxuto "
+          u"reprodutivel e conferido pelo sha256 do registro")
+    import hashlib as _hl
+    import types as _types
+    from pathlib import Path as _P
+    C = _modulo_do_motor()
+    py = _python_do_pacote()
+    if not py:
+        checar(u"PULADO: nao ha pacote montado nesta maquina (_bundle.txt); "
+               u"o enxugar dos modelos do registro nao foi provado", True)
+        return
+    soma = lambda p: _hl.sha256(open(p, "rb").read()).hexdigest()
+    base = tempfile.mkdtemp(prefix="radai_prep_enxugar_")
+    _log = C.log
+    velho_dir = os.environ.get("RADAI_MODELOS_DIR")
+    M = None
+    try:
+        C.log = lambda m="": None
+        v1 = os.path.join(base, "v1_original.model")
+        cod, saida = _no_python_do_pacote(py, _SINTETICO_V1, v1)
+        checar(u"o checkpoint sintetico do nnU-Net v1 foi gravado no Python "
+               u"do pacote", cod == 0, saida[-300:])
+        ck = os.path.join(base, "a", "model_final_checkpoint.model")
+        os.makedirs(os.path.dirname(ck))
+        shutil.copy2(v1, ck)
+        r = C.enxugar_checkpoint(py, ck)
+        checar(u"nnU-Net v1: sai o optimizer_state_dict (%s: %s -> %s bytes)"
+               % (r.get("estado"), r.get("bytes_antes"), r.get("bytes_depois")),
+               r.get("estado") == "enxugado"
+               and r.get("removido") == "optimizer_state_dict"
+               and r.get("bytes_depois", 1e12) < r.get("bytes_antes", 0) / 2, r)
+        cmp_ = C.comparar_checkpoints(py, v1, ck)
+        checar(u"  e o state_dict e as outras entradas sao identicos byte a "
+               u"byte (%s tensores)" % cmp_.get("tensores"),
+               cmp_.get("estado") == "iguais" and cmp_.get("tensores") == 3
+               and cmp_.get("digest_a") == cmp_.get("digest_b")
+               == r.get("digest_rede"), cmp_)
+        cod, aviso = _no_python_do_pacote(py, _LER_AVISO, ck)
+        checar(u"  e o aviso de modificacao no arquivo diz o que saiu do "
+               u"formato v1", u"optimizer_state_dict removido" in aviso
+               and u"state_dict e as demais" in aviso
+               and u"'plot_stuff'" in aviso, aviso[-300:])
+
+        outro = os.path.join(base, "b_outra_pasta", "outro_nome.pth")
+        os.makedirs(os.path.dirname(outro))
+        shutil.copy2(v1, outro)
+        r2 = C.enxugar_checkpoint(py, outro)
+        checar(u"o enxuto e reprodutivel: o mesmo original noutra pasta e com "
+               u"outro nome da o mesmo sha256",
+               bool(r2.get("sha256_depois"))
+               and r2.get("sha256_depois") == r.get("sha256_depois"),
+               (r2.get("sha256_depois"), r.get("sha256_depois")))
+
+        def _pelo_script(script, caminho):
+            _c, s = _no_python_do_pacote(py, script, "enxugar", caminho)
+            linha = [l for l in s.splitlines() if l.startswith("ENXUGAR_JSON ")]
+            return json.loads(linha[0][len("ENXUGAR_JSON "):]) if linha else {}
+        isca = C._SCRIPT_ENXUGAR.replace(
+            u"    with open(tmp, 'wb') as saida:\n"
+            u"        torch.save(novo, saida)\n",
+            u"    torch.save(novo, tmp)\n", 1)
+        c1 = os.path.join(base, "isca1", "model_final_checkpoint.model")
+        c2 = os.path.join(base, "isca2", "x.pth")
+        for c in (c1, c2):
+            os.makedirs(os.path.dirname(c))
+            shutil.copy2(v1, c)
+        s1 = _pelo_script(isca, c1).get("sha256_depois")
+        s2 = _pelo_script(isca, c2).get("sha256_depois")
+        checar(u"(isca) gravando pelo caminho, o nome do arquivo entra no zip "
+               u"e o sha256 do enxuto muda com ele",
+               isca != C._SCRIPT_ENXUGAR and s1 and s2 and s1 != s2, (s1, s2))
+
+        e1 = os.path.join(base, "esperado", "model_final_checkpoint.model")
+        os.makedirs(os.path.dirname(e1))
+        shutil.copy2(v1, e1)
+        r3 = C.enxugar_checkpoint(py, e1, esperado="0" * 64)
+        checar(u"com o sha256 do registro diferente, o enxuto nao entra e o "
+               u"original fica", r3.get("estado") == "diverge"
+               and soma(e1) == soma(v1)
+               and not os.path.exists(e1 + ".enxuto.parcial"), r3)
+        r4 = C.enxugar_checkpoint(py, e1, esperado=r.get("sha256_depois"))
+        checar(u"  e com o sha256 do registro, entra",
+               r4.get("estado") == "enxugado"
+               and soma(e1) == r.get("sha256_depois"), r4)
+
+        rel = "fold_0/model_final_checkpoint.model"
+        bundle = os.path.join(base, "bundle")
+        ofi = os.path.join(base, "oficina")
+        os.makedirs(ofi)
+        alvo = os.path.join(bundle, "modelos", "fantoma", *rel.split("/"))
+        estado = {"baixa": True}
+
+        def _baixar(ident):
+            if estado["baixa"]:
+                os.makedirs(os.path.dirname(alvo), exist_ok=True)
+                shutil.copyfile(v1, alvo)
+                return {"baixados": [rel]}
+            return {"pulados": [rel]}
+        falso = _types.SimpleNamespace(
+            MODELOS={"fantoma": {
+                "nome": u"fantoma", "repo": "x/y", "licenca": u"x · livre",
+                "uso_permitido": "livre",
+                "enxuto": {rel: (r["bytes_depois"], r["sha256_depois"])}}},
+            estado_do_modelo=lambda i: {"bytes_total": 0},
+            pasta_do_modelo=lambda i, criar=False: _P(bundle) / "modelos" / i,
+            baixar=_baixar)
+        ctx = {"bundle": _P(bundle), "py": py, "destino": _P(ofi),
+               "instalar": ""}
+        C.baixar_modelos_do_registro(ctx, falso, [], exigidos=set())
+        chave = "modelos/fantoma/" + rel
+        try:
+            recibo = json.load(io.open(os.path.join(ofi, C.RECIBO_DO_ENXUGAR),
+                                       encoding="utf-8"))
+        except Exception:
+            recibo = {}
+        checar(u"no download conferido, o preparo enxuga o checkpoint que o "
+               u"registro declara, e o recibo guarda as duas somas",
+               os.path.isfile(alvo) and soma(alvo) == r["sha256_depois"]
+               and (recibo.get(chave) or {}).get("sha256_antes") == soma(v1)
+               and (recibo.get(chave) or {}).get("sha256_depois")
+               == r["sha256_depois"], recibo)
+        shutil.copyfile(v1, alvo)
+        estado["baixa"] = False
+        C.baixar_modelos_do_registro(ctx, falso, [], exigidos=set())
+        checar(u"o checkpoint que ja estava no disco nao e reescrito",
+               soma(alvo) == soma(v1))
+        os.remove(alvo)
+        estado["baixa"] = True
+        C.baixar_modelos_do_registro(dict(ctx, instalar=bundle), falso, [],
+                                     exigidos=set())
+        checar(u"e na instalacao no lugar (nao e pacote novo) o que chega "
+               u"fica como veio", soma(alvo) == soma(v1))
+        man = os.path.join(base, "man")
+        os.makedirs(man)
+        C._escrever_manifesto({"projeto": "LOCAL_SUITE", "versao": "9.9",
+                               "so_cpu": True, "cuda": "cpu",
+                               "bundle": _P(bundle), "cache": _P(base) / "c",
+                               "destino": _P(ofi)}, man)
+        checar(u"o MANIFESTO lista o checkpoint enxuto do modelo",
+               chave in io.open(os.path.join(man, "MANIFESTO.txt"),
+                                encoding="utf-8").read())
+
+        import radai_models as M
+        rel2 = "nnUNetTrainer__nnUNetPlans__3d_fullres/fold_all/checkpoint_final.pth"
+        d_reg = os.path.join(base, "reg")
+        alvo2 = os.path.join(d_reg, "modelos", "fantoma_enx", *rel2.split("/"))
+        os.makedirs(os.path.dirname(alvo2))
+        M.MODELOS["fantoma_enx"] = {
+            "nome": u"fantoma", "motor": "x", "embutido": False, "repo": "x/y",
+            "arquivos": [(rel2, r["bytes_antes"])], "sha256": {rel2: soma(v1)},
+            "enxuto": {rel2: (r["bytes_depois"], r["sha256_depois"])},
+            "licenca": u"x", "uso_permitido": "livre"}
+
+        def _confere():
+            try:
+                C.conferir_modelos_exigidos(d_reg, [u"fantoma_enx"])
+                return None
+            except C.FaltaModeloExigido as e:
+                return u"%s" % e
+        shutil.copyfile(ck, alvo2)
+        checar(u"a conferencia dos modelos exigidos aceita o enxuto do "
+               u"registro", _confere() is None, _confere())
+        shutil.copyfile(v1, alvo2)
+        checar(u"  e o original", _confere() is None, _confere())
+        M.MODELOS["fantoma_enx"]["enxuto"] = {rel2: (r["bytes_depois"],
+                                                     "0" * 64)}
+        shutil.copyfile(ck, alvo2)
+        checar(u"(isca) o enxuto que nao e o do registro PARA o pacote",
+               _confere() is not None)
+    finally:
+        C.log = _log
+        if M is not None:
+            M.MODELOS.pop("fantoma_enx", None)
+        if velho_dir is None:
+            os.environ.pop("RADAI_MODELOS_DIR", None)
+        else:
+            os.environ["RADAI_MODELOS_DIR"] = velho_dir
+        shutil.rmtree(base, ignore_errors=True)
+
+
+def _chamada_sob_condicao(fonte, funcao, chamada, palavra):
+    import ast as _ast
+    for no in _ast.walk(_ast.parse(fonte)):
+        if isinstance(no, _ast.FunctionDef) and no.name == funcao:
+            for se in _ast.walk(no):
+                if not isinstance(se, _ast.If) or palavra not in \
+                        _ast.unparse(se.test):
+                    continue
+                for sub in se.body:
+                    for c in _ast.walk(sub):
+                        if isinstance(c, _ast.Call) and getattr(
+                                c.func, "id", "") == chamada:
+                            return True
+    return False
+
+
+def _chamada_depois_de(fonte, funcao, chamada, antes):
+    import ast as _ast
+    for no in _ast.walk(_ast.parse(fonte)):
+        if isinstance(no, _ast.FunctionDef) and no.name == funcao:
+            linhas = {}
+            for sub in _ast.walk(no):
+                if isinstance(sub, _ast.Call):
+                    f = sub.func
+                    nome = f.attr if isinstance(f, _ast.Attribute) else \
+                        getattr(f, "id", "")
+                    linhas.setdefault(nome, []).append(sub.lineno)
+            return bool(linhas.get(chamada)) and bool(linhas.get(antes)) \
+                and min(linhas[chamada]) > max(linhas[antes])
+    return False
+
+
 class _Servidor(object):
 
     def __init__(self, pasta):
@@ -6079,7 +6630,7 @@ def teste_atualizar_app_e_uma_cascata():
                     return self._manda(200, zips[partes[1]], "application/zip")
                 if partes[0] == "rede":
                     return self._manda(200, b"ok", "text/plain")
-                if partes[0] == "privado":
+                if partes[0] == "sem_release":
                     return self._manda(404, b"{}")
                 casos = {
                     u"novo": (u"v99.0", u"bom", 0, None),
@@ -6126,6 +6677,7 @@ def teste_atualizar_app_e_uma_cascata():
         def cena(nome_cena, inst, release, redes, veio=u""):
             return (u"$script:VersaoLa = $null; $script:Log = @(); $script:Atualizador = 0\n"
                     u"$script:Marcou = ''; $script:Avisos = @(); $script:Fechou = 0\n"
+                    u"$script:Concluiu = ''\n"
                     u"$script:CascataVeioDe = %s\n"
                     u"$script:URL_RELEASES = %s\n"
                     u"$script:URLS_DA_REDE = @(%s)\n"
@@ -6134,7 +6686,8 @@ def teste_atualizar_app_e_uma_cascata():
                     u"$script:Avisos.Count + '|' + $script:Fechou + '|' + "
                     u"([string]$env:RADAI_ATUALIZAR_APP) + '|' + "
                     u"(($script:Avisos | ForEach-Object { $_ }) -join ' / ') + '|' + "
-                    u"(($script:Log | ForEach-Object { $_ }) -join ' ## ')\n"
+                    u"(($script:Log | ForEach-Object { $_ }) -join ' ## ') + '|' + "
+                    u"$script:Concluiu\n"
                     % (_pslit(veio), _pslit(release), u", ".join(_pslit(r) for r in redes),
                        _pslit(inst), nome_cena))
 
@@ -6168,6 +6721,10 @@ def teste_atualizar_app_e_uma_cascata():
                u"function AvisarAtualizarApp { param([string]$Texto, [string]$Icone = 'Information')\n"
                u"    $script:Avisos += ($Icone + ' ' + ($Texto -replace '[|\\r\\n]', ' ')) }\n"
                u"function PerguntarSeTentaDeNovo { param($Pasta) return $false }\n"
+               u"function PerguntarSeProcessando { param($Pasta) return $true }\n"
+               u"function FecharJanelasDoApp { return 0 }\n"
+               u"function ConcluirAtualizacao { param($Inst, $Como, $De)\n"
+               u"    $script:Concluiu += $Como }\n"
                u"function AcharInstalacao { return $null }\n"
                u"function PintarEstado { }\n"
                u"function AnotarPastaDoOperador { param($a, $b) }\n"
@@ -6197,7 +6754,7 @@ def teste_atualizar_app_e_uma_cascata():
                  cena(u"E", insts[u"E"], url + u"/fuga/latest", [morta]) +
                  cena(u"F", insts[u"F"], url + u"/velho/latest", [morta]) +
                  cena(u"G", insts[u"G"], url + u"/velho/latest", [morta]) +
-                 cena(u"H", insts[u"H"], url + u"/privado/latest", [morta]) +
+                 cena(u"H", insts[u"H"], url + u"/sem_release/latest", [morta]) +
                  cena(u"I", insts[u"I"], morta, [morta]) +
                  u"'TITULO:' + $script:TituloDoPacote\n" +
                  cena(u"J", insts[u"J"], morta, [url + u"/rede"]) +
@@ -6276,7 +6833,11 @@ def teste_atualizar_app_e_uma_cascata():
                codigo(insts[u"F"]))
         checar(u"  e o log diz cada decisao da cascata (1/4 e 2/4)",
                u"cascata 1/4" in f[7] and u"cascata 2/4" in f[7], f[7][-300:])
-        for k, oque in ((u"G", u"release respondeu"), (u"H", u"repositorio privado (404) ainda e rede"),
+        checar(u"  e a tela segue sozinha para a etapa 4, com o botao verde de abrir o app",
+               f[8] == u"codigo", u"concluiu=%r" % f[8])
+        checar(u"  (isca) quem segue para atualizar tudo NAO vai para a etapa 4",
+               c(u"G")[8] == u"", u"concluiu=%r" % c(u"G")[8])
+        for k, oque in ((u"G", u"release respondeu"), (u"H", u"o 404 da release ainda e rede"),
                         (u"J", u"release fora, mas a sonda da rede responde"),
                         (u"K", u"veio do instalador anterior, que baixou este")):
             v = c(k)
@@ -6471,6 +7032,8 @@ def main():
     teste_o_bundle_minimo_serve_a_esta_versao()
     teste_o_modo_3_cumpre_a_linha_da_aba_0()
     teste_pesos_ts_baixados_por_nos()
+    teste_o_estado_do_otimizador_sai_e_a_rede_fica()
+    teste_o_enxugar_dos_modelos_do_registro()
     teste_o_servidor_e_a_segunda_passada()
     teste_a_divergencia_nao_chega_a_reserva()
     teste_cada_codigo_do_motor_tem_frase_no_preparador()

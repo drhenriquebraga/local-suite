@@ -648,7 +648,8 @@ def teste_a_arvore_suja_se_declara_no_build():
                u"no commit) tambem marca",
                _car._commit_curto(casa).endswith(_car.MARCA_DE_ARVORE_SUJA))
         src = _insp.getsource(_car._commit_curto)
-        alvo = (u"    if commit and _arvore_suja(raiz):\n"
+        alvo = (u"    if commit and (_arvore_suja(raiz) or "
+                u"componentes_sujos(raiz)):\n"
                 u"        commit += MARCA_DE_ARVORE_SUJA\n")
         checar(u"  (isca) a marca esta onde a isca a procura", alvo in src)
         ns = dict(vars(_car))

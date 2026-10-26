@@ -409,28 +409,61 @@ def teste_modelos_que_alimentam_o_entregue():
         checar(u"  e nenhum modelo so de comparacao entra na lista",
                not set(exig) & {u"nv_segment_ct", u"cads_open", u"moose"}, exig)
 
-        def registro(falha):
+        def pasta_do_modelo(ident, criar=False):
+            d = pathlib.Path(base) / "modelos" / str(ident)
+            if criar:
+                d.mkdir(parents=True, exist_ok=True)
+            return d
+
+        def registro(falha, sem=(), no_estado=None, na_pasta=None, modelos=None,
+                     chamados=None):
             def baixar(ident):
+                if chamados is not None:
+                    chamados.append(ident)
                 if ident in falha:
                     raise falha[ident]
                 return {"baixados": [], "pulados": []}
-            return types.SimpleNamespace(
-                MODELOS=radai_models.MODELOS, baixar=baixar,
-                estado_do_modelo=lambda i: {"bytes_total": 0})
-        ctx = {"bundle": pathlib.Path(base)}
 
-        def roda(falha, exigidos=None):
+            def estado_do_modelo(ident):
+                if ident in (no_estado or {}):
+                    raise no_estado[ident]
+                return {"bytes_total": 0}
+
+            def pasta_falsa(ident, criar=False):
+                if ident in (na_pasta or {}):
+                    raise na_pasta[ident]
+                return pasta_do_modelo(ident, criar)
+            campos = dict(MODELOS=radai_models.MODELOS if modelos is None else modelos,
+                          baixar=baixar, estado_do_modelo=estado_do_modelo,
+                          pasta_do_modelo=pasta_falsa)
+            for nome in sem:
+                campos.pop(nome)
+            return types.SimpleNamespace(**campos)
+        ctx = {"bundle": pathlib.Path(base)}
+        import inspect
+        checar(u"o registro falso tem a pasta_do_modelo com a assinatura da real",
+               inspect.signature(pasta_do_modelo)
+               == inspect.signature(radai_models.pasta_do_modelo),
+               str(inspect.signature(radai_models.pasta_do_modelo)))
+
+        def caiu_no_geral():
+            return [l for l in linhas if u"nenhum modelo extra baixado" in l]
+
+        def roda(falha, exigidos=None, sem=(), funcao=None, **kw):
             try:
-                C.baixar_modelos_do_registro(ctx, registro(falha), [], exigidos)
+                (funcao or C.baixar_modelos_do_registro)(
+                    ctx, registro(falha, sem, **kw), [], exigidos)
                 return None
             except Exception as e:
                 return e
         r = roda({u"cranio_buti": IOError(u"sha256 nao bate")})
         checar(u"o download do encefalo falha: o preparo PARA",
-               isinstance(r, C.FaltaModeloExigido), repr(r))
+               isinstance(r, C.FaltaModeloExigido) and u"NAO BAIXADO" in str(r)
+               and u"sha256 nao bate" in str(r), repr(r))
         r = roda({u"hnlnl": IOError(u"CRC")})
         checar(u"o dos niveis cervicais falha: o preparo PARA",
-               isinstance(r, C.FaltaModeloExigido), repr(r))
+               isinstance(r, C.FaltaModeloExigido) and u"NAO BAIXADO" in str(r)
+               and u"CRC" in str(r), repr(r))
         r = roda({u"cranio_buti": OSError(u"getaddrinfo failed")})
         checar(u"  sem rede: para como SEM CONEXAO (o codigo da tela)",
                isinstance(r, C.SemRede), repr(r))
@@ -440,6 +473,86 @@ def teste_modelos_que_alimentam_o_entregue():
         r = roda({u"cranio_buti": IOError(u"x")}, exigidos=())
         checar(u"  (isca) sem a lista dos exigidos, o encefalo passava calado",
                r is None, repr(r))
+        checar(u"nenhuma rodada caiu no except geral",
+               not caiu_no_geral(), repr(caiu_no_geral()[:1]))
+        del linhas[:]
+        r = roda({})
+        checar(u"sem falha nenhuma, a rodada passa: o registro falso cobre o que "
+               u"o preparador chama",
+               r is None and not any(u"NAO BAIXADO" in l for l in linhas),
+               repr((r, [l for l in linhas if u"NAO BAIXADO" in l][:1])))
+        r = roda({}, sem=(u"pasta_do_modelo",))
+        checar(u"  (isca) sem a pasta_do_modelo no registro falso, a rodada sem "
+               u"falha PARA e diz o que faltou",
+               isinstance(r, C.FaltaModeloExigido) and u"AttributeError" in str(r),
+               repr(r))
+
+        def _versao_de_antes():
+            src = inspect.getsource(C.baixar_modelos_do_registro)
+            ini = (u"            try:\n"
+                   u"                e = radai_models.estado_do_modelo(ident)\n")
+            fim = u"                r = radai_models.baixar(ident)\n"
+            if ini not in src or fim not in src:
+                return None
+            a, b = src.index(ini), src.index(fim)
+            pre = u"".join(l[4:] for l in src[a + 17:b].splitlines(True))
+            ns = dict(vars(C))
+            exec(compile(src[:a] + pre + u"            try:\n" + src[b:],
+                         u"<preambulo fora do try>", "exec"), ns)
+            return ns["baixar_modelos_do_registro"]
+        de_antes = _versao_de_antes()
+        checar(u"(isca) a versao de antes, com o preambulo fora do try, se monta "
+               u"da fonte", de_antes is not None)
+
+        del linhas[:]
+        chamados = []
+        r = roda({}, no_estado={u"hnlnl": ValueError(u"registro ilegivel")},
+                 chamados=chamados)
+        checar(u"erro antes do download dos niveis (o estado do modelo): o "
+               u"preparo PARA na hora, com a causa",
+               isinstance(r, C.FaltaModeloExigido) and u"hnlnl" in str(r)
+               and u"ValueError: registro ilegivel" in str(r)
+               and u"cranio_buti" not in chamados, repr((r, chamados)))
+        checar(u"  e o log nao diz que o bundle segue valido",
+               not caiu_no_geral(), repr(caiu_no_geral()[:1]))
+        del linhas[:]
+        r = roda({}, no_estado={u"hnlnl": ValueError(u"registro ilegivel")},
+                 funcao=de_antes)
+        checar(u"  (isca) na versao de antes, o mesmo erro caia no except geral "
+               u"e o preparo seguia dizendo que o bundle segue valido",
+               de_antes is not None and r is None and bool(caiu_no_geral()),
+               repr((r, caiu_no_geral()[:1])))
+        r = roda({}, na_pasta={u"cranio_buti": PermissionError(u"acesso negado")})
+        checar(u"erro na pasta do encefalo: o preparo PARA, com a causa",
+               isinstance(r, C.FaltaModeloExigido) and u"cranio_buti" in str(r)
+               and u"PermissionError: acesso negado" in str(r), repr(r))
+        sem_licenca = dict(radai_models.MODELOS)
+        sem_licenca[u"cranio_buti"] = dict(sem_licenca[u"cranio_buti"])
+        sem_licenca[u"cranio_buti"].pop("licenca")
+        r = roda({}, modelos=sem_licenca)
+        checar(u"registro do encefalo sem a licenca: o preparo PARA, com a causa",
+               isinstance(r, C.FaltaModeloExigido) and u"cranio_buti" in str(r)
+               and u"KeyError" in str(r) and u"licenca" in str(r), repr(r))
+        del linhas[:]
+        chamados = []
+        r = roda({}, no_estado={u"cads_open": ValueError(u"registro ilegivel")},
+                 chamados=chamados)
+        depois = [i for i in list(radai_models.MODELOS)[
+            list(radai_models.MODELOS).index(u"cads_open") + 1:]
+            if not radai_models.MODELOS[i].get("embutido")]
+        checar(u"erro antes do download de um de comparacao: o pacote segue sem "
+               u"ele, com a linha no log, e os modelos seguintes sao baixados",
+               r is None and any(u"cads_open NAO BAIXADO (ValueError: registro "
+                                 u"ilegivel)" in l for l in linhas)
+               and depois and set(depois) <= set(chamados)
+               and not caiu_no_geral(), repr((r, chamados, caiu_no_geral()[:1])))
+        del linhas[:]
+        chamados = []
+        r = roda({}, no_estado={u"cads_open": ValueError(u"registro ilegivel")},
+                 chamados=chamados, funcao=de_antes)
+        checar(u"  (isca) na versao de antes, nenhum modelo seguinte era baixado",
+               de_antes is not None and r is None and not chamados
+               and bool(caiu_no_geral()), repr((r, chamados)))
 
         try:
             C.conferir_modelos_exigidos(base)
@@ -640,6 +753,12 @@ function RodarAtualizador { param($Pasta, $Extra)
     $script:Rodou += ($Extra -join ' '); $r = $script:Respostas[0]
     $script:Respostas = @($script:Respostas | Select-Object -Skip 1); return $r }
 function PerguntarSeTentaDeNovo { param($Pasta) $script:Perguntou++; return $script:Tenta }
+function PerguntarSeProcessando { param($Pasta) return $script:Encerra }
+function FecharJanelasDoApp { $script:Janelas++; return 0 }
+$script:Encerra = $false; $script:Rodou = @(); $script:Janelas = 0
+$r = GarantirAppFechado '%(inst)s'
+'FECHA_PROCESSANDO:' + $r + '|' + $script:Rodou.Count + '|' + $script:Janelas
+$script:Encerra = $true; $script:Janelas = 0
 foreach ($caso in @(@('FECHA_VAZIA', '%(vazia)s', @(0), $true),
                     @('FECHA_OK', '%(inst)s', @(0), $true),
                     @('FECHA_DENOVO', '%(inst)s', @(4, 0), $true),
@@ -681,6 +800,9 @@ $achada = AcharInstalacao
                m.get(u"FECHA_DENOVO"))
         checar(u"  e Cancelar para tudo, sem trocar nada",
                m.get(u"FECHA_DESISTE") == u"False|1|1|-SoEncerrar", m.get(u"FECHA_DESISTE"))
+        checar(u"app processando e a pessoa nao confirma: nada e encerrado, nem a "
+               u"janela, e nada e trocado", m.get(u"FECHA_PROCESSANDO") == u"False|0|0",
+               m.get(u"FECHA_PROCESSANDO"))
         checar(u"a instalacao ANTIGA (sem entrega.txt) e' achada pela marca",
                (m.get(u"ACHADA") or u"").startswith(u"marca antiga|")
                and m.get(u"ACHADA", u"").lower().endswith(antiga.lower()),

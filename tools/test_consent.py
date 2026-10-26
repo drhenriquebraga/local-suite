@@ -2194,8 +2194,8 @@ def _fatos_da_pasta_de_trabalho(fontes):
     fatos = {
         "rs_fica": (pref is not None and not str(pref).startswith("radai_")
                     and not apagam_todos),
-        "ts_fica": bool(re.search(r'mkdtemp\(prefix="ts_"\)',
-                                  fontes["engine"])),
+        "ts_fica": not str(_prefixo_do_mkdtemp(fontes["engine"], "run_ts_task")
+                           or u"").startswith("radai_"),
         "portal_na_faxina": (u'"radai_portal_"' in fontes["batch"]
                              and u"gettempdir()" in fontes["batch"]
                              and u"portal" not in limpa_arq
@@ -2246,8 +2246,7 @@ def _fatos_da_pasta_de_trabalho(fontes):
     return fatos
 
 
-_ABSORVIDOS_PELA_PASTA_DA_SERIE = ("rs_fica", "ts_fica", "nv_fica",
-                                   "moose_fica")
+_ABSORVIDOS_PELA_PASTA_DA_SERIE = ("rs_fica", "nv_fica", "moose_fica")
 
 
 def _fecha_a_pasta_da_serie_no_finally(src):
@@ -2322,8 +2321,8 @@ _MARCAS_DO_DESCARTE = {
                     u"inteiro no nome do arquivo",
     "nv_compara_no_acervo": u"uma linha por estrutura comparada com o "
                             u"TotalSegmentator",
-    "oar_sai": u"a do RadAI_OAR, que sai logo depois de gravada",
-    "fast_sai": u"a do RadAI_OAR_Fast, que sai logo depois de gravada",
+    "oar_sai": u"a do RadAI_STUDY, que sai logo depois de gravada",
+    "fast_sai": u"a do RadAI_STUDY_Fast, que sai logo depois de gravada",
     "faxinas_em_uso": u"ninguém está usando",
     "limpador_apaga_temp": u"em Configurações (Diagnosticar e otimizar), só "
                            u"depois de você confirmar a lista",
@@ -2410,8 +2409,6 @@ def teste_o_que_a_pasta_de_trabalho_guarda():
         "rs_fica": ("engine", u"rt_path = Path(tempfile.mkdtemp()) / \"RS.dcm\"",
                     u"rt_path = Path(tempfile.mkdtemp(prefix=\"radai_rs_\")) "
                     u"/ \"RS.dcm\""),
-        "ts_fica": ("engine", u'mkdtemp(prefix=\"ts_\")',
-                    u'mkdtemp(prefix=\"radai_ts_\")'),
         "portal_na_faxina": ("archive", u'nome.startswith("radai_")',
                              u'nome.startswith("radai_") and not '
                              u'nome.startswith("radai_portal_")'),
@@ -2437,8 +2434,6 @@ def teste_o_que_a_pasta_de_trabalho_guarda():
         "faxinas_em_uso": ("watcher",
                            u"em_uso = _arq_uso.pasta_temporaria_em_uso",
                            u"em_uso = (lambda _p, _h: (False, u\"\"))"),
-        "limpador_apaga_temp": ("cleaner", u'_APAGAVEIS = ("temp", "pip")',
-                                u'_APAGAVEIS = ("pip",)'),
         "falha_leva_erro_cru": ("watcher", u'"last_error": limpo[:500]',
                                 u'"last_error": '
                                 u'erro_sem_caminho_nem_uid(limpo)[:500]'),
@@ -2463,6 +2458,19 @@ def teste_o_que_a_pasta_de_trabalho_guarda():
         checar(u"  isca: com a pasta da serie, a Politica volta a dizer que "
                u"%s fica: reprova" % fato,
                any(x.startswith(fato + u":") for x in fora))
+    checar(u"a pasta de trabalho do TotalSegmentator cai na faxina (ts_fica "
+           u"= %s), e a Politica nao diz que ela fica" % fatos["ts_fica"],
+           fatos["ts_fica"] is False
+           and _MARCAS_DO_DESCARTE["ts_fica"] not in politica)
+    f_ts = dict(fontes)
+    f_ts["engine"] = fontes["engine"].replace(u'mkdtemp(prefix=\"radai_ts_\")',
+                                              u'mkdtemp(prefix=\"ts_\")')
+    fora = _descarte_coerente(_fatos_da_pasta_de_trabalho(f_ts), politica)
+    checar(u"  isca: com o prefixo que a faxina nao conhece, ts_fica volta a "
+           u"valer, e a Politica calada reprova",
+           f_ts["engine"] != fontes["engine"]
+           and any(x.startswith(u"ts_fica:") for x in fora),
+           u" | ".join(fora))
     for fato, (qual, velho, novo) in sorted(consertos.items()):
         if fato in _ABSORVIDOS_PELA_PASTA_DA_SERIE:
             continue
@@ -3588,21 +3596,6 @@ def _decide_depois_da_base(src_vigia):
                                  "_tasks_pela_anatomia")
 
 
-def _horas_do_limpador(src_limpador):
-    v = _constante_do_modulo(src_limpador, "HORAS_TEMP")
-    try:
-        return int(float(v)) if v is not None else None
-    except (TypeError, ValueError):
-        return None
-
-
-def _item_do_limpador_diz(horas, politica):
-    politica = politica or u""
-    i = politica.find(_MARCAS_DO_DESCARTE["limpador_apaga_temp"])
-    item = politica[i:i + 320] if i >= 0 else u""
-    return bool(horas) and (u"há mais de %d horas" % horas) in item
-
-
 _MARCA_DOS_BACKENDS = u"existem no código, em pesquisa, e não vêm no pacote"
 _BACKENDS_EM_PESQUISA = ("xpu", "openvino_gpu")
 
@@ -3965,20 +3958,6 @@ def teste_o_que_a_v82_mudou_nos_documentos():
     checar(u"  (a isca achou a chamada em process_series)", _sem_anat != vig)
     checar(u"  isca: process_series sem a chamada (o nome so em comentario) "
            u"nao decide pela anatomia", not _decide_depois_da_base(_sem_anat))
-
-    limp = ler("app/radai_cleaner.py")
-    horas = _horas_do_limpador(limp)
-    checar(u"o item do limpador diz as horas do codigo (HORAS_TEMP = %s, "
-           u"pelo ast)" % horas, _item_do_limpador_diz(horas, politica))
-    _h12 = _horas_do_limpador(re.sub(r"(?m)^HORAS_TEMP\s*=\s*[\d.]+",
-                                     u"HORAS_TEMP = 12.0", limp))
-    checar(u"  isca: HORAS_TEMP = 12 no codigo, com a Politica de hoje: "
-           u"reprova", _h12 == 12 and not _item_do_limpador_diz(_h12, politica),
-           str(_h12))
-    checar(u"  isca: a Politica com outra hora no item: reprova",
-           not _item_do_limpador_diz(horas, politica.replace(
-               u"há mais de %s horas" % horas, u"há mais de %s horas"
-               % ((horas or 0) + 1))))
 
     try:
         import radai_devices as RD
@@ -4781,90 +4760,24 @@ def _baixar_divergente(rota, botao, politica):
     return fora
 
 
-_PROCS_DE_PROVA = (
-    ({"pid": 7001, "nome": u"chrome", "sessao": 1, "janela": True,
-      "caminho": u"C:\\Program Files\\Google\\Chrome\\chrome.exe"},
-     u"o navegador", False),
-    ({"pid": 7002, "nome": u"python", "sessao": 1, "janela": False,
-      "caminho": u"D:\\RADIOTERAPIA_AI\\LOCAL_SUITE\\python\\python.exe"},
-     u"um processo numa pasta RADIOTERAPIA_AI", False),
-    ({"pid": 7003, "nome": u"cmd", "sessao": 1, "janela": True,
-      "caminho": u"C:\\Windows\\System32\\cmd.exe"},
-     u"a janela que abriu o programa (a arvore)", False),
-    ({"pid": 7004, "nome": u"TeamViewer", "sessao": 1, "janela": True,
-      "caminho": u""}, u"o acesso remoto do TI", False),
-    ({"pid": 7005, "nome": u"AcronisAgent", "sessao": 1, "janela": False,
-      "caminho": u""}, u"o backup", False),
-    ({"pid": 7006, "nome": u"tasy", "sessao": 1, "janela": True,
-      "caminho": u""}, u"o prontuario", False),
-    ({"pid": 7007, "nome": u"WINWORD", "sessao": 1, "janela": True,
-      "caminho": u""}, u"o Office", False),
-    ({"pid": 7008, "nome": u"Eclipse", "sessao": 1, "janela": True,
-      "caminho": u""}, u"o sistema de planejamento", False),
-    ({"pid": 7009, "nome": u"Programa_Que_Ninguem_Conhece", "sessao": 1,
-      "janela": True, "caminho": u""},
-     u"o desconhecido com janela (fecha so marcado)", None),
-    ({"pid": 7010, "nome": u"OneDrive", "sessao": 1, "janela": False,
-      "caminho": u""}, u"o catalogo (OneDrive)", True),
-    ({"pid": 7011, "nome": u"OneDrive", "sessao": 2, "janela": False,
-      "caminho": u""}, u"a sessao de outro usuario", False),
-)
-
-
-def _otimizar_nao_toca(classificar):
-    fora = []
-    for p, rot, esperado in _PROCS_DE_PROVA:
-        try:
-            c = classificar(dict(p), arvore={7003}, sessao=1,
-                            pid_proprio=6999)
-        except Exception as e:
-            fora.append(u"%s: a classificacao levantou (%s)"
-                        % (rot, type(e).__name__))
-            continue
-        if esperado is False and c.get("fecha"):
-            fora.append(u"%s: fecharia" % rot)
-        elif esperado is None and (not c.get("fecha") or c.get("marcado")):
-            fora.append(u"%s: fecha=%s marcado=%s" % (rot, c.get("fecha"),
-                                                     c.get("marcado")))
-        elif esperado is True and not (c.get("fecha") and c.get("marcado")):
-            fora.append(u"%s: nao fecharia" % rot)
-    return fora
-
-
-_MARCA_FORCA = u"fecha à força: um documento não salvo naquele programa se perde"
-_MARCA_ADMIN = u"Serviço do Windows, ele só para com administrador"
-
-
-def _otimizar_divergente(v_cleaner, src_cleaner, violacoes, para_sem_admin,
-                         termos):
-    fora = list(violacoes)
-    par = _trecho(termos, u"O «Otimizar»", u"O Overnight Run")
-    forca = _referencias_no_fonte(_fonte_da_funcao(src_cleaner, "_fechar_pid"),
-                                  "_forcar")
-    if forca is not (_MARCA_FORCA in par):
-        fora.append(u"o «Otimizar» %s a forca, e os Termos %s"
-                    % (u"fecha" if forca else u"NAO fecha",
-                       u"dizem" if _MARCA_FORCA in par else u"nao dizem"))
-    if v_cleaner.get("ESPERA_JANELA_S") != 0.5 and u"meio segundo" in par:
-        fora.append(u"a espera e %s s, e os Termos dizem meio segundo"
-                    % v_cleaner.get("ESPERA_JANELA_S"))
-    if v_cleaner.get("ESPERA_JANELA_S") == 0.5 and u"meio segundo" not in par:
-        fora.append(u"os Termos nao dizem a espera (meio segundo)")
-    if para_sem_admin is (_MARCA_ADMIN in par):
-        fora.append(u"sem administrador o «Otimizar» %s servico, e os Termos "
-                    u"%s" % (u"PARA" if para_sem_admin else u"nao para",
-                             u"dizem que so com administrador"
-                             if _MARCA_ADMIN in par else u"nao dizem"))
-    return fora
-
-
 _CAMPOS_DO_EM_USO = {"versao": u"a versão do formato",
                      "app": u"o nome do programa", "atualizado": u"a hora",
                      "pids": u"os números de processo", "porta": u"a porta",
                      "segmentando": u"se há uma série sendo segmentada"}
-_CAMPOS_DO_OTIMIZAR = {"fechados": u"os nomes dos programas que fechou",
-                       "servicos": u"dos serviços que parou",
-                       "quando": u"e a hora"}
+_O_QUE_O_OTIMIZAR_DESCREVIA = (
+    (u"Termos", u"fecha programas"),
+    (u"Termos", u"O «Restaurar» reabre"),
+    (u"Termos", u"ele pausa serviços do Windows"),
+    (u"Termos", u"Diagnosticar e otimizar"),
+    (u"Politica", u"que o «Otimizar» grava"),
+    (u"Politica", u"Diagnosticar e otimizar"),
+    (u"Politica", u"apaga o cache do pip"),
+)
+
+
+def _otimizar_descrito(textos, marcas=_O_QUE_O_OTIMIZAR_DESCREVIA):
+    return [u"%s: «%s»" % (nome, marca) for nome, marca in marcas
+            if marca in (textos.get(nome) or u"")]
 
 
 def _em_uso_divergente(chaves, v_cleaner, src_vigia, politica):
@@ -4892,35 +4805,6 @@ def _em_uso_divergente(chaves, v_cleaner, src_vigia, politica):
     pasta = u"%%LOCALAPPDATA%%\\%s" % v_cleaner.get("MARCA_ECOSSISTEMA")
     if pasta not in politica:
         fora.append(u"a Politica nao diz a pasta %s" % pasta)
-    return fora
-
-
-def _otimizar_json_divergente(src_cleaner, v_cleaner, politica):
-    fora = []
-    nome = v_cleaner.get("NOME_ESTADO_OTIMIZAR") or u"\x00"
-    par = _trecho(politica, u"o %s , que o «Otimizar» grava" % nome,
-                  u"(Termos, seção 4.3)")
-    if not par:
-        return [u"a Politica nao descreve o %s" % nome]
-    dono = None
-    try:
-        for no in ast.parse(src_cleaner or u"").body:
-            if isinstance(no, ast.FunctionDef) and no.name == "otimizar":
-                dono = no
-    except SyntaxError:
-        dono = None
-    chaves = set(_chaves_gravadas(dono, ast.Name(id="estado"))) \
-        if dono is not None else set()
-    for k in sorted(chaves):
-        frase = _CAMPOS_DO_OTIMIZAR.get(k)
-        if not frase or frase not in par:
-            fora.append(u"o %s leva `%s`, e a Politica nao diz" % (nome, k))
-    rest = _fonte_da_funcao(src_cleaner, "restaurar")
-    apaga = (_referencias_no_fonte(rest, "_caminho_estado")
-             and bool(_apagados(rest)))
-    if apaga is not (u"que o «Restaurar» apaga" in par):
-        fora.append(u"o Restaurar %s o %s" % (u"apaga" if apaga
-                                              else u"NAO apaga", nome))
     return fora
 
 
@@ -5442,46 +5326,17 @@ def teste_o_que_a_v83_mudou_nos_documentos():
            bool(_baixar_divergente(True, botao, politica)))
 
     import radai_cleaner as RC
-    violacoes = _otimizar_nao_toca(RC.classificar)
-    chamadas = []
-    _parar, _loc = RC.parar_servico, os.environ.get("LOCALAPPDATA")
-    _tmp = tempfile.mkdtemp(prefix="radai_aceite_")
-    try:
-        os.environ["LOCALAPPDATA"] = _tmp
-        RC.parar_servico = lambda s: (chamadas.append(s)
-                                      or {"ok": True, "msg": u"dublado"})
-        RC.otimizar(nomes=(), servicos=("WSearch",), discos=(), admin=False,
-                    procs_fn=lambda: [])
-        para_sem_admin = bool(chamadas)
-        del chamadas[:]
-        RC.otimizar(nomes=(), servicos=("WSearch",), discos=(), admin=True,
-                    procs_fn=lambda: [])
-        para_com_admin = bool(chamadas)
-    finally:
-        RC.parar_servico = _parar
-        if _loc is None:
-            os.environ.pop("LOCALAPPDATA", None)
-        else:
-            os.environ["LOCALAPPDATA"] = _loc
-    checar(u"  (a dublagem mediu: sem administrador para=%s, com=%s)"
-           % (para_sem_admin, para_com_admin), para_com_admin)
-    div = _otimizar_divergente(v["radai_cleaner.py"], src["radai_cleaner.py"],
-                               violacoes, para_sem_admin, termos)
-    checar(u"o «Otimizar»: o que ele nunca toca (executado em %d processos "
-           u"forjados), a forca e o administrador sao o que os Termos dizem"
-           % len(_PROCS_DE_PROVA), not div, u" | ".join(div))
-    checar(u"  isca: uma classificacao que fecha tudo: reprova",
-           bool(_otimizar_nao_toca(lambda p, **k: {"fecha": True,
-                                                   "marcado": True})))
-    checar(u"  isca: o «Otimizar» parando servico sem administrador: reprova",
-           bool(_otimizar_divergente(v["radai_cleaner.py"],
-                                     src["radai_cleaner.py"], violacoes,
-                                     True, termos)))
-    checar(u"  isca: o fechamento sem a forca, com os Termos de hoje: "
-           u"reprova", bool(_otimizar_divergente(
-               v["radai_cleaner.py"], src["radai_cleaner.py"].replace(
-                   u"return _forcar(pid)", u"return {}"),
-               violacoes, para_sem_admin, termos)))
+    restos = [n for n in ("classificar", "otimizar", "restaurar",
+                          "parar_servico", "iniciar_servico", "liberar")
+              if hasattr(RC, n)]
+    checar(u"o «Otimizar» e a pausa de servicos sairam do codigo",
+           not restos, u", ".join(restos))
+    div = _otimizar_descrito({u"Termos": termos, u"Politica": politica})
+    checar(u"os documentos em vigor nao descrevem o «Otimizar», o "
+           u"otimizar.json nem a pausa de servicos do turno, que sairam",
+           not div, u" | ".join(div))
+    checar(u"  isca: um documento que volta a descrever o Restaurar: reprova",
+           bool(_otimizar_descrito({u"Termos": u"x O «Restaurar» reabre y"})))
 
     try:
         cont = RC.conteudo_em_uso(8777, True, pid_app=os.getpid(), procs=[],
@@ -5503,15 +5358,6 @@ def teste_o_que_a_v83_mudou_nos_documentos():
            bool(_em_uso_divergente(chaves_uso, dict(v["radai_cleaner.py"],
                                                     RENOVAR_EM_USO_S=120),
                                    src["radai_watcher.py"], politica)))
-    div = _otimizar_json_divergente(src["radai_cleaner.py"],
-                                    v["radai_cleaner.py"], politica)
-    checar(u"o otimizar.json: so nomes e a hora, e o Restaurar o apaga",
-           not div, u" | ".join(div))
-    checar(u"  isca: o Restaurar deixa de apagar o registro: reprova",
-           bool(_otimizar_json_divergente(
-               src["radai_cleaner.py"].replace(u"os.remove(c)", u"pass"),
-               v["radai_cleaner.py"], politica)))
-
     import radai_notify as RN
     frases = dict(getattr(RN, "FRASES", {}) or {})
     div = _notificacao_divergente(src["radai_watcher.py"], src["radai_batch.py"],
@@ -5872,28 +5718,6 @@ def _fast_regrava_divergente(v_sets, substitui, politica):
     return []
 
 
-_MARCA_PIP_MARCADO = u"e o cache do pip aparecem nela já marcados"
-_MARCA_PIP_APAGA = u"e apaga o cache do pip"
-
-
-def _pip_divergente(v_cleaner, src_cleaner, politica):
-    apagavel = "pip" in tuple(v_cleaner.get("_APAGAVEIS") or ())
-    corpo = _fonte_da_funcao(src_cleaner, "espaco_recuperavel")
-    sugerido = bool(re.search(r'"chave":\s*"pip".{0,200}?"sugerido":\s*True',
-                              corpo, re.S))
-    fora = []
-    if apagavel is not (_MARCA_PIP_APAGA in politica):
-        fora.append(u"o «Otimizar» %s o cache do pip, e a Politica %s"
-                    % (u"apaga" if apagavel else u"NAO apaga",
-                       u"diz" if _MARCA_PIP_APAGA in politica else u"nao diz"))
-    if (apagavel and sugerido) is not (_MARCA_PIP_MARCADO in politica):
-        fora.append(u"o cache do pip %s marcado de fabrica, e a Politica %s"
-                    % (u"vem" if apagavel and sugerido else u"NAO vem",
-                       u"diz" if _MARCA_PIP_MARCADO in politica
-                       else u"nao diz"))
-    return fora
-
-
 _MARCA_RETO_DERIVADO = u"«derivada por marco anatômico»"
 
 
@@ -5972,44 +5796,6 @@ def _acervo_divergente(chaves, politica):
                u"diz" if frase in par else u"nao diz", frase)
             for k, frase in sorted(_CAMPOS_DO_ACERVO.items())
             if (k in chaves) is not (frase in par)]
-
-
-_MARCA_DESCONHECIDO = (u"aparece na lista como desconhecido, desmarcado, e "
-                       u"fecha se você o marcar")
-_MARCA_AUDIO_ANTES = u"a lista do áudio é consultada antes da de protegidos"
-
-
-def _otimizar_por_nome(classificar, audio, protegidos, casa, legado):
-    try:
-        c = classificar({"pid": 7101, "nome": u"Planejamento_Sem_Nome_Na_Lista",
-                         "sessao": 1, "janela": True, "caminho": u""},
-                        arvore=(), sessao=1, pid_proprio=6999)
-        desconhecido = bool(c.get("fecha")) and not c.get("marcado")
-        nos_dois = [p for p in audio
-                    if re.match(r"^[A-Za-z0-9_-]+$", p) and casa(protegidos, p)
-                    and not legado(p)]
-        fecha = False
-        for i, p in enumerate(nos_dois):
-            c = classificar({"pid": 7200 + i, "nome": p, "sessao": 1,
-                             "janela": False, "caminho": u""},
-                            arvore=(), sessao=1, pid_proprio=6999)
-            if c.get("fecha") and c.get("marcado"):
-                fecha = True
-        return desconhecido, fecha
-    except Exception:
-        return None, None
-
-
-def _otimizar_nome_divergente(desconhecido, audio_fecha, termos):
-    par = _trecho(termos, u"O «Otimizar»", u"O Overnight Run")
-    fora = []
-    for tem, marca in ((desconhecido, _MARCA_DESCONHECIDO),
-                       (audio_fecha, _MARCA_AUDIO_ANTES)):
-        if bool(tem) is not (marca in par):
-            fora.append(u"o «Otimizar» %s, e os Termos %s «%s»"
-                        % (u"faz isto" if tem else u"NAO faz isto",
-                           u"dizem" if marca in par else u"nao dizem", marca))
-    return fora
 
 
 def teste_os_consertos_da_revisao_da_16():
@@ -6175,19 +5961,6 @@ def teste_os_consertos_da_revisao_da_16():
                                          politica.replace(_MARCA_FAST_APAGA,
                                                           u""))))
 
-    div = _pip_divergente(v["radai_cleaner.py"], src["radai_cleaner.py"],
-                          politica)
-    checar(u"o «Otimizar» apaga o cache do pip, marcado de fabrica, e a "
-           u"Politica diz", not div, u" | ".join(div))
-    checar(u"  isca: o pip sai dos apagaveis, com a Politica de hoje: reprova",
-           bool(_pip_divergente(dict(v["radai_cleaner.py"],
-                                     _APAGAVEIS=("temp",)),
-                                src["radai_cleaner.py"], politica)))
-    checar(u"  isca: a Politica cala o pip: reprova",
-           bool(_pip_divergente(v["radai_cleaner.py"],
-                                src["radai_cleaner.py"],
-                                politica.replace(_MARCA_PIP_APAGA, u""))))
-
     div = _reto_derivado_divergente(src["engine.py"], termos)
     checar(u"o reto: a procedencia «derivada por marco anatomico» e dita nos "
            u"Termos", not div, u" | ".join(div))
@@ -6235,35 +6008,6 @@ def teste_os_consertos_da_revisao_da_16():
     checar(u"  isca: o acervo deixa de gravar o PatientID, com a Politica de "
            u"hoje: reprova", bool(_acervo_divergente(chaves_ac - {"pid"},
                                                       politica)))
-
-    import radai_cleaner as RC
-    desc_ok, audio_fecha = _otimizar_por_nome(
-        RC.classificar, RC.WSRT_SESSAO_AUDIO, RC.WSRT_PROTEGIDOS, RC._casa,
-        RC._protegido)
-    div = _otimizar_nome_divergente(desc_ok, audio_fecha, termos)
-    checar(u"o «Otimizar» (executado): um sistema clinico que as listas nao "
-           u"conhecem vem desmarcado (%s), e o audio que os protegidos citam "
-           u"vem marcado (%s) — os Termos dizem as duas" % (desc_ok,
-                                                             audio_fecha),
-           desc_ok is not None and not div, u" | ".join(div))
-
-    def _protege_antes(p, **k):
-        if RC._casa(RC.WSRT_PROTEGIDOS, p.get("nome")):
-            return {"fecha": False, "marcado": False}
-        return RC.classificar(p, **k)
-    checar(u"  isca: os protegidos consultados antes do audio, com os Termos "
-           u"de hoje: reprova", bool(_otimizar_nome_divergente(
-               *(_otimizar_por_nome(_protege_antes, RC.WSRT_SESSAO_AUDIO,
-                                    RC.WSRT_PROTEGIDOS, RC._casa,
-                                    RC._protegido) + (termos,)))))
-    checar(u"  isca: o desconhecido com janela protegido, com os Termos de "
-           u"hoje: reprova", bool(_otimizar_nome_divergente(
-               False, audio_fecha, termos)))
-    checar(u"  isca: os Termos voltam a dizer que nunca toca o sistema de "
-           u"planejamento, sem a ressalva: reprova",
-           bool(_otimizar_nome_divergente(desc_ok, audio_fecha,
-                                          termos.replace(_MARCA_DESCONHECIDO,
-                                                         u""))))
 
 
 _MARCA_HEART_CONDICAO = u"com o pericárdio quando a cavidade do tronco rodou"
@@ -8584,10 +8328,6 @@ _MARCAS_DA_19 = {
                                     u"vai ao entregue"),
     "parotida_risco": (u"termos", u"a parótida do TotalSegmentator não vai ao "
                                   u"entregue"),
-    "delgadas": (u"termos", u"Os nervos ópticos e os constritores da faringe "
-                            u"saem sem suavização da máscara"),
-    "cava": (u"termos", u"sai o que cruza a veia cava inferior e fica o do "
-                        u"ápice"),
     "contornos": (u"termos", u"nenhum contorno sai com área nula, com vértice "
                              u"repetido ou cruzando a si mesmo"),
     "implicito_em_todo": (u"termos", u"a sintaxe padrão do DICOM, e declara "
@@ -8596,13 +8336,12 @@ _MARCAS_DA_19 = {
                                  u"do nome"),
     "bridge_implicito_nos_dois": (u"termos", u"O que o DicomBridge exporta — "
                                              u"as séries DICOM e as imagens "
-                                             u"JPEG ou PNG que ele converte — "
-                                             u"sai também em Implicit VR "
-                                             u"Little Endian"),
+                                             u"que ele converte — sai também "
+                                             u"em Implicit VR Little Endian"),
     "cd_uma_vez": (u"politica", u"O disco é lido uma vez: o que a leitura "
                                 u"achou fica na memória do processo"),
-    "imagem_no_pipeline": (u"politica", u"imagem JPEG ou PNG entra no mesmo "
-                                        u"pipeline, sem segmentação"),
+    "imagem_no_pipeline": (u"politica", u"entra no mesmo pipeline, sem "
+                                        u"segmentação"),
     "imagem_no_pipeline_termos": (u"termos", u"entra no mesmo pipeline, sem "
                                              u"segmentação"),
     "cd": (u"politica", u"O CD não é oferecido como destino da entrega"),
@@ -8667,18 +8406,12 @@ def _fatos_da_19():
     src_ent = ler(u"app/radai_bridge_entrada.py")
     src_ui = ler(u"app/radai_ui.py")
     m_hist = re.search(r"HIST_MAX = (\d+)", src_ui)
-    delgadas = set(v_eng.get("ESTRUTURAS_DELGADAS") or ())
     src_bridge = ler(u"app/radai_bridge.py")
     return {
         "parotida_ts_fora": (not oar & {"parotid_gland_left",
                                         "parotid_gland_right"}
                              and {"parotid_lnl_left",
                                   "parotid_lnl_right"} <= oar),
-        "delgadas": {"optic_nerve_left", "optic_nerve_right",
-                     "pharyngeal_constrictor_superior",
-                     "pharyngeal_constrictor_middle",
-                     "pharyngeal_constrictor_inferior"} <= delgadas,
-        "cava": u"def sem_a_cava_nos_cortes(" in src_eng,
         "contornos": (u"def acabar_contornos(" in src_eng
                       and u"acabar_contornos(ds" in acab),
         "implicito_em_todo": _fora_do_bloco(
@@ -8740,14 +8473,15 @@ def _divergencias_da_19(f, termos, politica):
 
 def teste_o_que_a_v86_muda_na_19():
     secao(u"documentos 1.9: o retorno de campo de 19/10 (a parotida so dos "
-          u"niveis, as estruturas finas, o Heart_ai sem a cava, o RTSTRUCT "
-          u"limpo e em Implicit VR, os aneis renomeados, o DicomBridge em um "
-          u"pipeline e o CD, o Elastic e o bolus no acervo, a barra na aba)")
+          u"niveis, o RTSTRUCT limpo e em Implicit VR, os aneis renomeados, o "
+          u"DicomBridge em um pipeline e o CD, o Elastic e o bolus no acervo, "
+          u"a barra na aba; o Heart_ai e as estruturas finas mudaram na 2.0)")
     import radai_consent as CS
     termos = _plano(CS.TERMOS)
     politica = _plano(CS.POLITICA)
-    checar(u"a versao dos documentos e a 1.9, de 20/10/2026",
-           CS.VERSAO_DOCS == u"1.9" and CS.DATA_DOCS == u"2026-10-20",
+    checar(u"a versao dos documentos e a 1.9 ou posterior, de outubro de 2026",
+           tuple(int(x) for x in CS.VERSAO_DOCS.split(u".")) >= (1, 9)
+           and CS.DATA_DOCS.startswith(u"2026-10"),
            u"%s %s" % (CS.VERSAO_DOCS, CS.DATA_DOCS))
     checar(u"  e a 1.8 continua em IMPRESSOES_PUBLICADAS como foi publicada",
            CS.IMPRESSOES_PUBLICADAS.get(u"1.8", u"").startswith(u"3d4a4f87")
@@ -8800,6 +8534,979 @@ def teste_o_que_a_v86_muda_na_19():
                               u"ImplicitVRLittleEndian"))
 
 
+def _compacto(texto):
+    return re.sub(r"\s+", u"", texto or u"")
+
+
+_MARCAS_DA_20 = {
+    "rotulos_novos": (
+        (u"termos", u"(rótulo RadAI_FULL ) leva tudo"),
+        (u"termos", u"(rótulo RadAI_STUDY ) é uma"),
+        (u"termos", u"(rótulo RadAI_STUDY_Fast , arquivo"),
+        (u"termos", u"O TotalSegmentator cru (rótulo RadAI_TS )"),
+        (u"termos", u"(rótulo RadAI_ e o código dele, como RadAI_ORB )"),
+        (u"politica", u"a do RadAI_STUDY, que sai logo depois de gravada"),
+        (u"creditos", u"conjunto do TotalSegmentator ( RadAI_TS )"),
+        (u"creditos", u"nunca no conjunto completo ( RadAI_FULL )"),
+        (u"creditos", u"entregue ao TPS ( RadAI_STUDY )"),
+        (u"notice", u"conjunto completo (RadAI_FULL)"),
+        (u"pontos", u"conjunto do TotalSegmentator (RadAI_TS)")),
+    "rotulos_antigos": (
+        (u"termos", u"Os rótulos de antes."),
+        (u"termos", u"continuam legíveis com os nomes que têm"),
+        (u"termos", u"a série segmentada com os rótulos antigos conta como "
+                    u"pronta")),
+    "tags_no_study": (
+        (u"termos", u"As tags próprias."),
+        (u"termos", u"o nome padrão e «sugestao IA nao aprovada»"),
+        (u"termos", u"com o algoritmo de geração AUTOMATIC"),
+        (u"pontos", u"Com as tags próprias da estação, uma estrutura do "
+                    u"entregue pode sair sem o sufixo"),
+        (u"notice", u"guarda o nome padrao e \"sugestao IA nao aprovada\"")),
+    "tags_recusam_alvo_e_corpo": (
+        (u"termos", u"começar por GTV, CTV, ITV ou PTV"),
+        (u"termos", u"nem de contorno externo (BODY, External)"),
+        (u"termos", u"sem espaço no começo nem no fim e sem contrabarra")),
+    "moradas_novas": (
+        (u"politica", u"( nomes_proprios.json :"),
+        (u"politica", u"( protocolos_proprios.json :"),
+        (u"politica", u"o desinstalador oferece guardá-los"),
+        (u"politica", u"os nomes próprios e os protocolos próprios, o "
+                      u"acervo")),
+    "protocolo_proprio": (
+        (u"termos", u"Ligar é um ato, e os três que existem"),
+        (u"termos", u"Um protocolo próprio pode incluir achado"),
+        (u"termos", u"a declaração é pedida a cada envio à fila"),
+        (u"termos", u"os protocolos RT e a seleção livre se desligam"),
+        (u"termos", u"Cada protocolo vale para uma modalidade"),
+        (u"pontos", u"protocolo próprio da estação que inclua achado"),
+        (u"creditos", u"um protocolo próprio da estação que inclua achado")),
+    "protocolo_fora_do_fast": (
+        (u"termos", u"e o FAST também não"),),
+    "exportar_config": (
+        (u"politica", u"menos as que são desta máquina ( DEVICE , PORT e "
+                      u"GUIA_VISTO )"),
+        (u"politica", u"Ele não leva a chave do pseudônimo, o acervo, a fila "
+                      u"nem dado de paciente"),
+        (u"politica", u"não grava o caminho que não existe nesta máquina"),
+        (u"termos", u"não viajam a chave do pseudônimo, o acervo nem a "
+                    u"fila")),
+    "sem_otimizar": (
+        (u"termos", u"Ele não fecha programa nenhum e não para nem religa "
+                    u"serviço do Windows"),
+        (u"termos", u"( _overnight_servicos.json , na pasta do programa)"),
+        (u"politica", u"o otimizar.json que o «Otimizar» de antes deixou")),
+    "primeiro_uso_sem_tps": (
+        (u"termos", u"O primeiro uso não pergunta o sistema de "
+                    u"planejamento"),
+        (u"termos", u"«Pular por agora»")),
+    "anel_em_geral": (
+        (u"termos", u"«Ajuste de contornos em anel»"),),
+    "tema_escuro": (
+        (u"termos", u"sem escolha o tema abre escuro"),
+        (u"politica", u"que sem escolha abre escuro")),
+    "guia": (
+        (u"termos", u"«Ver o guia de novo»"),
+        (u"politica", u"foi visto nesta estação ( GUIA_VISTO )")),
+    "tela_cheia": (
+        (u"termos", u"em modo de aplicativo e em tela cheia"),
+        (u"termos", u"confere pela linha de comando do processo do "
+                    u"navegador"),
+        (u"termos", u"manda o F11 uma vez por janela")),
+    "atualizar_um_clique": (
+        (u"termos", u"A atualização com um clique."),
+        (u"politica", u"Sozinha, ela não baixa nada"),
+        (u"politica", u"recusa a release que não publica a soma SHA-256 do "
+                      u"arquivo"),
+        (u"politica", u"a pasta radai_atualizar"),
+        (u"politica", u"( radai_atualizar.log , na pasta do programa)"),
+        (u"politica", u"pede uma segunda confirmação")),
+    "mapear": (
+        (u"politica", u"abre o diálogo de mapeamento do próprio Windows"),
+        (u"politica", u"o programa não os vê")),
+    "varredura": (
+        (u"politica", u"no «Rodar agora», no «Ver segmentação», no "
+                      u"DicomBridge, na Fusão elástica e no «Gerar bólus»"),
+        (u"politica", u"cada uma com o corte central primeiro"),
+        (u"politica", u"pela data de modificação da pasta, sem abrir DICOM "
+                      u"nenhum")),
+    "importar_imagem": (
+        (u"termos", u"«Importar imagem», o quarto botão do cartão de "
+                    u"carregar"),
+        (u"politica", u"«Importar imagem», que abre o explorador de arquivos "
+                      u"do navegador")),
+    "cava_separada": (
+        (u"termos", u"só onde está separada dele"),
+        (u"termos", u"nenhum pixel desses três sai")),
+    "esofago_fora": (
+        (u"termos", u"saem dele o esôfago e os outros vizinhos de fora do "
+                    u"pericárdio"),),
+    "bag_furos": (
+        (u"termos", u"depois de todas as subtrações, o furo de cada corte "
+                    u"axial é preenchido"),),
+    "delgadas": (
+        (u"termos", u"Os nervos ópticos, o quiasma, os constritores da "
+                    u"faringe e a tireoide saem sem suavização da máscara"),
+        (u"termos", u"menos nas estruturas finas — os nervos ópticos, o "
+                    u"quiasma, os constritores da faringe e a tireoide —")),
+    "mandibula_cheia": (
+        (u"termos", u"A mandíbula sai cheia."),
+        (u"termos", u"a suavização dela nunca tira área")),
+    "ventriculos": (
+        (u"termos", u"são recortados para dentro do encéfalo"),),
+    "ivb": (
+        (u"termos", u"o nível IVb de cada lado perde a clavícula do mesmo "
+                    u"lado"),
+        (u"notice", u"o nivel IVb de cada lado perde a clavicula do mesmo "
+                    u"lado")),
+    "estruturas_novas": (
+        (u"termos", u"A laringe ( Larynx_ai )"),
+        (u"termos", u"( TMJ_L_ai e TMJ_R_ai )"),
+        (u"termos", u"A soma dos pulmões ( Lungs_ai )")),
+    "lungs_no_pescoco": (
+        (u"termos", u"vai ao entregue no lugar dos dois pulmões"),),
+    "brain_rm_fora": (
+        (u"termos", u"O encéfalo de uma RM ( Brain_ai ) fica só no "
+                    u"completo"),),
+    "study_vazio": (
+        (u"termos", u"«STUDY: saiu vazio»"),),
+    "plano_da_serie": (
+        (u"termos", u"esse acabamento é feito no plano dos cortes da "
+                    u"própria série"),),
+    "sem_otimizador": (
+        (u"termos", u"o preparador tira dos checkpoints dos pesos dele o "
+                    u"estado do otimizador"),
+        (u"creditos", u"os checkpoints dele saem sem o estado do "
+                      u"otimizador"),
+        (u"notice", u"MODIFICACAO DOS PESOS (Apache License 2.0, secao 4, "
+                    u"item b)"),
+        (u"notice", u"vai sem as bibliotecas de ligacao (.lib)")),
+    "chave_fora_da_nuvem": (
+        (u"politica", u"numa pasta que o programa reconhece como "
+                      u"sincronizada com a nuvem ela não é gravada"),),
+    "aplicador": (
+        (u"termos", u"Um canal que cai no meio, com canais aceitos dos dois "
+                    u"lados, também impede a geração"),
+        (u"termos", u"o melhor canal — o de menos trajeto sem pele"),
+        (u"termos", u"a borda do volume parcial dos voxels do cruzamento")),
+    "turno_acordado": (
+        (u"termos", u"pede ao Windows para não suspender a estação, mesmo "
+                    u"com a fila vazia"),),
+    "rm_sugerida": (
+        (u"termos", u"num exame sem TC, a RM do exame"),),
+    "instalador_fecha_janelas": (
+        (u"termos", u"fecha as janelas do navegador do programa"),),
+    "elastic_pede_pasta": (
+        (u"politica", u"com o campo vazio, a tela pede a pasta"),),
+    "diagnosticos_e_registros": (
+        (u"termos", u"em Diagnósticos e Registros"),),
+    "nova_tentativa": (
+        (u"politica", u"«Tentar novamente»; para atender esse botão, o "
+                      u"lançador escuta só nesta estação ( 127.0.0.1 )"),),
+}
+
+_FRASES_DA_19_QUE_SAIRAM = (
+    (u"termos", u"sai o que cruza a veia cava inferior e fica o do ápice"),
+    (u"termos", u"Os nervos ópticos e os constritores da faringe saem sem "
+                u"suavização"),
+    (u"termos", u"planejamento de destino e a pasta dos exames, na tela do "
+                u"primeiro uso"),
+    (u"termos", u"fecha programas"),
+    (u"termos", u"Diagnosticar e otimizar"),
+    (u"termos", u"(rótulo STUDY_full )"),
+    (u"termos", u"(rótulo RadAI_OAR )"),
+    (u"termos", u"O TotalSegmentator cru ( STUDY_ts )"),
+    (u"termos", u"Ligar é um ato, e os dois que existem"),
+    (u"termos", u"imagem JPEG ou PNG"),
+    (u"politica", u"Não baixa nada"),
+    (u"politica", u"com o campo vazio, a pasta dos exames configurada"),
+    (u"politica", u"a do RadAI_OAR, que sai"),
+    (u"politica", u"imagens JPEG ou PNG"),
+    (u"pontos", u"(STUDY_ts)"),
+    (u"pontos", u"a imagem convertida de JPEG ou PNG"),
+    (u"creditos", u"STUDY_ts"),
+    (u"creditos", u"STUDY_full"),
+    (u"creditos", u"RadAI_OAR"),
+    (u"notice", u"Listas copiadas do Workstation RT"),
+    (u"notice", u"rotulo STUDY_ e o codigo dele"),
+)
+
+_FORMATOS_DA_IMAGEM = ((u"JPEG", (u".jpg", u".jpeg")), (u"PNG", (u".png",)),
+                       (u"TIFF", (u".tif", u".tiff")), (u"BMP", (u".bmp",)))
+_POR_EXTENSO_DA_20 = {8: u"oito"}
+
+
+def _docs_da_20():
+    import radai_consent as CS
+    import radai_credits as CR
+    return {u"termos": _plano(CS.TERMOS), u"politica": _plano(CS.POLITICA),
+            u"creditos": _plano(CR.pagina()), u"notice": CR.ler_notice(),
+            u"pontos": u" ".join(t + u" " + d for (_c, t, d) in CS.PONTOS)}
+
+
+def _fatos_da_20():
+    src_eng = ler(u"app/engine.py")
+    v_eng = _valores_do_modulo(src_eng)
+    v_sets = _valores_do_modulo(ler(u"app/radai_sets.py"))
+    src_cfg = ler(u"app/radai_config.py")
+    v_cfg = _valores_do_modulo(src_cfg)
+    src_cons = ler(u"app/radai_constructs.py")
+    v_cons = _valores_do_modulo(src_cons)
+    src_batch = ler(u"app/radai_batch.py")
+    src_hnl = ler(u"app/radai_hnlnl.py")
+    src_clean = ler(u"app/radai_cleaner.py")
+    src_ov = ler(u"app/radai_overnight.py")
+    src_pu = ler(u"app/radai_primeiro_uso.py")
+    src_est = ler(u"app/radai_config_estacao.py")
+    src_lanc = ler(u"app/radai_lancador.py")
+    src_jan = ler(u"app/radai_janela.py")
+    src_ver = ler(u"app/radai_version.py")
+    src_atu = ler(u"app/radai_atualizar.py")
+    src_var = ler(u"app/radai_varrer.py")
+    v_var = _valores_do_modulo(src_var)
+    src_ap = ler(u"app/radai_bolus_aplicador.py")
+    src_upd = ler(u"packager/UPDATE.ps1")
+    src_prep = ler(u"build/configurar_ambiente.py")
+    v_nid = _valores_do_modulo(ler(u"app/radai_nidus.py"))
+    v_nids = _valores_do_modulo(ler(u"app/radai_nidus_screen.py"))
+    inst = ler(u"installer/INSTALL.ps1")
+    un = ler(u"installer/UNINSTALL.ps1")
+    coracao = _fonte_da_funcao(src_eng, "_acabamento_do_coracao")
+    rot_antigos = v_sets.get("ROTULOS_DE_GERACOES_ANTERIORES") or {}
+    contidas = v_eng.get("CONTIDAS_EM") or {}
+    telas_da_varredura = [ler(u"app/" + n) for n in (
+        "radai_batch.py", "radai_view.py", "radai_bridge.py",
+        "radai_elastic_screen.py", "radai_bolus_screen.py")]
+    exporta = _fonte_da_funcao(src_cfg, "exportar")
+    m_log = re.search(r"radai_atualizar\.log.*?Length -gt (\d+)MB", src_upd,
+                      re.S)
+    incid = dict((str(i[0]), (i[1], i[2]))
+                 for i in (v_nid.get("INCIDENCIAS") or ()) if len(i) == 3)
+    return {
+        "rotulos_novos": (
+            v_sets.get("ROTULO_FULL") == u"RadAI_FULL"
+            and v_sets.get("ROTULO_STUDY") == u"RadAI_STUDY"
+            and v_sets.get("ROTULO_STUDY_FAST") == u"RadAI_STUDY_Fast"
+            and v_sets.get("PREFIXO_DO_ROTULO") == u"RadAI_"),
+        "rotulos_antigos": (
+            {u"RadAI_OAR", u"RadAI_OAR_Fast", u"STUDY_full"} <= set(rot_antigos)
+            and v_sets.get("PREFIXO_DE_ROTULO_ANTERIOR") == u"STUDY_"),
+        "tags_no_study": (
+            v_sets.get("DESCRICAO_DA_ROI") == u"%s - sugestao IA nao aprovada"
+            and u'roi.ROIGenerationAlgorithm = "AUTOMATIC"' in src_eng
+            and u"def _nomes_do_entregue(" in src_eng),
+        "tags_recusam_alvo_e_corpo": (
+            tuple(v_cfg.get("PREFIXOS_DE_ALVO") or ())
+            == (u"GTV", u"CTV", u"ITV", u"PTV")
+            and tuple(v_cfg.get("NOMES_DE_CORPO") or ())
+            == (u"BODY", u"EXTERNAL")
+            and bool(v_cfg.get("MOTIVO_CONTRABARRA"))),
+        "moradas_novas": (
+            v_cfg.get("NOME_DOS_NOMES") == u"nomes_proprios.json"
+            and v_cfg.get("NOME_DOS_PROTOCOLOS") == u"protocolos_proprios.json"
+            and all(n in t for n in (u"nomes_proprios.json",
+                                     u"protocolos_proprios.json")
+                    for t in (inst, un))),
+        "protocolo_proprio": (
+            u'escolha.get("achado_declarado")' in _fonte_da_funcao(
+                src_batch, "tasks_do_perso")
+            and u"function _pedirADeclaracao(" in src_batch
+            and u'e["protocolos"] = (() if e["protocolo_proprio"] else'
+            in src_batch
+            and tuple(v_cfg.get("MODALIDADES") or ()) == (u"CT", u"MR")),
+        "protocolo_fora_do_fast": any(
+            u"o protocolo proprio vale so no PERSONALIZADO" in s
+            for s in _strings_do_fonte(ler(u"app/radai_output.py"))),
+        "exportar_config": (
+            tuple(v_cfg.get("DA_MAQUINA") or ())
+            == (u"DEVICE", u"PORT", u"GUIA_VISTO")
+            and u"não será gravado" in (v_cfg.get("MOTIVO_CAMINHO") or u"")
+            and bool(exporta)
+            and not any(x in exporta for x in (u"segredo", u"pseudonimo",
+                                               u"acervo", u"fila"))),
+        "sem_otimizar": (
+            u"def liberar(" not in src_clean
+            and u"_APAGAVEIS" not in src_clean
+            and u"def apagar_estado_antigo_do_otimizar(" in src_clean
+            and u"def apagar_registro_antigo(" in src_ov
+            and u"def pausar" not in src_ov),
+        "primeiro_uso_sem_tps": (
+            u"radai_config.TPS_PADRAO" in _fonte_da_funcao(src_pu, "gravar")
+            and u'id="pu_pular"' in src_pu and u"data-tps=" not in src_pu
+            and v_cfg.get("TPS_PADRAO") == u"eclipse"),
+        "anel_em_geral": (u"Ajuste de contornos em anel" in src_est
+                          and u'data-tps="monaco"' in src_est),
+        "tema_escuro": _valores_do_modulo(ler(u"app/radai_ui.py")).get(
+            "TEMA_PADRAO") == u"escuro",
+        "guia": (_valores_do_modulo(ler(u"app/radai_roteiro.py")).get("CHAVE")
+                 == u"GUIA_VISTO" and u"Ver o guia de novo" in src_est),
+        "tela_cheia": (u'"--app=" + alvo' in src_lanc
+                       and u'"--start-fullscreen"' in src_lanc
+                       and u"VK_F11" in src_jan
+                       and u"PROCESS_COMMAND_LINE_INFORMATION" in src_jan),
+        "atualizar_um_clique": (
+            u"def baixar_instalador(" in src_ver
+            and u"a release não publica a soma SHA-256" in src_ver
+            and _valores_do_modulo(src_atu).get("PASTA_DE_TRABALHO")
+            == u"radai_atualizar"
+            and u"def lancar_preparador(" in src_atu
+            and u"def limpar_o_baixado(" in src_atu
+            and m_log is not None),
+        "mapear": u"WNetConnectionDialog" in src_var,
+        "varredura": (
+            all(u"uiVarrer" in s or u"/api/varrer" in s
+                for s in telas_da_varredura)
+            and u"st_mtime" in _fonte_da_funcao(src_var, "dentro_da_data")),
+        "importar_imagem": (u"Importar imagem" in ler(u"app/radai_ui.py")
+                            and u"imagens=" in ler(u"app/radai_bridge.py")),
+        "cava_separada": (u"def _sem_a_cava_separada(" in src_eng
+                          and u"protegido=prot" in coracao),
+        "esofago_fora": (u"esophagus" in tuple(
+            v_eng.get("FORA_DO_PERICARDIO") or ())
+            and u"_vizinhos_de_fora_do_pericardio(" in coracao),
+        "bag_furos": u"_sem_furo_nos_cortes(" in _fonte_da_funcao(
+            src_cons, "bag_bowel_oar"),
+        "delgadas": {u"optic_nerve_left", u"optic_nerve_right",
+                     u"optic_chiasm", u"pharyngeal_constrictor_superior",
+                     u"pharyngeal_constrictor_middle",
+                     u"pharyngeal_constrictor_inferior",
+                     u"thyroid_gland"} <= set(
+                         v_eng.get("ESTRUTURAS_DELGADAS") or ()),
+        "mandibula_cheia": (u"def mandibula_cheia(" in src_cons
+                            and tuple(v_cons.get("DENTES_DA_MANDIBULA") or ())
+                            == (u"teeth_lower",)
+                            and u'"sem_perder_area": True' in src_eng),
+        "ventriculos": (contidas.get(u"brain_ventricles") == u"brain"
+                        and contidas.get(u"brain_midline") == u"brain"),
+        "ivb": (u"def acabamento_do_ivb(" in src_hnl
+                and u"def acabamento_da_uniao_sem_a_clavicula(" in src_hnl),
+        "estruturas_novas": {u"larynx", u"tmj_left", u"tmj_right",
+                             u"lungs"} <= set(
+                                 v_sets.get("PERMITIDOS_NO_OAR") or ()),
+        "lungs_no_pescoco": {u"lung_left", u"lung_right"} <= set(
+            v_eng.get("FORA_DO_OAR_NO_PESCOCO_SEM_TORAX") or ()),
+        "brain_rm_fora": tuple((v_eng.get("FORA_DO_OAR_NA_MODALIDADE")
+                                or {}).get(u"MR") or ()) == (u"brain",),
+        "study_vazio": u"STUDY: saiu vazio" in ler(u"app/radai_output.py"),
+        "plano_da_serie": (u"def plano_da_serie(" in src_eng
+                           and u"para_o_plano_da_serie(" in src_eng),
+        "sem_otimizador": (u"optimizer_state" in src_prep
+                           and u"def tirar_lib_do_torch(" in src_prep),
+        "chave_fora_da_nuvem": all(
+            u"em_pasta_sincronizada" in s for s in (
+                ler(u"app/radai_records.py"), ler(u"app/radai_validation.py"))),
+        "aplicador": (u"def recusa_canal_no_meio(" in src_ap
+                      and u'"motivo": "nenhum_canal"' in src_ap
+                      and u"def borda_por_volume_parcial(" in src_ap),
+        "turno_acordado": u'STATE.get("overnight")' in _fonte_da_funcao(
+            ler(u"app/radai_watcher.py"), "fila_ocupada"),
+        "rm_sugerida": u"RM do exame" in ler(u"app/radai_triage.py"),
+        "instalador_fecha_janelas": (
+            u"function FecharJanelasDoApp" in ler(u"packager/prepare.ps1")
+            and u"radai_janela" in ler(u"packager/prepare.ps1")),
+        "elastic_pede_pasta": u"ESCOLHA_A_PASTA = " in ler(
+            u"app/radai_elastic_screen.py"),
+        "diagnosticos_e_registros": u"Diagnósticos e Registros" in ler(
+            u"app/radai_panel.py"),
+        "nova_tentativa": (u'srv.bind(("127.0.0.1", 0))' in src_lanc
+                           and u"Tentar novamente" in ler(
+                               u"app/radai_carregando.py")),
+        "_teto_nova_tentativa_s": _valores_do_modulo(src_lanc).get(
+            "TETO_DA_NOVA_TENTATIVA_S"),
+        "_limite_do_nome": v_cfg.get("LIMITE_DO_NOME"),
+        "_dias": tuple(v_var.get("DIAS_DO_FILTRO") or ()),
+        "_dias_padrao": v_var.get("DIAS_PADRAO"),
+        "_validade_s": v_var.get("VALIDADE_S"),
+        "_teto_guardadas": v_var.get("TETO_GUARDADAS"),
+        "_extensoes": tuple(_valores_do_modulo(ler(u"app/radai_image.py")).get(
+            "EXTENSOES") or ()),
+        "_towne": incid.get(u"Towne"),
+        "_caldwell": incid.get(u"Caldwell"),
+        "_malhas_mb": v_nids.get("TETO_MALHAS_MB"),
+        "_soltar_s": v_nids.get("SOLTAR_APOS_S"),
+        "_fechamento_laringe": v_cons.get("FECHAMENTO_DA_LARINGE_MM"),
+        "_margem_atm": v_cons.get("ATM_ALEM_DO_CONDILO_MM"),
+        "_limiar_hu": _valores_do_modulo(ler(u"app/radai_skin.py")).get(
+            "LIMIAR_AR_HU"),
+        "_log_atualizar_mb": int(m_log.group(1)) if m_log else None,
+    }
+
+
+def _medidas_da_20(f):
+    fora, marcas = [], []
+
+    def exige(chave, doc, montar):
+        v = f.get(chave)
+        try:
+            marca = montar(v) if v is not None else None
+        except Exception:
+            marca = None
+        if not marca:
+            fora.append(u"nao li %s do codigo (%r)" % (chave, v))
+            return
+        marcas.append((doc, marca))
+
+    exige("_limite_do_nome", u"termos",
+          lambda v: u"O nome próprio tem até %d caracteres" % int(v))
+
+    def _dias(v):
+        dias = [int(d) for d in v if int(d)]
+        pad = int(f.get("_dias_padrao"))
+        rot = [u"%d (de partida)" % d if d == pad else u"%d" % d for d in dias]
+        t = u", ".join(rot[:-1]) + u" ou " + rot[-1]
+        return t + (u", ou todas" if 0 in [int(d) for d in v] else u"")
+    exige("_dias", u"politica", _dias)
+    exige("_validade_s", u"politica",
+          lambda v: u"até %d minutos depois de ela terminar" % int(
+              round(float(v) / 60.0)))
+    exige("_teto_guardadas", u"politica",
+          lambda v: u"no máximo %s leituras" % _POR_EXTENSO_DA_20.get(
+              int(v), u"%d" % int(v)))
+
+    def _formatos(v):
+        ext = set(e.lower() for e in v)
+        conhecidas = set(e for _n, es in _FORMATOS_DA_IMAGEM for e in es)
+        if not ext or ext - conhecidas:
+            return None
+        nomes = [n for n, es in _FORMATOS_DA_IMAGEM if ext & set(es)]
+        return u", ".join(nomes[:-1]) + u" ou " + nomes[-1]
+    for doc in (u"termos", u"politica", u"pontos"):
+        exige("_extensoes", doc, _formatos)
+    exige("_towne", u"termos", lambda v: u"Towne é CRA %d" % int(v[1])
+          if float(v[0]) == 0 and float(v[1]) > 0 else None)
+    exige("_caldwell", u"termos", lambda v: u"Caldwell, CAU %d" % abs(
+        int(v[1])) if float(v[0]) == 0 and float(v[1]) < 0 else None)
+    for doc in (u"termos", u"politica"):
+        exige("_malhas_mb", doc, lambda v: u"no máximo %d MB" % int(v))
+        exige("_soltar_s", doc, lambda v: u"depois de %d minutos sem uso"
+              % int(round(float(v) / 60.0)))
+    exige("_fechamento_laringe", u"termos",
+          lambda v: u"com um fechamento de %s mm" % _num_pt(v))
+    exige("_margem_atm", u"termos",
+          lambda v: u"com %s mm de margem em 3D" % _num_pt(v))
+    exige("_limiar_hu", u"termos",
+          lambda v: u"cruzamento de −%d HU" % abs(int(v)) if v < 0 else None)
+    exige("_log_atualizar_mb", u"politica",
+          lambda v: u"recomeça quando passa de %d MB" % int(v))
+    exige("_teto_nova_tentativa_s", u"politica",
+          lambda v: u"com uma ficha no endereço, por até %d minutos" % int(
+              round(float(v) / 60.0)))
+    return fora, marcas
+
+
+def _divergencias_da_20(f, docs):
+    d = dict((k, _compacto(v)) for k, v in docs.items())
+    fora = []
+    for chave, marcas in sorted(_MARCAS_DA_20.items()):
+        fato = bool(f.get(chave))
+        for doc, marca in marcas:
+            diz = _compacto(marca) in d[doc]
+            if fato is not diz:
+                fora.append(u"%s: o codigo %s, e %s %s «%s»" % (
+                    chave, u"faz" if fato else u"NAO faz", doc,
+                    u"diz" if diz else u"cala", marca[:60]))
+    falta, medidas = _medidas_da_20(f)
+    fora.extend(falta)
+    for doc, marca in medidas:
+        if _compacto(marca) not in d[doc]:
+            fora.append(u"%s nao diz «%s», que e o que o codigo faz"
+                        % (doc, marca))
+    for doc, velha in _FRASES_DA_19_QUE_SAIRAM:
+        if _compacto(velha) in d[doc]:
+            fora.append(u"%s ainda diz %r" % (doc, velha[:60]))
+    return fora
+
+
+def teste_o_que_a_v87_muda_na_20():
+    secao(u"documentos 2.0: o que a versao muda (os conjuntos "
+          u"RadAI_FULL e RadAI_STUDY, as tags e os protocolos proprios, o "
+          u"Otimizar que saiu, o primeiro acesso, a janela, a atualizacao "
+          u"com um clique, a varredura, o motor, o Nidus RT e o pacote)")
+    import radai_consent as CS
+    checar(u"a versao dos documentos e a 2.0, de 25/10/2026",
+           CS.VERSAO_DOCS == u"2.0" and CS.DATA_DOCS == u"2026-10-25",
+           u"%s %s" % (CS.VERSAO_DOCS, CS.DATA_DOCS))
+    checar(u"  e a 1.9 continua em IMPRESSOES_PUBLICADAS como foi publicada",
+           CS.IMPRESSOES_PUBLICADAS.get(u"1.9", u"").startswith(u"087a47ba")
+           and CS.RESSELAGENS_ANTES_DA_PUBLICACAO.get(u"1.9") == 2)
+    docs = _docs_da_20()
+    f = _fatos_da_20()
+    bools = sorted(k for k in f if not k.startswith(u"_"))
+    checar(u"  (li do codigo: %s)" % u", ".join(
+        u"%s=%s" % (k, f[k]) for k in sorted(f)),
+        all(f[k] for k in bools) and sorted(_MARCAS_DA_20) == bools,
+        u"sem fato ou sem marca: %s" % sorted(set(bools)
+                                              ^ set(_MARCAS_DA_20)))
+    div = _divergencias_da_20(f, docs)
+    checar(u"o que a 2.0 muda: o codigo, os Termos, a Politica, os "
+           u"pontos do aceite, os Creditos e o NOTICE dizem o mesmo",
+           not div, u" | ".join(div))
+    for chave in bools:
+        checar(u"  isca: o codigo deixa de fazer «%s», com os documentos de "
+               u"hoje: reprova" % chave,
+               bool(_divergencias_da_20(dict(f, **{chave: False}), docs)))
+    for chave, marcas in sorted(_MARCAS_DA_20.items()):
+        for doc, marca in marcas:
+            d2 = dict(docs)
+            d2[doc] = _compacto(docs[doc]).replace(_compacto(marca), u"X")
+            checar(u"  isca: %s cala «%s» de %s: reprova" % (
+                doc, marca[:40], chave), bool(_divergencias_da_20(f, d2)))
+    for doc, velha in _FRASES_DA_19_QUE_SAIRAM:
+        d2 = dict(docs)
+        d2[doc] = docs[doc] + u" " + velha
+        checar(u"  isca: %s volta a dizer %r: reprova" % (doc, velha[:40]),
+               bool(_divergencias_da_20(f, d2)))
+    for chave, novo in (("_limite_do_nome", 20), ("_dias_padrao", 3),
+                        ("_dias", (1, 3, 7, 14, 0)), ("_validade_s", 1800.0),
+                        ("_teto_guardadas", 9),
+                        ("_extensoes", (u".png", u".jpg", u".gif")),
+                        ("_towne", (0.0, 35.0)), ("_caldwell", (0.0, -20.0)),
+                        ("_malhas_mb", 32), ("_soltar_s", 300.0),
+                        ("_fechamento_laringe", 5.0), ("_margem_atm", 2.0),
+                        ("_limiar_hu", -400.0), ("_log_atualizar_mb", 2),
+                        ("_teto_nova_tentativa_s", 300.0),
+                        ("_limiar_hu", None)):
+        checar(u"  isca: o codigo muda %s para %r, com os documentos de "
+               u"hoje: reprova" % (chave, novo),
+               bool(_divergencias_da_20(dict(f, **{chave: novo}), docs)))
+
+
+_MARCAS_DA_20_RESSELADA = {
+    "janela_pelo_titulo": (
+        (u"termos", u"o motor acha a janela do programa pelo título"),
+        (u"termos", u"é aceita sem ler processo nenhum"),
+        (u"termos", u"só quando o título não basta ele confere pela linha de "
+                    u"comando"),
+        (u"termos", u"Uma linha no log do vigia diz por qual dos dois "
+                    u"caminhos a janela foi achada")),
+    "janela_reconferida": (
+        (u"termos", u"a janela guardada se reconfere pelo processo dono e pela "
+                    u"classe dela"),),
+    "f11_so_sem_cobrir": (
+        (u"termos", u"só se ela ainda não cobre o monitor inteiro"),
+        (u"termos", u"antes, a traz para a frente")),
+    "enxugar_no_registro": (
+        (u"termos", u"o preparador tira o estado do otimizador também dos "
+                    u"checkpoints dos níveis cervicais, do modelo do encéfalo "
+                    u"em TC, do MOOSE e do CADS"),
+        (u"termos", u"e não na instalação direta numa estação"),
+        (u"termos", u"conferido pela soma SHA-256 que o registro de modelos "
+                    u"guarda para ele"),
+        (u"creditos", u"os checkpoints dos níveis cervicais, do encéfalo em "
+                      u"TC, do MOOSE e do CADS também saem sem o estado do "
+                      u"otimizador"),
+        (u"notice", u"MODIFICACAO DO PESO (CC BY-SA 4.0, secao 3(a)(1)(B))"),
+        (u"notice", u"MODIFICACAO DOS PESOS (CC BY 4.0, secao 3(a)(1)(B))"),
+        (u"notice", u"MODIFICACAO DOS PESOS. A CC0 nao pede que ela seja "
+                    u"indicada")),
+    "estacao_aceita_os_dois": (
+        (u"termos", u"A estação aceita, de cada um, o arquivo da origem ou o "
+                    u"enxuto"),),
+    "vascular_pela_segmentacao": (
+        (u"termos", u"tira o osso da projeção pela segmentação que o "
+                    u"ContourLab gravou para a série"),
+        (u"termos", u"lida só na memória do programa, como no Nidus RT"),
+        (u"termos", u"sem HU, como na RM, e sem segmentação, o osso fica na "
+                    u"projeção")),
+    "atm_plano_medio": (
+        (u"termos", u"O lado sai de um plano médio que passa pelo centro do "
+                    u"crânio sem a mandíbula"),
+        (u"termos", u"do encéfalo, da vértebra C1 ou da C2"),
+        (u"termos", u"o log da série diz qual referência valeu")),
+    "aplicador_dois_eixos": (
+        (u"termos", u"traça os canais nas duas direções perpendiculares à "
+                    u"colocação e fica com a que acomoda mais canais"),),
+    "caixa_sugerida": (
+        (u"termos", u"a recusa propõe uma caixa aparada"),
+        (u"termos", u"«Usar a caixa sugerida»: a caixa só muda com esse "
+                    u"clique")),
+    "fundo_cego_ate_o_fundo": (
+        (u"termos", u"No canal de fundo cego, a pele é exigida só até o fundo "
+                    u"do canal"),),
+    "imagem_medida_e_ordem": (
+        (u"termos", u"a escala medida por você com dois cliques numa "
+                    u"distância conhecida da própria imagem"),
+        (u"termos", u"A ordem dos cortes é a dos arquivos, e só você a "
+                    u"inverte"),
+        (u"termos", u"a tela só converte depois que você confere"),
+        (u"politica", u"digitada ou medida numa distância conhecida da própria "
+                      u"imagem"),
+        (u"politica", u"se a ordem dos cortes foi invertida")),
+    "rt_utils_reproduzido": (
+        (u"notice", u"A montagem da ROI do rt-utils, reproduzida no motor"),
+        (u"notice", u"Copyright (c) 2021 Qurit")),
+}
+
+_FRASES_DA_20_QUE_SAIRAM_ANTES_DA_PUBLICACAO = (
+    (u"termos", u"nenhuma outra janela do navegador é tocada"),
+    (u"termos", u"o motor procura a janela do programa pelo título, confere"),
+    (u"termos", u"A escala e a espessura dela são digitadas por você"),
+    (u"politica", u"a escala, confirmada ao lado do MPR"),
+    (u"politica", u"guarda a geometria que você digitou e o ID gerado"),
+)
+
+_DO_REGISTRO_ENXUTO = ("hnlnl", "cranio_buti", "moose", "cads_open")
+_POR_EXTENSO_DA_20R = {10: u"dez"}
+
+
+def _toda_chamada_sob_teste(src, chamada, teste):
+    try:
+        arv = ast.parse(src or u"")
+    except SyntaxError:
+        return False
+    pais = dict((f, no) for no in ast.walk(arv)
+                for f in ast.iter_child_nodes(no))
+    achou = False
+    for no in ast.walk(arv):
+        if not (isinstance(no, ast.Call)
+                and getattr(no.func, "id", None) == chamada):
+            continue
+        achou = True
+        p = pais.get(no)
+        while p is not None and not (
+                isinstance(p, ast.If) and u" ".join(
+                    (ast.get_source_segment(src, p.test) or u"").split())
+                == teste):
+            p = pais.get(p)
+        if p is None:
+            return False
+    return achou
+
+
+def _fatos_da_20_resselada():
+    import radai_models as RM
+    src_jan = ler(u"app/radai_janela.py")
+    v_jan = _valores_do_modulo(src_jan)
+    volta = _fonte_da_funcao(src_jan, "_uma_volta")
+    tela_cheia = _fonte_da_funcao(src_jan, "garantir_tela_cheia")
+    src_prep = ler(u"build/configurar_ambiente.py")
+    src_mod = ler(u"app/radai_models.py")
+    v_hnl = _valores_do_modulo(ler(u"app/radai_hnlnl.py"))
+    src_vas = ler(u"app/radai_recon3d_vascular.py")
+    v_vas = _valores_do_modulo(src_vas)
+    src_cons = ler(u"app/radai_constructs.py")
+    v_cons = _valores_do_modulo(src_cons)
+    src_ap = ler(u"app/radai_bolus_aplicador.py")
+    src_ims = ler(u"app/radai_image_screen.py")
+    v_ims = _valores_do_modulo(src_ims)
+    src_eng = ler(u"app/engine.py")
+    adic = _fonte_da_funcao(src_eng, "_adicionar_roi")
+    modelos = getattr(RM, "MODELOS", None) or {}
+    enxutos = [k for k in _DO_REGISTRO_ENXUTO
+               if (modelos.get(k) or {}).get("enxuto")]
+    return {
+        "janela_pelo_titulo": (
+            u"def pelo_titulo(" in src_jan and bool(volta)
+            and volta.find(u"pelo_titulo(") < volta.find(u"janela_do_app(")
+            and u"LOG_PELO_TITULO" in volta and u"LOG_PELA_LINHA" in volta
+            and bool(v_jan.get("LOG_PELO_TITULO"))),
+        "janela_reconferida": (
+            u"def ainda_e_a_mesma(" in src_jan
+            and u"ainda_e_a_mesma(h, d, pf)" in src_jan),
+        "f11_so_sem_cobrir": (
+            u"ja_cobre_o_monitor(h, pf)" in tela_cheia
+            and u"trazer_para_frente(h)" in tela_cheia
+            and tela_cheia.find(u"trazer_para_frente(h)")
+            < tela_cheia.find(u"tecla_f11(h)")),
+        "enxugar_no_registro": (
+            u"def enxugar_modelo_do_registro(" in src_prep
+            and _toda_chamada_sob_teste(src_prep, "enxugar_modelo_do_registro",
+                                        u'not ctx.get("instalar")')
+            and len(enxutos) == len(_DO_REGISTRO_ENXUTO)),
+        "estacao_aceita_os_dois": (
+            u"def _e_o_enxuto(" in src_mod
+            and bool(v_hnl.get("VERSAO_DOS_PESOS", {}).get(
+                "fold0_bytes_enxuto"))),
+        "vascular_pela_segmentacao": (
+            u"NS.osso_da_segmentacao(" in _fonte_da_funcao(src_vas, "ler_osso")
+            and tuple(v_vas.get("MODOS_DO_OSSO") or ())
+            == (u"segmentacao", u"limiar", u"fica")),
+        "atm_plano_medio": (
+            u"def plano_medio_da_atm(" in src_cons
+            and tuple(a[0] for a in (v_cons.get(
+                "ANCORAS_DO_PLANO_MEDIO_DA_ATM") or ()))
+            == (u"skull", u"brain", u"vertebrae_C1", u"vertebrae_C2")
+            and u"(ac & mc)" in _fonte_da_funcao(src_cons,
+                                                 "plano_medio_da_atm")),
+        "aplicador_dois_eixos": (u"def escolher_eixo(" in src_ap
+                                 and u"def eixos_do_canal(" in src_ap),
+        "caixa_sugerida": (u"def caixa_sugerida(" in src_ap
+                           and u"Usar a caixa sugerida" in ler(
+                               u"app/radai_bolus_screen.py")),
+        "fundo_cego_ate_o_fundo": u'P["trajeto"] != "cego"' in _fonte_da_funcao(
+            src_ap, "trecho_exigido"),
+        "imagem_medida_e_ordem": (
+            v_ims.get("BOTAO_MEDIR") == u"Medir uma distância conhecida"
+            and v_ims.get("BOTAO_INVERTER") == u"Inverter a ordem dos cortes"
+            and u"ordem_invertida" in ler(u"app/radai_image.py")),
+        "rt_utils_reproduzido": (
+            u"ds_helper.create_structure_set_roi(" in adic
+            and u"image_helper.get_contours_coords(" in adic),
+        "_osso_hu": v_vas.get("OSSO_HU"),
+        "_osso_margem_mm": v_vas.get("OSSO_MARGEM_MM"),
+        "_n_hnlnl": len((modelos.get("hnlnl") or {}).get("enxuto") or {}),
+        "_rt_utils": _valores_do_modulo(src_eng).get(
+            "RT_UTILS_DA_MONTAGEM_RAPIDA"),
+    }
+
+
+def _medidas_da_20_resselada(f):
+    fora, marcas = [], []
+
+    def exige(chave, doc, montar):
+        v = f.get(chave)
+        try:
+            marca = montar(v) if v is not None else None
+        except Exception:
+            marca = None
+        if not marca:
+            fora.append(u"nao li %s do codigo (%r)" % (chave, v))
+            return
+        marcas.append((doc, marca))
+
+    exige("_osso_hu", u"termos", lambda v: u"um limiar de %d HU" % int(v))
+    exige("_osso_margem_mm", u"termos",
+          lambda v: u"o vaso a menos de %s mm do osso" % _num_pt(v))
+    exige("_n_hnlnl", u"notice", lambda v: u"dos %s checkpoints do ensemble"
+          % _POR_EXTENSO_DA_20R[int(v)])
+    exige("_rt_utils", u"notice",
+          lambda v: u"a montagem da ROI do rt-utils %s" % v)
+    return fora, marcas
+
+
+def _divergencias_da_20_resselada(f, docs):
+    d = dict((k, _compacto(v)) for k, v in docs.items())
+    fora = []
+    for chave, marcas in sorted(_MARCAS_DA_20_RESSELADA.items()):
+        fato = bool(f.get(chave))
+        for doc, marca in marcas:
+            diz = _compacto(marca) in d[doc]
+            if fato is not diz:
+                fora.append(u"%s: o codigo %s, e %s %s «%s»" % (
+                    chave, u"faz" if fato else u"NAO faz", doc,
+                    u"diz" if diz else u"cala", marca[:60]))
+    falta, medidas = _medidas_da_20_resselada(f)
+    fora.extend(falta)
+    for doc, marca in medidas:
+        if _compacto(marca) not in d[doc]:
+            fora.append(u"%s nao diz «%s», que e o que o codigo faz"
+                        % (doc, marca))
+    for doc, velha in _FRASES_DA_20_QUE_SAIRAM_ANTES_DA_PUBLICACAO:
+        if _compacto(velha) in d[doc]:
+            fora.append(u"%s ainda diz %r" % (doc, velha[:60]))
+    return fora
+
+
+def teste_o_que_a_resselagem_muda_na_20():
+    secao(u"documentos 2.0, a resselagem antes da publicacao: a janela pelo "
+          u"titulo, o enxugar dos modelos do registro, o Vascular pela "
+          u"segmentacao, o plano medio da ATM, o aplicador, a imagem do "
+          u"DicomBridge e o rt-utils no NOTICE")
+    import radai_consent as CS
+    trocas = CS.IMPRESSOES_TROCADAS_ANTES_DA_PUBLICACAO.get(u"2.0") or ()
+    checar(u"a primeira resselagem da 2.0 trocou a impressao da primeira "
+           u"selagem (4ed91a7fa1c7)",
+           len(trocas) >= 1 and trocas[0][0] == u"4ed91a7fa1c7",
+           u"%s" % [t[0] for t in trocas])
+    docs = _docs_da_20()
+    f = _fatos_da_20_resselada()
+    bools = sorted(k for k in f if not k.startswith(u"_"))
+    checar(u"  (li do codigo: %s)" % u", ".join(
+        u"%s=%s" % (k, f[k]) for k in sorted(f)),
+        all(f[k] for k in bools) and sorted(_MARCAS_DA_20_RESSELADA) == bools,
+        u"sem fato ou sem marca: %s" % sorted(
+            set(bools) ^ set(_MARCAS_DA_20_RESSELADA)))
+    div = _divergencias_da_20_resselada(f, docs)
+    checar(u"a resselagem: o codigo, os Termos, a Politica, os Creditos e o "
+           u"NOTICE dizem o mesmo", not div, u" | ".join(div))
+    for chave in bools:
+        checar(u"  isca: o codigo deixa de fazer «%s», com os documentos de "
+               u"hoje: reprova" % chave,
+               bool(_divergencias_da_20_resselada(dict(f, **{chave: False}),
+                                                  docs)))
+    for chave, marcas in sorted(_MARCAS_DA_20_RESSELADA.items()):
+        for doc, marca in marcas:
+            d2 = dict(docs)
+            d2[doc] = _compacto(docs[doc]).replace(_compacto(marca), u"X")
+            checar(u"  isca: %s cala «%s» de %s: reprova" % (
+                doc, marca[:40], chave),
+                bool(_divergencias_da_20_resselada(f, d2)))
+    for doc, velha in _FRASES_DA_20_QUE_SAIRAM_ANTES_DA_PUBLICACAO:
+        d2 = dict(docs)
+        d2[doc] = docs[doc] + u" " + velha
+        checar(u"  isca: %s volta a dizer %r: reprova" % (doc, velha[:40]),
+               bool(_divergencias_da_20_resselada(f, d2)))
+    for chave, novo in (("_osso_hu", 500.0), ("_osso_margem_mm", 3.0),
+                        ("_n_hnlnl", 5), ("_rt_utils", u"1.2.8"),
+                        ("_osso_hu", None)):
+        checar(u"  isca: o codigo muda %s para %r, com os documentos de "
+               u"hoje: reprova" % (chave, novo),
+               bool(_divergencias_da_20_resselada(dict(f, **{chave: novo}),
+                                                  docs)))
+    _so_no_pacote = u'not ctx.get("instalar")'
+    checar(u"  isca: o enxugar do registro fora do teste da instalacao "
+           u"direta nao conta como so no pacote novo",
+           not _toda_chamada_sob_teste(
+               u"enxugar_modelo_do_registro(a)\n",
+               "enxugar_modelo_do_registro", _so_no_pacote)
+           and not _toda_chamada_sob_teste(
+               u'if ctx.get("instalar"):\n    enxugar_modelo_do_registro(a)\n',
+               "enxugar_modelo_do_registro", _so_no_pacote)
+           and _toda_chamada_sob_teste(
+               u'if not ctx.get("instalar"):\n'
+               u'    enxugar_modelo_do_registro(a)\n',
+               "enxugar_modelo_do_registro", _so_no_pacote))
+
+
+_MARCAS_DA_20_SEGUNDA_RESSELAGEM = {
+    "ts_enxuga_na_instalacao_direta": (
+        (u"termos", u"A partir da versão 8.7, nos pacotes montados e também "
+                    u"na instalação direta numa estação, o preparador tira "
+                    u"dos checkpoints dos pesos dele o estado do otimizador"),
+        (u"creditos", u"nos pacotes montados e também na instalação direta, "
+                      u"os checkpoints dele saem sem o estado do otimizador"),
+        (u"notice", u"nos pacotes montados e tambem na instalacao direta numa "
+                    u"estacao, o preparador tira dos checkpoints dos pesos do "
+                    u"TotalSegmentator")),
+    "mapa_nv_viaja_sob_apache": (
+        (u"notice", u"O MAPA DE ROTULOS VIAJA NO INSTALADOR LEVE, sob a "
+                    u"Apache License 2.0"),
+        (u"notice", u"a NVIDIA Open Model License vale so para os pesos")),
+    "cads_da_publicacao_open": (
+        (u"notice", u"A CC BY-SA 4.0 DA VARIANTE `open` E A QUE A PUBLICACAO "
+                    u"DELA DECLARA"),),
+}
+
+_FRASES_DA_20_QUE_SAIRAM_NA_SEGUNDA_RESSELAGEM = (
+    (u"termos", u"Nos pacotes montados a partir da versão 8.7, o preparador "
+                u"tira dos checkpoints dos pesos dele"),
+    (u"creditos", u"Nos pacotes montados a partir da versão 8.7, os "
+                  u"checkpoints dele saem"),
+    (u"notice", u"Nos pacotes montados a partir da v8.7, o preparador tira "
+                u"dos checkpoints dos pesos do TotalSegmentator"),
+)
+
+
+def _alguma_chamada_sob_instalar(src, chamada):
+    try:
+        arv = ast.parse(src or u"")
+    except SyntaxError:
+        return True
+    pais = dict((f, no) for no in ast.walk(arv)
+                for f in ast.iter_child_nodes(no))
+    for no in ast.walk(arv):
+        if not (isinstance(no, ast.Call)
+                and getattr(no.func, "id", None) == chamada):
+            continue
+        p = pais.get(no)
+        while p is not None:
+            if isinstance(p, ast.If) and u"instalar" in (
+                    ast.get_source_segment(src, p.test) or u""):
+                return True
+            p = pais.get(p)
+    return False
+
+
+def _fatos_da_20_segunda_resselagem():
+    import radai_models as RM
+    src_prep = ler(u"build/configurar_ambiente.py")
+    src_emp = ler(u"build/empacotar_instalador.py")
+    v_emp = _valores_do_modulo(src_emp)
+    modelos = getattr(RM, "MODELOS", None) or {}
+    nv = modelos.get("nv_segment_ct") or {}
+    cads = modelos.get("cads_open") or {}
+    mapa = os.path.isfile(_componentes.fonte(
+        u"tools/data/nv_segment_ct_labels.json"))
+    return {
+        "ts_enxuga_na_instalacao_direta": (
+            u"enxugar_pasta_de_peso(py_do_pacote" in _fonte_da_funcao(
+                src_prep, "instalar_peso_ts")
+            and u'("pesos", "etapa_pesos")' in _fonte_da_funcao(
+                src_prep, "etapas_do_modo")
+            and not _alguma_chamada_sob_instalar(src_prep,
+                                                 "enxugar_pasta_de_peso")),
+        "mapa_nv_viaja_sob_apache": (
+            mapa and nv.get("derivar_labels_de") == u"configs/metadata.json"
+            and (u"tools", u"tools") in tuple(v_emp.get("PASTAS") or ())
+            and u"data" not in set(v_emp.get("FORA") or ())),
+        "cads_da_publicacao_open": (
+            u"cads-model-open_v1.0.0" in u"".join(
+                cads.get("url_direta") or ())),
+    }
+
+
+def _divergencias_da_20_segunda_resselagem(f, docs):
+    d = dict((k, _compacto(v)) for k, v in docs.items())
+    fora = []
+    for chave, marcas in sorted(_MARCAS_DA_20_SEGUNDA_RESSELAGEM.items()):
+        fato = bool(f.get(chave))
+        for doc, marca in marcas:
+            diz = _compacto(marca) in d[doc]
+            if fato is not diz:
+                fora.append(u"%s: o codigo %s, e %s %s «%s»" % (
+                    chave, u"faz" if fato else u"NAO faz", doc,
+                    u"diz" if diz else u"cala", marca[:60]))
+    for doc, velha in _FRASES_DA_20_QUE_SAIRAM_NA_SEGUNDA_RESSELAGEM:
+        if _compacto(velha) in d[doc]:
+            fora.append(u"%s ainda diz %r" % (doc, velha[:60]))
+    return fora
+
+
+def teste_o_que_a_segunda_resselagem_muda_na_20():
+    secao(u"documentos 2.0, a segunda resselagem antes da publicacao: o "
+          u"enxugar do TotalSegmentator tambem na instalacao direta, o mapa "
+          u"de rotulos do NV-Segment-CT sob a Apache-2.0 e a licenca do CADS "
+          u"pela publicacao da variante")
+    import radai_consent as CS
+    trocas = CS.IMPRESSOES_TROCADAS_ANTES_DA_PUBLICACAO.get(u"2.0") or ()
+    checar(u"a 2.0 foi resselada duas vezes, e as impressoes trocadas sao a "
+           u"da primeira selagem (4ed91a7fa1c7) e a da primeira resselagem "
+           u"(a876f8e0154f)",
+           CS.RESSELAGENS_ANTES_DA_PUBLICACAO.get(u"2.0") == 2
+           and [t[0] for t in trocas] == [u"4ed91a7fa1c7", u"a876f8e0154f"],
+           u"%s %s" % (CS.RESSELAGENS_ANTES_DA_PUBLICACAO.get(u"2.0"),
+                       [t[0] for t in trocas]))
+    checar(u"  e a impressao em vigor nao e nenhuma das trocadas",
+           not any(CS.IMPRESSOES_PUBLICADAS.get(u"2.0", u"").startswith(t[0])
+                   for t in trocas))
+    docs = _docs_da_20()
+    f = _fatos_da_20_segunda_resselagem()
+    checar(u"  (li do codigo: %s)" % u", ".join(
+        u"%s=%s" % (k, f[k]) for k in sorted(f)),
+        all(f.values()) and sorted(f) == sorted(
+            _MARCAS_DA_20_SEGUNDA_RESSELAGEM),
+        u"sem fato ou sem marca: %s" % sorted(
+            set(f) ^ set(_MARCAS_DA_20_SEGUNDA_RESSELAGEM)))
+    div = _divergencias_da_20_segunda_resselagem(f, docs)
+    checar(u"a segunda resselagem: o codigo, os Termos, os Creditos e o "
+           u"NOTICE dizem o mesmo", not div, u" | ".join(div))
+    for chave in sorted(f):
+        checar(u"  isca: o codigo deixa de fazer «%s», com os documentos de "
+               u"hoje: reprova" % chave,
+               bool(_divergencias_da_20_segunda_resselagem(
+                   dict(f, **{chave: False}), docs)))
+    for chave, marcas in sorted(_MARCAS_DA_20_SEGUNDA_RESSELAGEM.items()):
+        for doc, marca in marcas:
+            d2 = dict(docs)
+            d2[doc] = _compacto(docs[doc]).replace(_compacto(marca), u"X")
+            checar(u"  isca: %s cala «%s» de %s: reprova" % (
+                doc, marca[:40], chave),
+                bool(_divergencias_da_20_segunda_resselagem(f, d2)))
+    for doc, velha in _FRASES_DA_20_QUE_SAIRAM_NA_SEGUNDA_RESSELAGEM:
+        d2 = dict(docs)
+        d2[doc] = docs[doc] + u" " + velha
+        checar(u"  isca: %s volta a dizer %r: reprova" % (doc, velha[:40]),
+               bool(_divergencias_da_20_segunda_resselagem(f, d2)))
+    checar(u"  isca: o enxugar do TotalSegmentator sob um teste da "
+           u"instalacao conta como fora da instalacao direta",
+           _alguma_chamada_sob_instalar(
+               u'if not ctx.get("instalar"):\n    enxugar_pasta_de_peso(a)\n',
+               "enxugar_pasta_de_peso")
+           and not _alguma_chamada_sob_instalar(
+               u"def f(a):\n    enxugar_pasta_de_peso(a)\n",
+               "enxugar_pasta_de_peso"))
+
+
 def main():
     print(u"=" * 68)
     print(u"test_consent | o portao, os documentos e a trava do modelo")
@@ -8834,6 +9541,9 @@ def main():
     teste_o_que_a_v85_muda_na_18()
     teste_o_retorno_de_campo_na_18()
     teste_o_que_a_v86_muda_na_19()
+    teste_o_que_a_v87_muda_na_20()
+    teste_o_que_a_resselagem_muda_na_20()
+    teste_o_que_a_segunda_resselagem_muda_na_20()
     teste_os_registros_citam_a_impressao_publicada()
     print(u"\n" + u"=" * 68)
     if _falhou:

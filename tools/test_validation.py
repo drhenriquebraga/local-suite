@@ -175,6 +175,164 @@ def teste_registro_segue_o_acervo_fora_de_c_ai():
     os.environ["RADAI_CALIB_DIR"] = guardado
 
 
+def teste_a_chave_nao_vai_para_pasta_que_sincroniza():
+    secao("segredo: a chave do pseudonimo nunca e gravada em pasta da nuvem")
+    nuvem = os.path.join(_BASE, "espelhada")
+    guardado_calib = os.environ.get("RADAI_CALIB_DIR")
+    guardado_raizes = os.environ.get("RADAI_RAIZES_NUVEM")
+    os.environ["RADAI_CALIB_DIR"] = nuvem
+    os.environ["RADAI_RAIZES_NUVEM"] = nuvem
+    try:
+        seg = V.caminho(V.ARQ_SEGREDO)
+        a = V.pseudonimo("PAC_0001")
+        checar("na pasta que sincroniza a chave nao e gravada",
+               not seg.exists(), str(seg))
+        checar("e o pseudonimo continua estavel no processo",
+               V.pseudonimo("PAC_0001") == a and a.startswith("caso-"), a)
+        r = V.conferir()
+        checar("o laudo acusa a nuvem pela raiz declarada", r["nuvem"] is True,
+               r["motivo"])
+        checar("e o aviso diz que a chave nao e gravada",
+               "chave do pseudonimo nao e gravada" in r["aviso"], r["aviso"][:90])
+
+        real = V._pasta_que_sincroniza
+        V._pasta_que_sincroniza = lambda _p: False
+        try:
+            V.pseudonimo("PAC_0002")
+            checar("(isca) sem a guarda a chave iria para a pasta da nuvem",
+                   seg.exists(), str(seg))
+            checar("e a chave que ja esta na nuvem e apontada no aviso",
+                   V.ARQ_SEGREDO in V.conferir()["aviso"]
+                   and V.ARQ_SEGREDO not in r["aviso"], r["aviso"][-90:])
+        finally:
+            V._pasta_que_sincroniza = real
+            if seg.exists():
+                seg.unlink()
+    finally:
+        os.environ["RADAI_CALIB_DIR"] = guardado_calib
+        if guardado_raizes is None:
+            os.environ.pop("RADAI_RAIZES_NUVEM", None)
+        else:
+            os.environ["RADAI_RAIZES_NUVEM"] = guardado_raizes
+
+    limpar()
+    V.pseudonimo("PAC_0001")
+    checar("fora da nuvem a chave e gravada como antes",
+           V.caminho(V.ARQ_SEGREDO).exists())
+
+
+RAIZES_SO_PELA_VARIAVEL = (
+    "def raizes_espelhadas():\n"
+    "    base = os.environ.get('LOCALAPPDATA') or ''\n"
+    "    db = os.path.join(base, *_DRIVE_DB) if base else ''\n"
+    "    if not (db and os.path.isfile(db)):\n"
+    "        return tuple(_raizes_declaradas())\n"
+    "    return tuple(_raizes_declaradas()) + tuple(_raizes_do_banco(db))\n")
+
+
+def _chave_com_a_localappdata_trocada(raizes_fonte=None):
+    import sqlite3
+    caixa = tempfile.mkdtemp(prefix="radai_valid_lad_")
+    _TEMPS.append(caixa)
+    perfil = os.path.join(caixa, "perfil")
+    espelhada = os.path.join(caixa, "espelhada")
+    db = os.path.join(perfil, *radai_archive._DRIVE_DB)
+    os.makedirs(os.path.dirname(db))
+    con = sqlite3.connect(db)
+    try:
+        con.execute("create table roots (last_seen_absolute_path text)")
+        con.execute("insert into roots values (?)", (espelhada,))
+        con.commit()
+    finally:
+        con.close()
+    vazia = os.path.join(caixa, "lad_vazia")
+    os.makedirs(vazia)
+    guardado = dict((k, os.environ.get(k)) for k in
+                    ("LOCALAPPDATA", "RADAI_RAIZES_NUVEM", "RADAI_CALIB_DIR"))
+    local_real = radai_archive._local_do_perfil
+    raizes_real = radai_archive.raizes_espelhadas
+    try:
+        os.environ["LOCALAPPDATA"] = vazia
+        os.environ.pop("RADAI_RAIZES_NUVEM", None)
+        os.environ["RADAI_CALIB_DIR"] = os.path.join(espelhada, "acervo")
+        radai_archive._local_do_perfil = lambda: perfil
+        if raizes_fonte is not None:
+            ns = dict(vars(radai_archive))
+            exec(raizes_fonte, ns)
+            radai_archive.raizes_espelhadas = ns["raizes_espelhadas"]
+        radai_archive._CACHE_RAIZES["quando"] = None
+        seg = V.caminho(V.ARQ_SEGREDO)
+        V.pseudonimo("PAC_0001")
+        return {"gravou": seg.exists(), "nuvem": V.conferir()["nuvem"]}
+    finally:
+        radai_archive._local_do_perfil = local_real
+        radai_archive.raizes_espelhadas = raizes_real
+        radai_archive._CACHE_RAIZES["quando"] = None
+        for k, v in guardado.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def _o_filho_ve(caminho, com_a_velha, amb_extra):
+    import subprocess
+    codigo = ["import os, sys",
+              "sys.path.insert(0, %r)" % os.path.dirname(
+                  os.path.abspath(radai_archive.__file__)),
+              "import radai_archive as A"]
+    if com_a_velha:
+        codigo += ["ns = dict(vars(A))", "exec(%r, ns)" % RAIZES_SO_PELA_VARIAVEL,
+                   "A.raizes_espelhadas = ns['raizes_espelhadas']"]
+    codigo += ["print('NUVEM=%%s' %% A.em_pasta_sincronizada(%r)[0])" % caminho]
+    amb = dict(os.environ)
+    amb.pop("RADAI_RAIZES_NUVEM", None)
+    amb.update(amb_extra)
+    r = subprocess.run([sys.executable, "-c", "\n".join(codigo)], env=amb,
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                       timeout=120)
+    saida = r.stdout.decode("utf-8", "replace")
+    nuvem = [l.split("=", 1)[1] for l in saida.splitlines()
+             if l.startswith("NUVEM=")]
+    return (nuvem[0] if nuvem else ""), saida
+
+
+def teste_a_nuvem_se_reconhece_com_a_localappdata_trocada():
+    secao("segredo: a nuvem se reconhece com a LOCALAPPDATA trocada")
+    limpar()
+    m = _chave_com_a_localappdata_trocada()
+    checar("com a LOCALAPPDATA trocada, a pasta que o Drive do perfil espelha "
+           "recusa a chave do registro de validacao",
+           m["gravou"] is False and m["nuvem"] is True, repr(m))
+    mi = _chave_com_a_localappdata_trocada(RAIZES_SO_PELA_VARIAVEL)
+    checar("(isca) lendo o Drive so pela variavel, a chave vai para a nuvem",
+           mi["gravou"] is True and mi["nuvem"] is False, repr(mi))
+
+    guardado = os.environ.pop("RADAI_RAIZES_NUVEM", None)
+    try:
+        radai_archive._CACHE_RAIZES["quando"] = None
+        aqui = radai_archive.em_pasta_sincronizada(RAIZ)[0]
+    finally:
+        if guardado is not None:
+            os.environ["RADAI_RAIZES_NUVEM"] = guardado
+        radai_archive._CACHE_RAIZES["quando"] = None
+    vazia = tempfile.mkdtemp(prefix="radai_valid_lad_")
+    _TEMPS.append(vazia)
+    trocado = {"LOCALAPPDATA": vazia,
+               "USERPROFILE": os.path.join(vazia, "perfil_que_nao_existe")}
+    nuvem, saida = _o_filho_ve(RAIZ, False, trocado)
+    checar("um processo com a LOCALAPPDATA e o USERPROFILE trocados ve esta "
+           "pasta como quem roda (%s)" % ("sincroniza" if aqui else
+                                          "nao sincroniza"),
+           nuvem == str(aqui), saida[-300:])
+    if aqui:
+        nuvem_v, saida_v = _o_filho_ve(RAIZ, True, trocado)
+        checar("(isca) lendo o Drive so pela variavel, o processo nao ve a "
+               "nuvem", nuvem_v == "False", saida_v[-300:])
+    else:
+        print("  PULADO a isca do processo: nesta maquina a pasta nao sincroniza")
+
+
 def teste_semear_e_idempotente():
     secao("semear: cria a estrutura e nao estraga o que ja existe")
     limpar()
@@ -307,6 +465,8 @@ def main():
               teste_pseudonimo_nao_volta_por_forca_bruta,
               teste_pseudonimo_e_estavel_e_normaliza,
               teste_registro_segue_o_acervo_fora_de_c_ai,
+              teste_a_chave_nao_vai_para_pasta_que_sincroniza,
+              teste_a_nuvem_se_reconhece_com_a_localappdata_trocada,
               teste_semear_e_idempotente,
               teste_alteracao_exige_o_porque,
               teste_alteracao_mais_nova_em_cima,

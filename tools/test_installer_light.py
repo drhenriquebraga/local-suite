@@ -437,6 +437,87 @@ def teste_o_atualizar_leva_o_que_o_zip_leva_fora_das_pastas(alvo):
            == [u"tools/nao_existe_mais.ps1"])
 
 
+def _git(pasta, *args):
+    try:
+        r = subprocess.run(["git", "-C", pasta] + list(args),
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    except OSError:
+        return None
+    if r.returncode != 0:
+        return None
+    return r.stdout.decode("utf-8", "replace")
+
+
+def _novos_desde_a_ultima_tag(pasta):
+    tag = (_git(pasta, "describe", "--tags", "--abbrev=0") or u"").strip()
+    if not tag:
+        return u"", None
+    lista = _git(pasta, "diff", "--name-only", "--diff-filter=A", tag, "HEAD",
+                 "--", "app", "tools")
+    if lista is None:
+        return tag, None
+    return tag, sorted(l.strip() for l in lista.splitlines() if l.strip())
+
+
+def _novos_que_nao_chegam(novos, todos, copiadas, docs):
+    sys.path.insert(0, os.path.join(RAIZ, "build"))
+    import empacotar_instalador as _E
+    return sorted(n for n in novos
+                  if _E.entra(n)
+                  and not (n in todos
+                           and (_vai_pelo_atualizar(n, copiadas, docs)
+                                or _declarado(n, NAO_VAO_PELO_ATUALIZAR))))
+
+
+def teste_os_arquivos_novos_chegam_pelo_atualizar(alvo):
+    secao(u"os arquivos novos desde a ultima versao vao no .zip e pelo ATUALIZAR")
+    if not alvo:
+        return
+    texto = io.open(os.path.join(alvo, "packager", "UPDATE.ps1"),
+                    encoding="utf-8-sig").read()
+    docs = _documentos_do_atualizar(texto) or []
+    copiadas = {u"app": _lista_do_atualizar(texto, u"EXT_APP") or [],
+                u"tools": _lista_do_atualizar(texto, u"EXT_TOOLS") or []}
+    todos = set()
+    for raiz, _dirs, arqs in os.walk(alvo):
+        for a in arqs:
+            todos.add(os.path.relpath(os.path.join(raiz, a), alvo)
+                      .replace(os.sep, u"/"))
+    sys.path.insert(0, os.path.join(RAIZ, "tools"))
+    import _componentes
+    pastas = [(RAIZ, u"Suite")] + [
+        (p, d.get("nome") or os.path.basename(p))
+        for p, d in _componentes.componentes(RAIZ)]
+    novos, sem_git = [], []
+    for pasta, nome in pastas:
+        tag, lista = _novos_desde_a_ultima_tag(pasta)
+        if lista is None:
+            sem_git.append(nome)
+            continue
+        novos += lista
+    if sem_git:
+        _componentes.pulado(u"arquivos novos sem Git ou sem tag em %s"
+                            % u", ".join(sem_git))
+    if not novos:
+        print(u"  (nenhum arquivo novo em app/ ou tools/ desde a ultima tag)")
+    faltam = _novos_que_nao_chegam(novos, todos, copiadas, docs)
+    checar(u"todo arquivo novo de app/ e tools/ das sete pastas esta no .zip "
+           u"e vai pelo ATUALIZAR (%d novos)" % len(novos), not faltam,
+           u"%s -- o pacote ou o `$EXT_APP`/`$EXT_TOOLS` do UPDATE.ps1 nao o "
+           u"levam, e a estacao que so atualiza fica sem ele" % faltam)
+    checar(u"  (isca: um `.css` novo em `app/` seria acusado)",
+           _novos_que_nao_chegam([u"app/radai_novo.css"],
+                                 todos | {u"app/radai_novo.css"}, copiadas,
+                                 docs) == [u"app/radai_novo.css"])
+    checar(u"  (isca: um `.py` novo que o .zip nao leva seria acusado)",
+           _novos_que_nao_chegam([u"app/radai_nao_empacotado.py"], todos,
+                                 copiadas, docs)
+           == [u"app/radai_nao_empacotado.py"])
+    checar(u"  (isca: o que o empacotador recusa de proposito nao e' acusado)",
+           _novos_que_nao_chegam([u"tools/__pycache__/x.pyc"], todos,
+                                 copiadas, docs) == [])
+
+
 def teste_o_lancador_alcanca_o_preparador(alvo):
     secao(u"o START_HERE alcanca o preparador")
     if not alvo:
@@ -470,6 +551,7 @@ def main():
     alvo = teste_o_zip_abre_e_tem_forma()
     teste_a_montagem_acha_tudo(alvo)
     teste_o_atualizar_leva_o_que_o_zip_leva_fora_das_pastas(alvo)
+    teste_os_arquivos_novos_chegam_pelo_atualizar(alvo)
     teste_o_lancador_alcanca_o_preparador(alvo)
     teste_a_etapa_5_roda_de_verdade(alvo)
     print(u"\n" + u"=" * 66)

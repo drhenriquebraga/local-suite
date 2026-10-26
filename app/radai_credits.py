@@ -113,19 +113,24 @@ a restrição dita, antes de alguém instalar.</p>
  biblioteca): um modelo grosseiro, a 6 mm, localiza o corpo, e a tarefa roda só
  dentro dele, na resolução dela. A estatística de uso que a biblioteca envia de
  fábrica fica desligada. Preservar o aviso de copyright e o NOTICE é condição
- da licença, e os dois empacotadores abortam se faltarem.</li>
+ da licença, e os dois empacotadores abortam se faltarem. A partir da versão
+ 8.7, nos pacotes montados e também na instalação direta, os checkpoints dele
+ saem sem o estado do
+ otimizador, que só serve ao treino — os pesos da rede ficam idênticos byte a
+ byte —, e o NOTICE declara a modificação.</li>
  <li><b>Tarefas de achado do TotalSegmentator</b> — nódulos pulmonares
  (<code>lung_nodules</code>) e lesões hepáticas
  (<code>liver_lesions</code>, <code>liver_lesions_mr</code>). <b>Vêm no
  pacote e não rodam de fábrica.</b> Rodam por ato de quem opera, no
- PERSONALIZADO do «Rodar agora» — a chave da tarefa, ou um protocolo de estudo
- das Reconstruções 3D —, e o log anuncia com a
- palavra ACHADO. Pela chave, o que devolvem sai num arquivo próprio de cada
- tarefa e, cru,
- também no conjunto do TotalSegmentator (<code>STUDY_ts</code>) quando ele é
+ PERSONALIZADO do «Rodar agora» — a chave da tarefa, um protocolo próprio da
+ estação que inclua achado, declarado a cada envio à fila, ou um protocolo de
+ estudo das Reconstruções 3D —, e o log anuncia com a
+ palavra ACHADO. Pela chave ou pelo protocolo próprio, o que devolvem sai num
+ arquivo próprio de cada tarefa e, cru,
+ também no conjunto do TotalSegmentator (<code>RadAI_TS</code>) quando ele é
  pedido, como toda
- saída do modelo — nunca no conjunto completo (<code>STUDY_full</code>) nem no
- entregue ao TPS (<code>RadAI_OAR</code>); pelo estudo, só no mapa de rótulos
+ saída do modelo — nunca no conjunto completo (<code>RadAI_FULL</code>) nem no
+ entregue ao TPS (<code>RadAI_STUDY</code>); pelo estudo, só no mapa de rótulos
  dele, que não vai ao TPS.</li>
  <li><b>O derrame pleural e pericárdico é anatomia do tórax</b>
  (<code>pleural_pericard_effusion</code>) neste pacote: roda no FAST e no
@@ -188,7 +193,11 @@ percorrendo o registro de modelos do próprio programa. Um modelo novo entra ali
 e não numa lista escrita à mão. Os pesos do TotalSegmentator, desde a v8.2,
 o preparador também baixa por conta própria, dos endereços que a
 biblioteca fixada monta, e confere o tamanho, o CRC e — onde a origem o
-publica — o SHA-256 de cada arquivo antes de extrair. Os três motores de
+publica — o SHA-256 de cada arquivo antes de extrair. Nos pacotes montados
+a partir da versão 8.7, os checkpoints dos níveis cervicais, do encéfalo em
+TC, do MOOSE e do CADS também saem sem o estado do otimizador, com cerca de
+metade do tamanho de cada checkpoint e a rede idêntica byte a byte, e o
+NOTICE declara a modificação de cada um. Os três motores de
 comparação só rodam quando pedidos, na comparação de modelos do PERSONALIZADO
 do «Rodar agora», e só em TC; o vigia não os roda. Os níveis cervicais rodam
 no AUTO quando o pescoço é detectado, e no PERSONALIZADO quando pedidos; o

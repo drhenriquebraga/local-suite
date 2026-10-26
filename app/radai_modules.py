@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 
 CORES = {
     "bridge": ("--mod-bridge", "--mod-bridge-fraco"),
@@ -12,7 +13,6 @@ CORES = {
 MODULOS = {
     "bridge": {
         "icone": u"ponte",
-        "chip": u"Ponte até o TPS",
         "titulo": u"Dicom", "destaque": u"Bridge",
         "frase": (u"Diagnostica e transforma arquivos para a travessia do exame "
                   u"externo ao sistema de planejamento"),
@@ -20,7 +20,6 @@ MODULOS = {
     },
     "autocontorno": {
         "icone": u"contornos",
-        "chip": u"bancada de estudo",
         "titulo": u"Contour", "destaque": u"Lab",
         "frase": (u"Vários modelos sobre o mesmo exame, lado a lado — para "
                   u"ver no que eles concordam, e onde discordam."),
@@ -32,7 +31,6 @@ MODULOS = {
     },
     "recon3d": {
         "icone": u"cubo",
-        "chip": u"Estudo anatômico",
         "titulo": u"Reconstruções ", "destaque": u"3D",
         "frase": (u"Carregue os casos segmentados pelo módulo ContourLab para "
                   u"análise tridimensional"),
@@ -40,7 +38,6 @@ MODULOS = {
     },
     "nidus": {
         "icone": u"cruzamento",
-        "chip": u"Projeção Sintética",
         "titulo": u"Nidus ", "destaque": u"RT",
         "frase": (u"A mesma lesão em duas incidências, e onde as duas se "
                   u"cruzam — a lógica da angiografia biplanar."),
@@ -50,7 +47,6 @@ MODULOS = {
     },
     "elastic": {
         "icone": u"malha",
-        "chip": u"Fus\u00e3o el\u00e1stica",
         "titulo": u"Elastic ", "destaque": u"RT",
         "frase": (u"O que a deforma\u00e7\u00e3o fez entre duas s\u00e9ries "
                   u"\u2014 e se ela era poss\u00edvel num paciente."),
@@ -59,7 +55,6 @@ MODULOS = {
     },
     "bolus": {
         "icone": u"camadas",
-        "chip": u"Inovação",
         "titulo": u"3D Printed ", "destaque": u"Bolus",
         "frase": (u"Uma caixa no MPR, uma camada sobre a pele, e os STL para "
                   u"imprimir: o bólus e o molde dele, para pesquisa, fantoma "
@@ -334,82 +329,165 @@ def _esc(t):
 
 
 CSS = u"""
+@font-face{font-family:Anton;src:url('/porta/Anton-Regular.ttf') format('truetype');font-display:swap;font-weight:400}
 body{margin:0}
-.md-pg{max-width:1080px;margin:0 auto;padding:56px 28px 40px;box-sizing:border-box}
-.md-chip{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;
- border-radius:var(--r-pill,999px);border:1px solid var(--line);
- background:var(--panel);font:400 10px/1 var(--font-mono,monospace);
- letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim)}
-.md-chip i{font-style:normal;font-size:12px;color:var(--md-cor,var(--accent))}
-.md-pg h1{font:700 46px/1.06 var(--font-display);letter-spacing:-.032em;
- margin:0;color:var(--text)}
-.md-pg .md-tit{margin-top:30px}
-.md-pg h1 span{color:var(--md-cor,var(--accent))}
-.md-pg .md-frase{margin:12px 0 0;font-size:13.5px;line-height:1.6;
- color:var(--text-muted);max-width:68ch}
-.md-risca{width:64px;height:2px;background:var(--md-cor,var(--accent));
- margin:26px 0 22px;border-radius:2px}
-.md-rot{font:400 10px/1 var(--font-mono,monospace);letter-spacing:.16em;
- text-transform:uppercase;color:var(--text-dim);margin:0 0 14px}
-
-.md-grade{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-@media (max-width:980px){.md-grade{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:640px){.md-grade{grid-template-columns:1fr}}
-.md-atalho{margin:14px 0 0;font-size:12.5px;color:var(--text-muted)}
-.md-atalho a{color:var(--md-cor,var(--accent));text-underline-offset:3px}
-.md-atalho a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.md-fer{display:block;padding:17px 18px;border-radius:11px;
- background:var(--panel);border:1px solid var(--line);text-decoration:none;
- color:inherit;box-sizing:border-box}
-a.md-fer:hover{border-color:var(--md-cor,var(--accent))}
-a.md-fer:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.md-fer .cab{display:flex;align-items:center;gap:9px}
-.md-fer .ic{font-size:15px;color:var(--md-cor,var(--accent));line-height:1;
- flex:0 0 auto}
-.md-fer h2{font:600 14.5px/1.2 var(--font-display);margin:0;color:var(--text);
- flex:1 1 auto;min-width:0}
-.md-fer .est{font:600 9px/1 var(--font-mono,monospace);letter-spacing:.1em;
- text-transform:uppercase;padding:3px 7px;border-radius:var(--r-pill,999px);
- border:1px solid var(--line);color:var(--text-dim);white-space:nowrap;
- flex:0 0 auto}
-.md-fer .est.obra{border-color:var(--warn,#E1B23B);color:var(--warn,#E1B23B)}
-.md-fer .est.pesada{border-color:var(--warn,#E1B23B);color:var(--warn,#E1B23B);
- background:rgba(225,178,59,.10);cursor:help}
-.md-fer p{margin:9px 0 0;font-size:12px;line-height:1.5;
- color:var(--text-muted)}
-.md-fer .tags{margin:10px 0 0;display:flex;flex-wrap:wrap;gap:5px}
-.md-fer .tags span{font:400 9.5px/1 var(--font-mono,monospace);padding:3px 7px;
- border-radius:var(--r-sm,5px);background:var(--panel-2);color:var(--text-dim);
- border:1px solid var(--line)}
-.md-fer.obra{opacity:.62;border-style:dashed;cursor:default}
-.md-fer.destaque{border-color:var(--md-cor,var(--accent));
- background:linear-gradient(var(--md-cor-fraco,transparent),
- var(--md-cor-fraco,transparent)),var(--panel);
- box-shadow:inset 3px 0 0 var(--md-cor,var(--accent))}
-
-.md-semexp{margin:22px 0 0;padding:12px 0 12px 14px;
- border-left:2px solid var(--md-cor,var(--accent));font-size:12.5px;
- line-height:1.6;color:var(--text-muted);max-width:78ch}
-.md-semexp b{color:var(--text)}
-
-.md-tit{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap}
-.md-tit h1{margin:0}
+.md-pg{--md-topo:clamp(24px,calc(34vh - 86px),240px);position:relative;isolation:isolate;
+ box-sizing:border-box;display:flex;flex-direction:column;overflow-x:clip;
+ min-height:calc(100dvh - var(--ui-topo,60px));padding:36px clamp(24px,5vw,68px) 22px}
+.md-pg::before{content:'';position:absolute;inset:0;z-index:-2;pointer-events:none;
+ background:radial-gradient(ellipse at 8% 48%,rgba(23,52,91,.2),transparent 57%),
+  radial-gradient(ellipse at 84% 8%,rgba(51,38,77,.09),transparent 48%)}
+.md-palco{position:relative;display:grid;align-items:start;gap:34px 42px;
+ grid-template-columns:minmax(250px,.9fr) minmax(0,1.65fr);padding-top:var(--md-topo)}
+.md-n3 .md-palco{grid-template-columns:minmax(0,1fr)}
+.md-intro{position:relative;min-width:0}
+.md-n3 .md-intro{display:flex;align-items:center;gap:30px}
+.md-tit{display:flex;align-items:center;gap:14px}
+.md-tit h1{margin:0;font:400 61px/1.08 Anton,'Arial Narrow',sans-serif;letter-spacing:.1px;
+ color:var(--text);flex:0 1 auto;min-width:0;text-wrap:balance}
+.md-tit .ui-ajuda{flex:0 0 auto}
+.md-tit h1 .ls-fim{background:var(--nome-grad);-webkit-background-clip:text;
+ background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+.md-tit .ui-ajuda{width:20px;height:20px;font-size:12px}
 .md-tit .ui-balao{width:min(460px,72vw);max-height:60vh;overflow:auto;line-height:1.6}
+.md-tit .ui-ajuda.dir .ui-balao{left:0;right:auto;transform-origin:top left}
+:root[dir="rtl"] .md-tit .ui-ajuda.dir .ui-balao{left:auto;right:0;transform-origin:top right}
 .md-tit .ui-balao p{margin:0 0 8px}
 .md-tit .hm-aj-t{display:block;margin:12px 0 4px;
  font:700 10px/1 var(--font-mono,monospace);letter-spacing:.12em;
  text-transform:uppercase;color:var(--md-cor,var(--accent))}
 .md-tit .ui-balao p:first-child .hm-aj-t{margin-top:0}
-.md-pg > .ui-alerta{margin-top:40px}
-.md-pg > .md-frase + .ui-alerta{margin-top:14px}
+.md-simbolo{width:92px;height:92px;margin-top:45px;color:rgba(138,184,223,.42)}
+.md-n3 .md-simbolo{width:58px;height:58px;margin:0}
+.md-simbolo svg{display:block;width:100%;height:100%}
+.md-simbolo .ls-detalhe{stroke-width:.9}
+.md-feixe{position:absolute;z-index:-1;pointer-events:none;left:-7%;width:114%;
+ top:calc(var(--md-topo) - 22px);height:280px;opacity:.7}
+.md-n3 .md-feixe{top:calc(var(--md-topo) + 110px)}
+.md-feixe path{vector-effect:non-scaling-stroke}
+.md-feixe .f0{stop-color:rgba(64,156,255,0)}
+.md-feixe .f1{stop-color:rgba(112,210,255,.8)}
+.md-feixe .f2{stop-color:rgba(160,136,237,.8)}
+.md-feixe .f3{stop-color:rgba(157,184,239,0)}
 
-.md-clin{display:inline-flex;align-items:flex-start;gap:8px;font-size:12px;
- line-height:1.55;color:var(--text-muted);max-width:78ch;text-align:left}
-.md-clin b{color:var(--text)}
-.md-clin .pt{width:7px;height:7px;border-radius:50%;flex:0 0 auto;
- margin-top:5px;background:var(--warn,#E1B23B)}
-.md-pg > .md-clin{margin:14px 0 0}
-.hm-clin{margin:30px 0 0;display:flex;justify-content:center}
+.md-grade{position:relative;z-index:1;display:grid;align-items:stretch;gap:20px;
+ grid-template-columns:repeat(2,minmax(0,1fr))}
+.md-n1 .md-grade{grid-template-columns:minmax(0,420px)}
+.md-n3 .md-grade{grid-template-columns:repeat(3,minmax(0,1fr))}
+.md-fer{position:relative;isolation:isolate;overflow:hidden;display:flex;flex-direction:column;
+ box-sizing:border-box;min-height:227px;padding:26px 25px 22px;border-radius:15px;
+ border:1px solid rgba(181,185,192,.26);color:inherit;text-decoration:none;
+ background:linear-gradient(120deg,rgba(159,191,230,.063),rgba(27,42,71,.14) 55%,rgba(147,137,187,.047));
+ -webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);
+ box-shadow:0 17px 40px rgba(0,0,0,.2);
+ transition:transform 220ms cubic-bezier(.23,1,.32,1),border-color 200ms ease,
+  background 200ms ease,box-shadow 200ms ease}
+.md-fer::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+ box-shadow:inset 0 1px rgba(242,215,169,.23);opacity:.6;transition:opacity 180ms ease}
+.md-fer::after{content:'';position:absolute;inset:-60% -100%;z-index:-1;pointer-events:none;
+ background:linear-gradient(110deg,transparent 45%,rgba(244,214,163,.07) 50%,transparent 55%);
+ transform:translateX(-35%);opacity:0}
+a.md-fer:hover,a.md-fer:focus-visible{border-color:rgba(214,188,143,.66);
+ background:linear-gradient(120deg,rgba(172,201,227,.11),rgba(38,53,81,.2) 55%,rgba(179,150,195,.082));
+ box-shadow:0 18px 38px rgba(0,0,0,.27);transform:translateY(-3px)}
+a.md-fer:hover::before,a.md-fer:focus-visible::before{opacity:1;
+ box-shadow:inset 0 1px rgba(242,215,169,.72)}
+a.md-fer:hover::after{opacity:1;transform:translateX(35%);
+ transition:transform 650ms cubic-bezier(.23,1,.32,1),opacity 150ms ease}
+a.md-fer:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.md-visual{position:absolute;right:16px;top:14px;width:92px;height:92px;pointer-events:none;
+ color:var(--md-cor,var(--accent));opacity:.15;
+ transition:transform 350ms cubic-bezier(.23,1,.32,1),opacity 220ms ease}
+.md-visual svg{display:block;width:100%;height:100%;stroke-width:.65}
+a.md-fer:hover .md-visual,a.md-fer:focus-visible .md-visual{opacity:.3;
+ transform:translateY(-2px) scale(1.08)}
+.md-fer .ic{display:block;width:24px;height:24px;color:var(--md-cor,var(--accent))}
+.md-fer .ic svg{display:block;width:24px;height:24px}
+.md-fer .cab{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;margin-top:22px;
+ padding-right:56px}
+.md-fer h2{margin:0;font:600 20px/1.2 var(--font-display);letter-spacing:-.012em;
+ color:var(--text);min-width:0}
+.md-fer .est{font:600 9px/1 var(--font-mono,monospace);letter-spacing:.1em;
+ text-transform:uppercase;padding:4px 7px;border-radius:var(--r-pill,999px);
+ border:1px solid var(--line-strong);color:var(--text-muted);white-space:nowrap;flex:0 0 auto}
+.md-fer .est.obra{border-color:var(--warn);color:var(--warn)}
+.md-fer .est.pesada{border-color:var(--warn);color:var(--warn);
+ background:rgba(225,178,59,.10);cursor:help}
+.md-fer p{margin:12px 0 0;font-size:12.5px;line-height:1.55;color:var(--text-muted);max-width:46ch}
+.md-pe{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;
+ margin-top:auto;padding-top:16px}
+.md-fer .tags{display:flex;flex-wrap:wrap;gap:5px;margin:0;min-width:0}
+.md-fer .tags span{font:400 10px/1 var(--font-mono,monospace);padding:4px 7px;
+ border-radius:var(--r-sm,5px);background:rgba(148,170,205,.06);color:var(--text-muted);
+ border:1px solid rgba(148,170,205,.18)}
+.md-abrir{flex:0 0 auto;display:grid;place-items:center;width:24px;height:24px;margin-left:auto;
+ color:var(--text-muted);transition:transform 220ms cubic-bezier(.23,1,.32,1),color 160ms ease}
+.md-abrir svg{width:20px;height:20px}
+a.md-fer:hover .md-abrir,a.md-fer:focus-visible .md-abrir{color:var(--text);transform:translateX(3px)}
+.md-fer.obra{opacity:.62;border-style:dashed;cursor:default}
+.md-fer.destaque{border-color:var(--md-cor,var(--accent));
+ background:linear-gradient(var(--md-cor-fraco,transparent),var(--md-cor-fraco,transparent)),
+ linear-gradient(120deg,rgba(159,191,230,.063),rgba(27,42,71,.14) 55%,rgba(147,137,187,.047))}
+.md-atalho{margin:18px 0 0;font-size:12.5px;color:var(--text-muted)}
+.md-atalho a{color:var(--md-cor,var(--accent));text-underline-offset:3px}
+.md-atalho a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.md-pg > .ui-alerta{margin-top:auto;padding-top:26px;border-top:0;
+ justify-content:flex-start;text-align:left;font-size:12px}
+.md-clin{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.55;
+ color:var(--text-muted)}
+.md-clin .pt{width:7px;height:7px;border-radius:50%;flex:0 0 auto;margin-top:5px;
+ background:var(--warn)}
+
+:root[data-tema="claro"] .md-pg::before{
+ background:radial-gradient(ellipse at 8% 48%,rgba(77,140,214,.11),transparent 57%),
+  radial-gradient(ellipse at 84% 8%,rgba(115,83,184,.07),transparent 48%)}
+:root[data-tema="claro"] .md-simbolo{color:rgba(23,82,140,.34)}
+:root[data-tema="claro"] .md-feixe{opacity:.42}
+:root[data-tema="claro"] .md-feixe .f0{stop-color:rgba(23,110,170,0)}
+:root[data-tema="claro"] .md-feixe .f1{stop-color:rgb(23,110,170)}
+:root[data-tema="claro"] .md-feixe .f2{stop-color:rgb(115,83,184)}
+:root[data-tema="claro"] .md-feixe .f3{stop-color:rgba(115,83,184,0)}
+:root[data-tema="claro"] .md-fer{border-color:rgba(23,52,91,.15);
+ background:linear-gradient(120deg,rgba(255,255,255,.95),rgba(239,244,251,.9) 55%,rgba(244,240,251,.92));
+ box-shadow:0 14px 32px rgba(22,32,46,.09)}
+:root[data-tema="claro"] .md-fer::before{box-shadow:inset 0 1px rgba(255,255,255,.95)}
+:root[data-tema="claro"] .md-fer::after{
+ background:linear-gradient(110deg,transparent 45%,rgba(176,140,80,.12) 50%,transparent 55%)}
+:root[data-tema="claro"] a.md-fer:hover,:root[data-tema="claro"] a.md-fer:focus-visible{
+ border-color:rgba(138,106,47,.6);
+ background:linear-gradient(120deg,rgba(255,255,255,1),rgba(241,246,252,.96) 55%,rgba(246,242,252,.97));
+ box-shadow:0 16px 34px rgba(22,32,46,.13)}
+:root[data-tema="claro"] a.md-fer:hover::before,:root[data-tema="claro"] a.md-fer:focus-visible::before{
+ box-shadow:inset 0 1px rgba(176,140,80,.55)}
+:root[data-tema="claro"] .md-visual{opacity:.13}
+:root[data-tema="claro"] .md-fer .tags span{background:rgba(23,52,91,.04);border-color:rgba(23,52,91,.14)}
+
+@media (max-width:1180px){
+ .md-palco{gap:30px 28px;grid-template-columns:minmax(230px,.8fr) minmax(0,1.6fr)}
+ .md-tit h1{font-size:52px}
+}
+@media (max-width:980px){.md-n3 .md-grade{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){
+ .md-pg{min-height:0}
+ .md-palco{grid-template-columns:minmax(0,1fr);padding-top:20px}
+ .md-intro{padding-right:84px}
+ .md-simbolo{position:absolute;right:0;top:0;width:72px;height:72px;margin:0}
+ .md-n3 .md-intro{padding-right:0}
+ .md-n3 .md-simbolo{position:static}
+ .md-n1 .md-grade{grid-template-columns:minmax(0,1fr)}
+ .md-feixe{top:60px}
+ .md-n3 .md-feixe{top:150px}
+}
+@media (max-width:640px){
+ .md-grade,.md-n3 .md-grade{grid-template-columns:minmax(0,1fr)}
+ .md-tit h1{font-size:44px;white-space:normal}
+}
+@media (prefers-reduced-motion:reduce){
+ .md-fer,.md-visual,.md-abrir,.md-fer::before{transition:none}
+ a.md-fer:hover,a.md-fer:focus-visible,a.md-fer:hover .md-visual,
+ a.md-fer:focus-visible .md-visual,a.md-fer:hover .md-abrir{transform:none}
+ .md-fer::after{display:none}
+}
 """
 
 
@@ -477,6 +555,9 @@ def balao_da_home(chave):
     if not secoes:
         return u""
     paragrafos = []
+    frase = (MODULOS.get(chave) or {}).get("frase")
+    if frase:
+        paragrafos.append(_esc(frase))
     for titulo in secoes:
         paragrafos.append(u'<b class="hm-aj-t">%s</b>' % _esc(titulo))
         for p in secoes[titulo]:
@@ -495,6 +576,11 @@ def _icone(nome):
         return u""
 
 
+_SETA = (u'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" '
+         u'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+         u'<path d="M5 12h14M13 6l6 6-6 6"/></svg>')
+
+
 def _cartao(f, cor):
     cod, ico, nome, rota, texto = f[0], f[1], f[2], f[3], f[4]
     estado = f[5] if len(f) > 5 else u""
@@ -510,17 +596,66 @@ def _cartao(f, cor):
                  % (u" obra" if obra else u"", _esc(estado)))
     elif estado == u"@VIGIA@":
         pill += u'<span class="est" id="md_vigia">&mdash;</span>'
-    corpo = (u'<div class="cab"><span class="ic">%s</span>'
-             u'<h2 data-radai-frase>%s</h2>%s</div>'
+    desenho = _icone(ico)
+    corpo = (u'<span class="md-visual" aria-hidden="true">%s</span>'
+             u'<span class="ic">%s</span>'
+             u'<div class="cab"><h2 data-radai-frase>%s</h2>%s</div>'
              u'<p data-radai-frase>%s</p>'
-             % (_icone(ico), _esc(nome), pill, _esc(texto)))
+             % (desenho, desenho, _esc(nome), pill, _esc(texto)))
+    pe = u""
     if tags:
-        corpo += (u'<div class="tags">%s</div>'
-                  % u"".join(u"<span>%s</span>" % _esc(t) for t in tags))
+        pe = (u'<div class="tags">%s</div>'
+              % u"".join(u"<span>%s</span>" % _esc(t) for t in tags))
     if obra or not rota:
-        return u'<div class="md-fer obra" aria-disabled="true">%s</div>' % corpo
-    return u'<a class="md-fer%s" href="%s">%s</a>' % (
-        u" destaque" if cod in EM_DESTAQUE else u"", _esc(rota), corpo)
+        return (u'<div class="md-fer obra" aria-disabled="true">%s'
+                u'<div class="md-pe">%s</div></div>' % (corpo, pe))
+    return (u'<a class="md-fer%s" href="%s">%s<div class="md-pe">%s'
+            u'<span class="md-abrir" aria-hidden="true">%s</span></div></a>'
+            % (u" destaque" if cod in EM_DESTAQUE else u"", _esc(rota), corpo, pe,
+               _SETA))
+
+
+def _feixe(linhas=15, largura=1210, altura=330, pontos=40):
+    caminhos = []
+    meio = (linhas - 1) / 2.0
+    for k in range(linhas):
+        f = (k - meio) / meio
+        d = []
+        for i in range(pontos + 1):
+            u = i / float(pontos)
+            centro = (altura * 0.43 + 21 * math.sin(2 * math.pi * (u * 0.92 - 0.12))
+                      + 26 * u)
+            abre = 14 + 40 * abs(u - 0.47) ** 1.3
+            y = centro + f * abre
+            d.append(u"%s%.1f %.1f" % (u"L" if i else u"M", u * largura, y))
+        caminhos.append(u'<path d="%s"/>' % u" ".join(d))
+    return (u'<svg class="md-feixe" viewBox="0 0 %d %d" preserveAspectRatio="none" '
+            u'fill="none" aria-hidden="true" focusable="false"><defs>'
+            u'<linearGradient id="md-feixe-grad"><stop class="f0" offset="0"/>'
+            u'<stop class="f1" offset=".25"/><stop class="f2" offset=".7"/>'
+            u'<stop class="f3" offset="1"/></linearGradient></defs>'
+            u'<g stroke="url(#md-feixe-grad)" stroke-width=".8">%s</g></svg>'
+            % (largura, altura, u"".join(caminhos)))
+
+
+FEIXE = _feixe()
+
+
+def _arte(chave):
+    try:
+        import radai_porta
+        return radai_porta.icone(chave)
+    except Exception:
+        return u""
+
+
+def titulo_com_fim(m):
+    titulo, destaque = m.get("titulo") or u"", m.get("destaque") or u""
+    fim = destaque.strip()
+    if not fim:
+        return u"<h1>%s</h1>" % _esc(titulo)
+    return (u'<h1 data-ls-fim="%s">%s<span class="ls-fim">%s</span></h1>'
+            % (_esc(fim), _esc(titulo), _esc(destaque)))
 
 
 # GUARDA: todo módulo leva o alerta no pé, depois dos cartões, numa linha só.
@@ -542,26 +677,21 @@ def pagina(chave):
     if not m:
         return u""
     var, _fraca = CORES.get(chave, ("--accent", "--accent-fraco"))
-    cartoes = u"".join(_cartao(f, var) for f in FERRAMENTAS.get(chave, ()))
+    ferramentas = FERRAMENTAS.get(chave, ())
+    cartoes = u"".join(_cartao(f, var) for f in ferramentas)
+    n = max(1, min(3, len(ferramentas)))
     alerta = linha_clinica(chave)
     no_pe = chave in CLINICA_NO_RODAPE
     return (
-        u'<div class="md-pg" style="--md-cor:var(%s);--md-cor-fraco:var(%s)">'
-        u'<span class="md-chip"><i aria-hidden="true">%s</i>'
-        u'<span data-radai-frase>%s</span></span>%s'
-        u'<div class="md-tit"><h1>%s<span>%s</span></h1>%s</div>'
-        u'<p class="md-frase" data-radai-frase>%s</p>%s'
-        u'<div class="md-risca"></div>'
-        u'<div class="md-rot" data-radai-frase>ESCOLHA A FERRAMENTA</div>'
-        u'<div class="md-grade">%s</div>'
-        u'%s%s</div>'
-        % (var, _fraca, _icone(m["icone"]), _esc(m["chip"]),
-           ((u'<span class="md-selo" title="%s" data-radai-frase>%s</span>'
-             % (_esc(m.get("selo_ajuda") or u""), _esc(m["selo"])))
-            if m.get("selo") else u""),
-           _esc(m["titulo"]), _esc(m["destaque"]), ajuda_do_modulo(chave),
-           _esc(m["frase"]), (u"" if no_pe else alerta), cartoes,
-           atalhos(chave), (alerta if no_pe else u"")))
+        u'<div class="md-pg md-n%d" style="--md-cor:var(%s);--md-cor-fraco:var(%s)">'
+        u'<div class="md-palco">%s'
+        u'<div class="md-intro"><div class="md-tit">%s%s</div>%s'
+        u'<div class="md-simbolo" aria-hidden="true">%s</div></div>'
+        u'<div class="md-grade" role="group" aria-label="ESCOLHA A FERRAMENTA">%s</div>'
+        u'</div>%s%s</div>'
+        % (n, var, _fraca, FEIXE, titulo_com_fim(m), ajuda_do_modulo(chave),
+           (u"" if no_pe else alerta), _arte(chave), cartoes, atalhos(chave),
+           (alerta if no_pe else u"")))
 
 
 JS_VIGIA = u"""

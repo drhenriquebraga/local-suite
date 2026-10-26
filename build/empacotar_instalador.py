@@ -190,11 +190,48 @@ def conferir_versionados(itens, raiz=None, conhecidos=None):
             u"  %s\n\nVersione, ou tire da oficina." % (len(fora), "\n  ".join(fora[:8])))
 
 
-def coletar_componentes(ja, suite=None):
+def conferir_arvore_baixada(pasta, nome, trava=None):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import baixar_componentes as B
+    try:
+        lista = B.ler_trava(trava or B.TRAVA)
+    except (B.Parei, OSError, ValueError) as e:
+        raise SystemExit(u"PAREI: %s" % e)
+    esperada = next((c.get("arvore_sha256") for c in lista
+                     if c.get("nome") == nome), None)
+    if not esperada:
+        raise SystemExit(
+            u"PAREI: %s veio da pasta baixada (%s), e a trava nao traz a "
+            u"arvore dele: escreva-a com  python build/baixar_componentes.py "
+            u"--travar <tag>" % (nome, pasta))
+    medida = B.arvore_sha256(str(pasta))
+    if medida != esperada:
+        raise SystemExit(
+            u"PAREI: a arvore de %s em %s (%s) nao e a da trava (%s): a pasta "
+            u"mudou depois do download. Baixe de novo "
+            u"(build/baixar_componentes.py) sem mexer nela."
+            % (nome, pasta, medida[:12], esperada[:12]))
+    return medida
+
+
+def componentes_que_faltam(achados, trava=None):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import baixar_componentes as B
+    try:
+        lista = B.ler_trava(trava or B.TRAVA)
+    except (B.Parei, OSError, ValueError) as e:
+        raise SystemExit(u"PAREI: %s" % e)
+    achados = set(achados)
+    return sorted(c.get("nome") for c in lista if c.get("nome") not in achados)
+
+
+def coletar_componentes(ja, suite=None, trava=None):
     sys.path.insert(0, str(RAIZ / "tools"))
     import _componentes
     itens = []
+    achados = []
     for pasta, dados in _componentes.componentes(str(suite or RAIZ)):
+        achados.append(dados.get("nome"))
         deste = []
         for sub in ("app", "tools"):
             base = Path(pasta) / sub
@@ -215,12 +252,20 @@ def coletar_componentes(ja, suite=None):
                     ja.add(nome)
                     deste.append((nome, str(cheio)))
         if baixado_da_trava(pasta) and versionados(pasta) is None:
-            print(u"  %s: baixado da trava (a tag e o sha256 do zipball "
-                  u"conferidos no download); sem Git proprio, a conferencia "
-                  u"do versionado nao se aplica" % dados.get("nome"))
+            medida = conferir_arvore_baixada(pasta, dados.get("nome"), trava)
+            print(u"  %s: baixado da trava, com a arvore conferida de novo "
+                  u"(%s); sem Git proprio, a conferencia do versionado nao "
+                  u"se aplica" % (dados.get("nome"), medida[:12]))
         else:
             conferir_versionados(deste, raiz=pasta)
         itens += deste
+    faltam = componentes_que_faltam(achados, trava)
+    if faltam:
+        raise SystemExit(
+            u"PAREI: o instalador sairia sem %s. Clone os repositorios dos "
+            u"seis apps como pastas irmas do local-suite (ou aponte "
+            u"RADAI_COMPONENTES_DIR para a pasta que os tem), ou monte com "
+            u"--dos-repositorios." % u", ".join(faltam))
     return itens
 
 
@@ -299,14 +344,39 @@ def main():
                                     "versao": versao,
                                     "tamanho": tam_txt,
                                     "disco": u"%.0f" % disco_gib})
+    conferir_montado(tmp, bundle_minimo)
+    # GUARDA: o nome oficial e o LATEST (o asset da release) so recebem o .zip ja conferido.
     if os.path.exists(saida):
         os.unlink(saida)
     os.replace(tmp, saida)
     pasta_fixo.mkdir(parents=True, exist_ok=True)
     shutil.copy2(str(saida), str(fixo))
 
+    tam = os.path.getsize(saida)
+
     try:
-        with zipfile.ZipFile(saida) as _z:
+        alvo = saida_dir.parent / "README.txt"
+        texto = LEIA_ME_PASTA % {"projeto": projeto, "versao": versao,
+                                 "pacote": saida.name,
+                                 "mb": u"%.1f MB" % (tam / 1e6)}
+        io.open(str(alvo), "w", encoding="ascii",
+                newline="\r\n").write(texto)
+        print(u"  LEIA-ME.txt da pasta reescrito (%s)" % alvo)
+    except Exception as e:
+        print(u"  AVISO: nao consegui reescrever o LEIA-ME.txt (%s: %s)"
+              % (type(e).__name__, e))
+
+    print(u"\n  PRONTO: %s" % saida)
+    print(u"  %.1f MB" % (tam / 1e6))
+    print(u"\n  (o pacote completo mede ~%s GB na maquina de quem instala;"
+          u" este e %.0fx menor, e os pesos nascem la)"
+          % (tam_txt, pacote_gib * 1073741824.0 / max(tam, 1.0)))
+    return 0
+
+
+def conferir_montado(caminho, bundle_minimo):
+    try:
+        with zipfile.ZipFile(caminho) as _z:
             _ruim = _z.testzip()
             _n = set(_z.namelist())
             _ent = (_z.read("entrega.txt").decode("utf-8", "replace")
@@ -331,27 +401,6 @@ def main():
         raise SystemExit(u"PAREI: o entrega.txt de dentro do .zip nao traz "
                          u"BUNDLE_MINIMO=%s -- a aba 0 do instalador cairia no "
                          u"recuo e diria outro numero." % bundle_minimo)
-
-    tam = os.path.getsize(saida)
-
-    try:
-        alvo = saida_dir.parent / "README.txt"
-        texto = LEIA_ME_PASTA % {"projeto": projeto, "versao": versao,
-                                 "pacote": saida.name,
-                                 "mb": u"%.1f MB" % (tam / 1e6)}
-        io.open(str(alvo), "w", encoding="ascii",
-                newline="\r\n").write(texto)
-        print(u"  LEIA-ME.txt da pasta reescrito (%s)" % alvo)
-    except Exception as e:
-        print(u"  AVISO: nao consegui reescrever o LEIA-ME.txt (%s: %s)"
-              % (type(e).__name__, e))
-
-    print(u"\n  PRONTO: %s" % saida)
-    print(u"  %.1f MB" % (tam / 1e6))
-    print(u"\n  (o pacote completo mede ~%s GB na maquina de quem instala;"
-          u" este e %.0fx menor, e os pesos nascem la)"
-          % (tam_txt, pacote_gib * 1073741824.0 / max(tam, 1.0)))
-    return 0
 
 
 LEIA_ME_PASTA = r"""A ENTREGA DESTE PROJETO E UM ARQUIVO SO, E ELE ESTA EM  v%(versao)s\
@@ -418,7 +467,7 @@ BUILD (data + commit curto). O rodape da tela inicial le esse mesmo arquivo.
 
 Ao relatar um defeito, mande a linha do rodape. Ela e a identidade.
 
-E dentro do programa instalado, em Configuracoes > Diagnosticar e otimizar,
+E dentro do programa instalado, em Configuracoes > Diagnosticos e Registros,
 o Diagnosticar confere em segundos as versoes, os pesos, a GPU, as travas
 clinicas e o laudo da pasta dos exames.
 

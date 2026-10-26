@@ -422,16 +422,33 @@ def teste_as_rotas():
     import time
     import radai_elastic_screen as T
     import radai_nidus_screen as S
+    import radai_varrer
     pasta = _serie_fantoma(os.path.join(_BASE_TMP, "rotas", "share", "PAC", "CT"))
-    c = _cliente(S.montar)
-    d = c.post("/api/nidus/series", json={"pasta": pasta}).json()
-    ss = d.get("series") or []
-    checar(u"Nidus: a série da pasta, e só ela", len(ss) == 1
-           and not [s for s in ss if s.get("demo")], d)
-    checar(u"nenhum caminho sai na lista", pasta not in json.dumps(d))
-    d0 = c.post("/api/nidus/series", json={}).json()
-    checar(u"sem a pasta configurada, a lista vem vazia e diz por quê",
-           not (d0.get("series") or []) and bool(d0.get("erro")), d0)
+
+    def _nidus_e_casca(app):
+        radai_varrer.montar(app)
+        S.montar(app)
+    c = _cliente(_nidus_e_casca)
+    d = c.post("/api/varrer/iniciar", json={
+        "uso": "series", "pasta": pasta, "dias": 0,
+        "opcoes": {"modalidades": list(S.MODALIDADES),
+                   "min_cortes": S.MIN_CORTES}}).json()
+    for _ in range(100):
+        if d.get("fim"):
+            break
+        time.sleep(0.2)
+        d = c.post("/api/varrer/estado", json={"v": d.get("v", "")}).json()
+    ss = list(d.get("linhas") or [])
+    checar(u"Nidus: a série da pasta, e só ela, pela varredura da casca",
+           len(ss) == 1 and not [s for s in ss if s.get("demo")], d)
+    checar(u"nenhum caminho sai na lista",
+           all(pasta not in u"%s" % v for s in ss for v in s.values()))
+    d0 = c.post("/api/varrer/iniciar", json={"uso": "series", "pasta": u""}).json()
+    checar(u"sem a pasta, a varredura nem começa e diz por quê",
+           d0.get("fim") is True and d0.get("erro") == radai_varrer.SEM_PASTA, d0)
+    checar(u"  e a rota própria de séries do Nidus saiu",
+           c.post("/api/nidus/series", json={"pasta": pasta}).status_code
+           in (404, 405))
     if not ss:
         return
     b = ss[0]["bilhete"]
@@ -446,15 +463,24 @@ def teste_as_rotas():
            r1.status_code == 200 and r2.status_code == 200
            and r2.headers.get("content-type") == "image/png" and r1.content != r2.content)
 
-    e = _cliente(T.montar)
-    d = e.post("/api/elastic/series", json={"pasta": pasta}).json()
+    import radai_varrer
+
+    def _elastic_e_casca(app):
+        radai_varrer.montar(app)
+        T.montar(app)
+    e = _cliente(_elastic_e_casca)
+    v = e.post("/api/varrer/iniciar", json={
+        "uso": T.USO_DA_VARREDURA, "pasta": pasta, "dias": 0,
+        "opcoes": T.opcoes_da_varredura()}).json()
     for _ in range(100):
-        if not d.get("buscando"):
+        if v.get("fim"):
             break
         time.sleep(0.2)
-        d = e.get("/api/elastic/varredura", params={"v": d.get("v", "")}).json()
-    checar(u"Elastic: a busca termina com a série da pasta, sem demo",
-           len(d.get("series") or []) == 1 and "demo" not in d, d)
+        v = e.post("/api/varrer/estado", json={"v": v.get("v", "")}).json()
+    d = e.post("/api/elastic/assentar", json={"v": v.get("v", ""),
+                                              "pasta": pasta}).json()
+    checar(u"Elastic: a busca (a varredura da casca) termina com a série da "
+           u"pasta, sem demo", len(d.get("series") or []) == 1 and "demo" not in d, d)
     checar(u"  e sem caminho na resposta", pasta not in json.dumps(d))
     r = e.post("/api/elastic/fundir", json={"fixa": "x", "movel": "x"}).json()
     checar(u"fundir uma série com ela mesma é recusado no servidor",

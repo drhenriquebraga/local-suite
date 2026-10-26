@@ -76,6 +76,16 @@ TotalSegmentator
   (pleural_pericard_effusion) e anatomia do torax: alimenta o conjunto
   completo e o entregue.
 
+  MODIFICACAO DOS PESOS (Apache License 2.0, secao 4, item b). A partir da
+  v8.7, nos pacotes montados e tambem na instalacao direta numa estacao, o
+  preparador tira dos checkpoints dos pesos do TotalSegmentator que ele
+  baixa o estado do otimizador (optimizer_state), que so serve ao treino. Os
+  pesos da rede e as demais entradas ficam identicos byte a byte ao
+  original, conferido no preparo; cada arquivo modificado leva dentro dele o
+  aviso da modificacao, e o MANIFESTO.txt que o preparador grava lista a
+  soma SHA-256 de antes e a de depois. O peso que ja estava no disco de um
+  preparo anterior nao e reescrito.
+
   Citacao pedida pelos autores:
     Wasserthal J., Breit H.-C., Meyer M.T., et al. TotalSegmentator: Robust
     Segmentation of 104 Anatomic Structures in CT Images.
@@ -127,6 +137,13 @@ NV-Segment-CT (NVIDIA)
   do repositorio do MONAI. E codigo permissivo; o peso e o mapa de rotulos sao
   da NVIDIA.
 
+  O MAPA DE ROTULOS VIAJA NO INSTALADOR LEVE, sob a Apache License 2.0: o
+  arquivo tools/data/nv_segment_ct_labels.json, que mora no repositorio
+  radioterapia-ai/contourlab, e o mapa nome -> indice das 132 classes, tirado
+  do configs/metadata.json do repositorio do modelo. Esse arquivo nao e peso,
+  e o LICENSE do repositorio do modelo poe sob a Apache License 2.0 todo
+  arquivo que nao e peso; a NVIDIA Open Model License vale so para os pesos.
+
   A inferencia roda LOCALMENTE, a partir dos pesos que vem no pacote. Nao ha
   chamada a API hospedada, e ha teste na bateria que quebra se alguem
   acrescentar uma. A rotina pede so as classes de anatomia; as de achado
@@ -152,9 +169,23 @@ CADS (variante `open`)
   E a `open` que viaja neste pacote, de proposito: existe uma livre que serve,
   entao levar a restrita seria escolher a restricao a toa.
 
+  A CC BY-SA 4.0 DA VARIANTE `open` E A QUE A PUBLICACAO DELA DECLARA, no
+  titulo e no texto da release cads-model-open_v1.0.0. O arquivo
+  LICENSE_MODEL da raiz do repositorio e anterior a essa publicacao: ele
+  ainda diz CC BY-NC-SA 4.0 para os pesos das releases e chama a versao
+  aberta de "em preparo".
+
   O SHAREALIKE TEM CAUDA, e vale escreve-la: rodar o modelo e usar o contorno
   que sai dele NAO produz obra derivada. Fazer fine-tune com dado da casa
   produz, e esse peso teria de ser redistribuido sob CC BY-SA 4.0.
+
+  MODIFICACAO DO PESO (CC BY-SA 4.0, secao 3(a)(1)(B)). Nos pacotes montados
+  a partir da v8.7 -- e nao na instalacao direta numa estacao --, o
+  preparador tira do checkpoint o estado do otimizador (optimizer_state), que
+  so serve ao treino. Os pesos da rede e as demais entradas ficam identicos
+  byte a byte ao original; o arquivo modificado leva dentro dele o aviso da
+  modificacao, e o MANIFESTO.txt do pacote lista a soma SHA-256 de antes e a
+  de depois. O checkpoint modificado continua sob a CC BY-SA 4.0.
 
 --------------------------------------------------------------------------------
 Niveis linfonodais de cabeca e pescoco
@@ -190,13 +221,23 @@ Niveis linfonodais de cabeca e pescoco
   e detectado (as vertebras cervicais C2, C3 e C4 no campo, medidas na base),
   e no PERSONALIZADO pelo protocolo Cabeca e Pescoco avancado ou pela chave
   dele; nunca no FAST. E so em serie de TC em que a cabeca aparece. Quando
-  roda, os niveis entram no conjunto completo (FULL); ao entregue (OAR) vao
-  so a uniao (LNL_UNION_ai, que NAO E OAR NEM CTV) e a parotida do nivel VIII
-  menos o esternocleidomastoideo, quando o lado se confirma e ela e
-  plausivel como a glandula; sem ela, o entregue sai sem parotida, e a do
-  TotalSegmentator nunca vai ao entregue (fica no FULL como Parotid_L_ts e
-  Parotid_R_ts). O arquivo proprio deles (RS_RadAI_HNL_*) so sai no
+  roda, os niveis entram no conjunto completo (RadAI_FULL); ao entregue
+  (RadAI_STUDY) vao so a uniao (LNL_UNION_ai, que NAO E OAR NEM CTV; antes
+  dela, o nivel IVb de cada lado perde a clavicula do mesmo lado) e a parotida
+  do nivel VIII menos o esternocleidomastoideo, quando o lado se confirma e
+  ela e plausivel como a glandula; sem ela, o entregue sai sem parotida, e a
+  do TotalSegmentator nunca vai ao entregue (fica no RadAI_FULL como
+  Parotid_L_ts e Parotid_R_ts). O arquivo proprio deles (RS_RadAI_HNL_*) so sai no
   PERSONALIZADO.
+
+  MODIFICACAO DOS PESOS. A CC0 nao pede que ela seja indicada, e ela esta
+  aqui assim mesmo: nos pacotes montados a partir da v8.7 -- e nao na
+  instalacao direta numa estacao --, o preparador tira dos dez checkpoints do
+  ensemble o estado do otimizador (optimizer_state_dict, no formato do
+  nnU-Net v1), que so serve ao treino. Os pesos da rede e as demais entradas
+  ficam identicos byte a byte ao original; cada arquivo modificado leva
+  dentro dele o aviso da modificacao, e o MANIFESTO.txt do pacote lista a
+  soma SHA-256 de antes e a de depois.
 
 --------------------------------------------------------------------------------
 MOOSE (ENHANCE.PET)
@@ -232,6 +273,15 @@ MOOSE (ENHANCE.PET)
   inteiro), e nao de radioterapia. Por isso o conjunto sai em arquivo proprio
   (RS_RadAI_MSE_*), com o sufixo `_mse`, e NAO entra no RTSTRUCT entregue.
 
+  MODIFICACAO DOS PESOS (CC BY 4.0, secao 3(a)(1)(B)). Nos pacotes montados
+  a partir da v8.7 -- e nao na instalacao direta numa estacao --, o
+  preparador tira dos checkpoints dos dois modelos (checkpoint_best e
+  checkpoint_final de cada um) o estado do otimizador (optimizer_state), que
+  so serve ao treino. Os pesos da rede e as demais entradas ficam identicos
+  byte a byte ao original; cada arquivo modificado leva dentro dele o aviso
+  da modificacao, e o MANIFESTO.txt do pacote lista a soma SHA-256 de antes e
+  a de depois.
+
 --------------------------------------------------------------------------------
 CT Brain Segmentation Radiotherapy (estruturas do encefalo em TC)
 --------------------------------------------------------------------------------
@@ -263,6 +313,14 @@ CT Brain Segmentation Radiotherapy (estruturas do encefalo em TC)
   SO TC. Entram o tronco encefalico e o quiasma optico (conjunto completo e
   entregue) e o cerebelo, os ventriculos e a linha media (so o conjunto
   completo). O encefalo e os nervos opticos continuam os do TotalSegmentator.
+
+  MODIFICACAO DO PESO. Nos pacotes montados a partir da v8.7 -- e nao na
+  instalacao direta numa estacao --, o preparador tira do checkpoint o
+  estado do otimizador (optimizer_state), que so serve ao treino. Os pesos
+  da rede e as demais entradas ficam identicos byte a byte ao original; o
+  arquivo modificado leva dentro dele o aviso da modificacao, o MANIFESTO.txt
+  do pacote lista a soma SHA-256 de antes e a de depois, e o aviso da
+  licenca MIT, abaixo, continua valendo para ele.
 
   A origem no Hugging Face declara a licenca MIT no cartao do modelo e nao
   publica arquivo LICENSE nem linha de copyright; os detentores sao os
@@ -325,12 +383,48 @@ Bibliotecas de apoio
   Python 3.10.11         PSF License         https://python.org
   pip 26.2.1             MIT                 https://pip.pypa.io
 
+  Nos pacotes montados a partir da v8.7, o PyTorch vai sem as bibliotecas de
+  ligacao (.lib) da pasta torch\lib, que so servem para compilar extensao; o
+  programa carrega as .dll, que ficam.
+
   O endereco de cada licenca desta tabela:
     Apache-2.0          https://www.apache.org/licenses/LICENSE-2.0
     BSD-3-Clause        https://spdx.org/licenses/BSD-3-Clause.html
     MIT                 https://spdx.org/licenses/MIT.html
     PSF License         https://docs.python.org/3.10/license.html
     Matplotlib License  https://matplotlib.org/stable/project/license.html
+
+--------------------------------------------------------------------------------
+A montagem da ROI do rt-utils, reproduzida no motor
+--------------------------------------------------------------------------------
+  O motor do ContourLab reproduz, em poucas linhas, a montagem da ROI do
+  rt-utils 1.2.7 (o metodo add_roi da classe RTStruct), chamando as funcoes
+  do proprio rt-utils, para gravar o ContourData ja convertido em texto; com
+  outra versao do rt-utils instalada, ele usa o add_roi original. O trecho
+  mora no repositorio radioterapia-ai/contourlab (app/engine.py, funcao
+  _adicionar_roi). Origem: https://github.com/qurit/rt-utils. O aviso da
+  licenca MIT do rt-utils, que vale para esse trecho:
+
+    Copyright (c) 2021 Qurit
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice shall be included
+    in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 Componentes da porta (interface no navegador)
@@ -505,23 +599,6 @@ Codigo portado do DeFace RT (do mesmo autor)
             24/09/2026; o trecho adaptado e distribuido aqui sob a licenca
             deste projeto (Apache License 2.0).
 
---------------------------------------------------------------------------------
-Listas copiadas do Workstation RT (do mesmo autor)
---------------------------------------------------------------------------------
-  Autoria   Henrique Braga -- o mesmo autor deste projeto
-  Origem    projeto Workstation RT, Arquivo_KitSuporteRT.ps1 (copia de
-            27/09/2026)
-  Destino   app/radai_cleaner.py -- o botao "Otimizar" da tela de
-            configuracoes
-  O que     as listas de processos que o kit de otimizacao da estacao usa:
-            o que nunca se encerra (protegidos, preservados, acesso remoto,
-            raizes clinicas) e o que pode ser fechado (o catalogo), mais o
-            mapa de reabertura do "Restaurar". A linha de origem de cada
-            lista esta ao lado dela, no codigo.
-  Licenca   a copia foi pedida pelo autor, titular dos dois projetos, em
-            26/09/2026; as listas sao distribuidas aqui sob a licenca deste
-            projeto (Apache License 2.0).
-
 ================================================================================
   O QUE NAO VEM NO PACOTE
 ================================================================================
@@ -566,9 +643,15 @@ APROVADA (`ApprovalStatus = UNAPPROVED`), com sufixo de procedencia no nome:
   _mse   MOOSE (ENHANCE.PET)
   _lnl   niveis linfonodais cervicais (Weissmann et al., 2023)
 
+  Com as tags proprias da estacao, uma estrutura do conjunto entregue
+  (RadAI_STUDY, e RadAI_STUDY_Fast no FAST) pode sair com o nome que a
+  estacao escolheu, sem o sufixo; a descricao dela (ROIDescription) guarda o
+  nome padrao e "sugestao IA nao aprovada", e ela continua UNAPPROVED.
+
   E cada PLUGIN -- uma tarefa opcional do TotalSegmentator que nao alimenta o
-  conjunto completo -- grava o seu arquivo (rotulo STUDY_ e o codigo dele),
-  com o nosso pos-processamento e um sufixo proprio de tres letras:
+  conjunto completo -- grava o seu arquivo (rotulo RadAI_ e o codigo dele,
+  como RadAI_ORB), com o nosso pos-processamento e um sufixo proprio de tres
+  letras:
 
   _orb   orbita: musculos extraoculares, globos e nervos opticos
   _tth   dentes

@@ -147,6 +147,7 @@ def _subir(base_tmp):
         % (root, PORTA, os.path.join(base_tmp, "log")))
     env = dict(os.environ, RADAI_CONFIG=cfg, RADAI_MACHINE="BATERIA_UI",
                RADAI_CALIB_DIR=os.path.join(base_tmp, "calib"),
+               RADAI_REGISTRO_DIR=os.path.join(base_tmp, "registro"),
                LOCALAPPDATA=os.path.join(base_tmp, "ad"),
                PYTHONIOENCODING="utf-8:replace")
     saida = io.open(os.path.join(base_tmp, "vigia.log"), "wb")
@@ -164,8 +165,15 @@ def _subir(base_tmp):
 
 
 async def _encher_pasta(pg, valor):
+    await pg.wait_for_function(
+        "!(window.LT_VARRE && LT_VARRE.vivo()) && (!document.getElementById('cx1')"
+        ".closest('.ui-modal-veu.vis') || !document.getElementById('lt_form').hidden)",
+        timeout=60000)
     await pg.evaluate("ltEscolha(); true")
-    await pg.wait_for_timeout(300)
+    await pg.wait_for_function(
+        "!!document.getElementById('cx1').closest('.ui-modal-veu.vis')"
+        " && !document.getElementById('lt_form').hidden", timeout=10000)
+    await pg.wait_for_timeout(200)
     await pg.fill("#pasta", valor)
 
 
@@ -805,74 +813,78 @@ async def _rodar(pg, root):
         checar(u"a serie tem o botao «ver imagens»", False,
                u"#vi_0 ausente -- a serie ja tinha RTSTRUCT?")
 
-    secao(u"o seletor: busca, ida e volta")
-    await pg.evaluate("fpAbrir()")
-    await pg.wait_for_timeout(500)
-    await pg.evaluate("fpNavegar(%r)" % root)
+    secao(u"o seletor da casca no Rodar agora: busca, ida e volta")
+    await pg.evaluate("ltProcurar()")
+    await pg.wait_for_timeout(600)
+    await pg.fill(".ui-fp-cam", root)
+    await pg.click(".ui-fp [data-fp='ir']")
     await pg.wait_for_timeout(900)
-    antes = await pg.locator("#fp_lista .fp_item").count()
-    await pg.fill("#fp_busca", "PAC_C")
+    itens = ".ui-fp-lista .ui-fp-item[data-c]"
+    antes = await pg.locator(itens).count()
+    await pg.fill(".ui-fp-busca", "PAC_C")
     await pg.wait_for_timeout(1000)
-    depois = await pg.locator("#fp_lista .fp_item").count()
+    depois = await pg.locator(itens).count()
     checar(u"a busca filtra no servidor", depois < antes and depois >= 1,
            u"%d -> %d" % (antes, depois))
     conta = await pg.evaluate(
-        "(function(){ var e=document.getElementById('fp_erro');"
+        "(function(){ var e=document.querySelector('.ui-fp-msg');"
         " return [e.querySelectorAll('b').length,"
         "  e.querySelectorAll('[data-radai-frase]').length] })()")
     checar(u"  e a conta da busca sai com o numero e a frase separados",
            conta[0] >= 1 and conta[1] >= 1, str(conta))
-    await pg.evaluate("fpBuscarLimpar()")
+    await pg.click(".ui-fp [data-fp='limpar']")
     await pg.wait_for_timeout(800)
-    checar(u"e limpar devolve a lista",
-           (await pg.locator("#fp_lista .fp_item").count()) == antes)
-    await pg.evaluate("fpNavegar(%r)" % os.path.join(root, "PAC_A"))
+    checar(u"e limpar devolve a lista", (await pg.locator(itens).count()) == antes)
+    await pg.click(".ui-fp-lista .ui-fp-item[data-c$='PAC_A']")
     await pg.wait_for_timeout(700)
     checar(u"o «voltar» acende depois de descer",
-           await pg.is_enabled("#fp_bvolta"))
-    await pg.evaluate("fpVoltar()")
+           await pg.is_enabled(".ui-fp [data-fp='volta']"))
+    await pg.click(".ui-fp [data-fp='volta']")
     await pg.wait_for_timeout(700)
     checar(u"  e ele volta mesmo",
-           (await pg.input_value("#fp_cam")).rstrip("\\/") == root.rstrip("\\/"),
-           await pg.input_value("#fp_cam"))
-    checar(u"  e o «avancar» acende", await pg.is_enabled("#fp_bfrente"))
-    n_nos = await pg.locator("#fp_arvore .fp-no").count()
+           (await pg.input_value(".ui-fp-cam")).rstrip("\\/") == root.rstrip("\\/"),
+           await pg.input_value(".ui-fp-cam"))
+    checar(u"  e o «avancar» acende", await pg.is_enabled(".ui-fp [data-fp='frente']"))
+    n_nos = await pg.locator(".ui-fp-arvore .ui-fp-no").count()
     checar(u"as particoes estao na arvore da esquerda", n_nos >= 1,
            u"%d no(s)" % n_nos)
+    checar(u"a estrela da favorita e o «Mapear nova unidade de rede» estão no seletor",
+           (await pg.locator(".ui-fp [data-fp='fav']").count()) == 1
+           and (await pg.locator(".ui-fp [data-fp='mapear']").count()) == 1)
     datas = await pg.evaluate(
-        "Array.from(document.querySelectorAll('#fp_lista .fp_item .fp-d'))"
+        "Array.from(document.querySelectorAll('.ui-fp-lista .ui-fp-item .ui-fp-d'))"
         ".map(function(d){ return d.textContent })")
     import re as _re
     checar(u"cada pasta da lista mostra a data de modificacao",
            datas and all(_re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$", d)
                          for d in datas), str(datas[:3]))
-    await pg.click("#fp_odata")
+    odata, onome = ".ui-fp-ord button[data-ord='data']", ".ui-fp-ord button[data-ord='nome']"
+    await pg.click(odata)
     await pg.wait_for_timeout(700)
     checar(u"ordenar por data acende o botao, da mais recente para a antiga",
-           await pg.get_attribute("#fp_odata", "aria-pressed") == u"true"
-           and await pg.get_attribute("#fp_odata", "data-sentido") == u"desc")
-    await pg.click("#fp_onome")
+           await pg.get_attribute(odata, "aria-pressed") == u"true"
+           and await pg.get_attribute(odata, "data-sentido") == u"desc")
+    await pg.click(onome)
     await pg.wait_for_timeout(700)
-    nomes = await pg.evaluate(
-        "Array.from(document.querySelectorAll('#fp_lista .fp_item .fp-n'))"
-        ".map(function(d){ return d.textContent.trim() })")
+    lista_nomes = ("Array.from(document.querySelectorAll('.ui-fp-lista .ui-fp-item .ui-fp-n'))"
+                   ".map(function(d){ return d.textContent.trim() })")
+    nomes = await pg.evaluate(lista_nomes)
     checar(u"  e por nome volta a ordem alfabetica",
            nomes == sorted(nomes, key=lambda s: s.lower()), str(nomes))
-    await pg.click("#fp_onome")
+    await pg.click(onome)
     await pg.wait_for_timeout(700)
-    nomes2 = await pg.evaluate(
-        "Array.from(document.querySelectorAll('#fp_lista .fp_item .fp-n'))"
-        ".map(function(d){ return d.textContent.trim() })")
+    nomes2 = await pg.evaluate(lista_nomes)
     checar(u"  e o segundo clique no mesmo botao inverte",
            nomes2 == list(reversed(nomes)), str(nomes2))
-    await pg.click("#fp_arvore .fp-no .fp-tg")
+    await pg.click(".ui-fp-arvore .ui-fp-no .ui-fp-tg")
     await pg.wait_for_timeout(1200)
     checar(u"o triangulo da arvore abre os filhos da unidade",
            await pg.evaluate(
-               "(function(){ var f=document.querySelector('#fp_arvore .fp-filhos');"
-               " var t=document.querySelector('#fp_arvore .fp-tg');"
+               "(function(){ var f=document.querySelector('.ui-fp-arvore .ui-fp-filhos');"
+               " var t=document.querySelector('.ui-fp-arvore .ui-fp-tg');"
                " return !!f && (!f.hidden || (t && t.disabled)) })()"))
-    await pg.evaluate("fpFechar()")
+    await pg.click(".ui-fp [data-fp='cancelar']")
+    await pg.wait_for_timeout(400)
 
     secao(u"a fila de cards")
     n_antes = await pg.locator("#radai_fila .cd").count()
@@ -1318,7 +1330,7 @@ async def _rodar(pg, root):
     finally:
         sys.path.pop(0)
     _linhas_nv = [l for l in aj_nv.split(u"\n") if l]
-    _nota = u"Cada modelo grava um arquivo próprio; nenhum entra no RadAI_OAR."
+    _nota = u"Cada modelo grava um arquivo próprio; nenhum entra no RadAI_STUDY."
     checar(u"o `?` do motor de comparacao (NV) tem as DUAS linhas da ajuda, "
            u"cada uma no seu <p>, e a nota de que cada modelo grava o seu arquivo",
            len(_linhas_nv) == 2 and len(ps_nv or []) == 3,
@@ -1684,14 +1696,14 @@ async def _buracos_da_l3(pg, root):
         await pg.wait_for_timeout(400)
         await pg.evaluate("radaiRetraduzir(); true")
         await pg.wait_for_timeout(300)
-        for k, s in (("msg", "#msg"), ("conta", "#cx2_n"),
+        for k, s in (("msg", "#lt_achou .lt-conta"), ("conta", "#cx2_n"),
                      ("cart", "#cartxt [data-radai-frase]"),
                      ("incl", "#linha_0 button.dentro [data-radai-frase]"),
                      ("motivo", "#linha_0 .tec2 [data-radai-frase]")):
             lido[k] = await _txt(s)
         isca["incl"] = await pg.evaluate(
             "(function(){ var b = document.createElement('button');"
-            " b.innerHTML = '&#10003; incluída'; document.body.appendChild(b);"
+            " b.innerHTML = '&#10003; selecionada'; document.body.appendChild(b);"
             " radaiRetraduzir(); var t = b.textContent; b.remove(); return t })()")
         await pg.evaluate("localStorage.setItem('radai_tema', 'escuro'); true")
         await _abrir("/config", 1500)
@@ -1704,13 +1716,14 @@ async def _buracos_da_l3(pg, root):
                           % json.dumps(os.path.join(root, "PAC_A")))
         for _ in range(20):
             await pg.wait_for_timeout(500)
-            if await pg.evaluate("ND.lista.length > 0"):
+            if await pg.evaluate("Object.keys(ND.porB).length > 0"):
                 break
-        await pg.evaluate("ndEscolher(0); true")
+        await pg.evaluate("ndEscolher(Object.keys(ND.porB)[0]); true")
         await pg.wait_for_timeout(3500)
         lido["passo"] = await _txt("#nd_passo")
         await _abrir("/elastic/fusao", 1000)
-        await pg.evaluate("elVarrer(false); true")
+        await pg.evaluate("document.getElementById('el-pasta').value = %s;"
+                          " elVarrer(false); true" % json.dumps(root))
         await pg.wait_for_timeout(3000)
         lido["series"] = await _txt(".el-pasta-q [data-radai-frase]")
         isca["series"] = await pg.evaluate(
@@ -1738,7 +1751,7 @@ async def _buracos_da_l3(pg, root):
            repr(lido.get("por")))
     checar(u"o Rodar agora: a contagem da varredura sai pelo MOLDE",
            bool(lido.get("msg")) and bool(_molde_re(
-               de[u"%s serie(s) encontrada(s)"]).match(lido["msg"])),
+               de[u"%s série(s) encontrada(s)"]).match(lido["msg"])),
            repr(lido.get("msg")))
     checar(u"  e «N série(s) nesta lista», no titulo do passo 2, tambem",
            bool(lido.get("conta")) and bool(_molde_re(
@@ -1749,11 +1762,11 @@ async def _buracos_da_l3(pg, root):
                for k in (u"%s série(s) no carrinho",
                          u"%s série(s) no carrinho, de %s pastas")),
            repr(lido.get("cart")))
-    checar(u"  e o botao da serie incluida (a palavra fora do `✓`)",
-           lido.get("incl") == de.get(u"incluída"), repr(lido.get("incl")))
-    checar(u"  (isca) a forma de antes -- «✓ incluída» num no so -- fica em "
+    checar(u"  e o botao da serie selecionada (a palavra fora do `✓`)",
+           lido.get("incl") == de.get(u"selecionada"), repr(lido.get("incl")))
+    checar(u"  (isca) a forma de antes -- «✓ selecionada» num no so -- fica em "
            u"portugues no mesmo tradutor",
-           (isca.get("incl") or u"").strip() == u"✓ incluída", repr(isca.get("incl")))
+           (isca.get("incl") or u"").strip() == u"✓ selecionada", repr(isca.get("incl")))
     checar(u"  e o motivo da sugestao, uma frase por no (`radai_triage`)",
            bool(lido.get("motivo")) and bool(_molde_re(
                de[u"TC de simulacao do exame: %s mm"]).match(lido["motivo"])),
@@ -2128,7 +2141,7 @@ async def _tema_claro_legivel(pg, root):
                           "alternar(0); true")
         await pg.wait_for_timeout(400)
         for k, sel in (("incluida", "#linha_0 button.dentro"),
-                       ("msg", "#msg"),
+                       ("msg", "#lt_achou .lt-conta"),
                        ("card_da_fila", ".radai-tarefas .cd .cd-sub, .radai-tarefas .vazia")):
             medido[k] = await pg.evaluate(
                 _JS_CONTRASTE % (json.dumps(sel), u"null"))
@@ -2142,7 +2155,7 @@ async def _tema_claro_legivel(pg, root):
                           " localStorage.removeItem('radai_idioma'); true")
     checar(u"a tela abriu no tema claro", medido.get("tema") == u"claro",
            repr(medido.get("tema")))
-    for k, rot in (("incluida", u"«✓ incluída» no botao da serie"),
+    for k, rot in (("incluida", u"«✓ selecionada» no botao da serie"),
                    ("msg", u"a mensagem da varredura"),
                    ("card_da_fila", u"o subtitulo do card da Fila")):
         v = medido.get(k)
@@ -2479,12 +2492,13 @@ async def _temas_nas_telas(pg, root):
     try:
         await pg.evaluate("localStorage.removeItem('radai_tema');"
                           " localStorage.setItem('radai_idioma', 'pt-BR'); true")
-        await pg.emulate_media(color_scheme="dark")
+        await pg.emulate_media(color_scheme="light")
         await _abrir_com_secoes(pg, "/config", root)
         lido["cfg_ini"] = await pg.evaluate(
             "(function(){ var b = document.querySelector('#opTema .ui-seg [aria-checked=true]');"
             " return [b ? b.getAttribute('data-v') : null,"
             " document.documentElement.getAttribute('data-tema')] })()")
+        await pg.emulate_media(color_scheme="dark")
         await pg.click("#opTema .ui-seg button[data-v='claro']")
         await pg.wait_for_timeout(300)
         lido["cfg_claro"] = await pg.evaluate(
@@ -2524,8 +2538,9 @@ async def _temas_nas_telas(pg, root):
         await pg.evaluate("localStorage.removeItem('radai_tema');"
                           " localStorage.removeItem('radai_idioma'); true")
 
-    checar(u"sem escolha, a Configuração marca Sistema e segue o sistema (escuro)",
-           lido.get("cfg_ini") == [u"sistema", u"escuro"], repr(lido.get("cfg_ini")))
+    checar(u"sem escolha, a Configuração marca Escuro, o padrão, e abre escura "
+           u"mesmo com o sistema claro", lido.get("cfg_ini") == [u"escuro", u"escuro"],
+           repr(lido.get("cfg_ini")))
     checar(u"escolher Claro na Configuração pinta na hora, grava e diz no subtítulo",
            lido.get("cfg_claro") == [u"claro", u"claro", u"claro", u"— modo claro"],
            repr(lido.get("cfg_claro")))

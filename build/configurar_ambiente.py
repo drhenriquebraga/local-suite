@@ -873,7 +873,30 @@ def etapa_libs(ctx):
     if not ctx["so_cpu"]:
         cmd += ["--extra-index-url", "https://download.pytorch.org/whl/%s" % ctx["cuda"]]
     rodar(cmd, "pip install -r requirements", timeout=7200)
+    if not ctx.get("instalar"):
+        tirar_lib_do_torch(ctx["bundle"])
     log("  tamanho do runtime: %s" % gb(tamanho_pasta(ctx["bundle"] / "python")))
+
+
+def tirar_lib_do_torch(bundle):
+    lib = Path(str(bundle)) / "python" / "Lib" / "site-packages" / "torch" / "lib"
+    if not lib.is_dir():
+        return 0
+    n = total = 0
+    for p in sorted(lib.glob("*.lib")):
+        try:
+            tam = p.stat().st_size
+            p.unlink()
+        except OSError as e:
+            log("  nao consegui tirar %s (%s)" % (p.name, e))
+            continue
+        n += 1
+        total += tam
+    if n:
+        log("  torch\\lib: %d biblioteca(s) de ligacao (.lib, %s) fora do "
+            "pacote: so servem para compilar extensao do torch, e o programa "
+            "carrega as .dll" % (n, mb(total)))
+    return total
 
 
 _SCRIPT_TABELA = (
@@ -1007,7 +1030,8 @@ def _extrair_como_a_biblioteca(zip_path, pai, pasta):
         shutil.rmtree(str(passagem), ignore_errors=True)
 
 
-def instalar_peso_ts(item, pesos, cache, py_recuo=None, registro=None):
+def instalar_peso_ts(item, pesos, cache, py_recuo=None, registro=None,
+                     py_do_pacote=None, enxutos=None):
     try:
         import artefatos
     except ImportError:
@@ -1088,10 +1112,258 @@ def instalar_peso_ts(item, pesos, cache, py_recuo=None, registro=None):
         zip_.unlink()
     except OSError:
         pass
+    enxugar_pasta_de_peso(py_do_pacote, alvo, pesos, enxutos)
     return "baixado"
 
 
 REGISTRO_DOS_PESOS = "pesos_ts_conferidos.json"
+RECIBO_DO_ENXUGAR = "checkpoints_enxugados.json"
+
+_SCRIPT_ENXUGAR = """import hashlib, json, os, sys
+import torch
+FORMATOS = (('network_weights', 'optimizer_state', None),
+            ('state_dict', 'optimizer_state_dict', 'plot_stuff'))
+AVISO = 'radai_modificacao'
+def texto(rede, chave):
+    return ('Radioterapia.AI Local Suite, preparo do pacote: %s '
+            'removido (so serve ao treino); %s e as demais '
+            'entradas sem alteracao.' % (chave, rede))
+def formato(ck):
+    if isinstance(ck, dict):
+        for rede, chave, marca in FORMATOS:
+            if isinstance(ck.get(rede), dict) and (marca is None or marca in ck):
+                return rede, chave
+    return None
+def ler(p):
+    try:
+        return torch.load(p, map_location='cpu', weights_only=False)
+    except TypeError:
+        return torch.load(p, map_location='cpu')
+def soma(p):
+    h = hashlib.sha256()
+    with open(p, 'rb') as f:
+        for b in iter(lambda: f.read(1 << 22), b''):
+            h.update(b)
+    return h.hexdigest()
+def crus(t):
+    t = t.detach().cpu().contiguous().reshape(-1)
+    return t.view(torch.uint8).numpy().tobytes() if t.numel() else b''
+def digest(sd):
+    h = hashlib.sha256()
+    n = 0
+    for k, v in sd.items():
+        h.update(repr(k).encode('utf-8'))
+        if torch.is_tensor(v):
+            n += 1
+            h.update(str(v.dtype).encode('ascii'))
+            h.update(repr(tuple(v.shape)).encode('ascii'))
+            h.update(crus(v))
+        else:
+            h.update(repr(v).encode('utf-8'))
+    return h.hexdigest(), n
+def igual(a, b):
+    import numpy as np
+    if torch.is_tensor(a) or torch.is_tensor(b):
+        return (torch.is_tensor(a) and torch.is_tensor(b)
+                and a.dtype == b.dtype and tuple(a.shape) == tuple(b.shape)
+                and crus(a) == crus(b))
+    if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        return (type(a) is type(b) and a.dtype == b.dtype
+                and a.shape == b.shape and a.tobytes() == b.tobytes())
+    if isinstance(a, np.generic) or isinstance(b, np.generic):
+        return type(a) is type(b) and a.tobytes() == b.tobytes()
+    if isinstance(a, dict):
+        return (type(a) is type(b) and list(a.keys()) == list(b.keys())
+                and all(igual(a[k], b[k]) for k in a))
+    if isinstance(a, (list, tuple)):
+        return (type(a) is type(b) and len(a) == len(b)
+                and all(igual(x, y) for x, y in zip(a, b)))
+    if isinstance(a, float) and isinstance(b, float):
+        return a == b or (a != a and b != b)
+    try:
+        r = a == b
+        return r if isinstance(r, bool) else repr(a) == repr(b)
+    except Exception:
+        return repr(a) == repr(b)
+def sair(r, codigo=0):
+    print('ENXUGAR_JSON ' + json.dumps(r), flush=True)
+    sys.exit(codigo)
+def comparar(pa, pb):
+    a, b = ler(pa), ler(pb)
+    rede, chave = formato(a) or FORMATOS[0][:2]
+    fora = [k for k in a if k not in (chave, AVISO)
+            and (k not in b or not igual(a[k], b[k]))]
+    fora += [k for k in b if k not in a and k not in (chave, AVISO)]
+    da = digest(a.get(rede) or {})
+    db = digest(b.get(rede) or {})
+    sair({'estado': 'iguais' if not fora and da == db else 'diferentes',
+          'diferem': fora, 'digest_a': da[0], 'digest_b': db[0],
+          'tensores': da[1]})
+def enxugar(c, esperado=''):
+    base = {'bytes_antes': os.path.getsize(c), 'sha256_antes': soma(c)}
+    ck = ler(c)
+    f = formato(ck)
+    if f is None:
+        sair(dict(base, estado='nao_e_nnunet'))
+    rede, chave = f
+    d0, n0 = digest(ck[rede])
+    base.update(digest_rede=d0, tensores=n0)
+    if chave not in ck:
+        sair(dict(base, estado='sem_estado_do_otimizador'))
+    aviso = texto(rede, chave)
+    novo = {}
+    for k, v in ck.items():
+        if k != chave:
+            novo[k] = v
+    novo[AVISO] = aviso
+    tmp = c + '.enxuto.parcial'
+    # GUARDA: gravar pelo objeto de arquivo; pelo caminho o torch poe o nome do arquivo dentro do zip e o sha256 do enxuto deixa de ser reprodutivel
+    with open(tmp, 'wb') as saida:
+        torch.save(novo, saida)
+    del novo
+    volta = ler(tmp)
+    fora = []
+    if list(volta.keys()) != [k for k in ck if k != chave] + [AVISO]:
+        fora.append('chaves: %r' % list(volta.keys()))
+    for k in ck:
+        if k != chave and (k not in volta or not igual(ck[k], volta[k])):
+            fora.append('a entrada %s mudou' % k)
+    if digest(volta.get(rede) or {}) != (d0, n0):
+        fora.append('os pesos da rede mudaram')
+    if volta.get(AVISO) != aviso:
+        fora.append('o aviso de modificacao nao ficou no arquivo')
+    del volta
+    if not fora and esperado and soma(tmp) != esperado:
+        fora.append('o enxuto nao e o do registro (sha256 %s, o registro '
+                    'diz %s)' % (soma(tmp)[:12], esperado[:12]))
+    if fora:
+        os.remove(tmp)
+        sair(dict(base, estado='diverge', problemas=fora), 3)
+    os.replace(tmp, c)
+    sair(dict(base, estado='enxugado', removido=chave,
+              bytes_depois=os.path.getsize(c), sha256_depois=soma(c)))
+if sys.argv[1] == 'comparar':
+    comparar(sys.argv[2], sys.argv[3])
+else:
+    enxugar(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else '')
+"""
+
+
+def _rodar_enxugar(py, args, timeout):
+    try:
+        r = subprocess.run([str(py), "-B", "-c", _SCRIPT_ENXUGAR]
+                           + [str(a) for a in args],
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=timeout,
+                           env=dict(os.environ,
+                                    PYTHONIOENCODING="utf-8:replace",
+                                    PYTHONDONTWRITEBYTECODE="1"))
+    except Exception as e:
+        return {"estado": "falhou",
+                "detalhe": u"%s: %s" % (type(e).__name__, e)}
+    linha = next((l for l in (r.stdout or "").splitlines()
+                  if l.startswith("ENXUGAR_JSON ")), None)
+    if linha is None:
+        cauda = " | ".join(((r.stdout or "") + (r.stderr or "")).strip()
+                           .splitlines()[-4:])
+        return {"estado": "falhou",
+                "detalhe": u"codigo %s: %s" % (r.returncode, cauda[-300:])}
+    return json.loads(linha[len("ENXUGAR_JSON "):])
+
+
+def enxugar_checkpoint(py, caminho, timeout=1800, esperado=None):
+    return _rodar_enxugar(py, ["enxugar", caminho]
+                          + ([esperado] if esperado else []), timeout)
+
+
+def comparar_checkpoints(py, original, enxuto, timeout=1800):
+    return _rodar_enxugar(py, ["comparar", original, enxuto], timeout)
+
+
+def checkpoints_da_pasta(pasta):
+    fora = []
+    for raiz, pastas, arquivos in os.walk(str(pasta)):
+        pastas.sort()
+        for a in sorted(arquivos):
+            if a.startswith("checkpoint") and a.endswith(".pth"):
+                fora.append(Path(raiz) / a)
+    return fora
+
+
+def _enxugar_e_relatar(py, ck, rel, enxutos=None, esperado=None):
+    r = enxugar_checkpoint(py, ck, esperado=esperado)
+    estado = r.get("estado")
+    if estado == "enxugado":
+        log("  estado do otimizador removido: %s (%s -> %s); pesos da "
+            "rede identicos byte a byte (%d tensores)"
+            % (rel, mb(r["bytes_antes"]), mb(r["bytes_depois"]),
+               int(r.get("tensores") or 0)))
+        log("    sha256 antes  %s" % r["sha256_antes"])
+        log("    sha256 depois %s" % r["sha256_depois"])
+        if enxutos is not None:
+            enxutos[rel] = dict(r, quando=datetime.now().isoformat(
+                timespec="seconds"))
+    elif estado == "sem_estado_do_otimizador":
+        log("  %s: ja estava sem o estado do otimizador" % rel)
+    elif estado == "nao_e_nnunet":
+        log("  %s: nao e checkpoint do nnU-Net; fica como veio" % rel)
+    else:
+        log("  !! %s: o estado do otimizador FICA (%s). O arquivo segue "
+            "o original, conferido no download."
+            % (rel, "; ".join(r.get("problemas") or [])
+               or r.get("detalhe") or estado))
+    return rel, r
+
+
+def enxugar_pasta_de_peso(py, pasta, pesos, enxutos=None):
+    if not py or not os.path.isfile(str(py)):
+        log("  estado do otimizador: fica nos checkpoints de %s (sem o Python "
+            "do pacote para conferir a rede)" % Path(str(pasta)).name)
+        return []
+    return [_enxugar_e_relatar(py, ck, ck.relative_to(Path(str(pesos)))
+                               .as_posix(), enxutos)
+            for ck in checkpoints_da_pasta(pasta)]
+
+
+def _assinatura(caminho):
+    try:
+        st = os.stat(str(caminho))
+    except OSError:
+        return None
+    return st.st_size, st.st_mtime_ns
+
+
+def enxugar_modelo_do_registro(py, ident, m, pasta, antes, enxutos=None):
+    pedidos = m.get("enxuto") or {}
+    chegaram = [rel for rel in sorted(pedidos)
+                if _assinatura(Path(str(pasta)) / rel)
+                not in (None, antes.get(rel))]
+    if not chegaram:
+        return []
+    if not py or not os.path.isfile(str(py)):
+        log("  estado do otimizador: fica nos pesos de %s (sem o Python do "
+            "pacote para conferir a rede)" % ident)
+        return []
+    return [_enxugar_e_relatar(py, Path(str(pasta)) / rel,
+                               "modelos/%s/%s" % (ident, rel), enxutos,
+                               esperado=pedidos[rel][1])
+            for rel in chegaram]
+
+
+def _ler_recibo_do_enxugar(oficina):
+    try:
+        return json.loads((Path(str(oficina)) / RECIBO_DO_ENXUGAR)
+                          .read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _gravar_recibo_do_enxugar(oficina, recibo):
+    try:
+        (Path(str(oficina)) / RECIBO_DO_ENXUGAR).write_text(
+            json.dumps(recibo, indent=1, sort_keys=True), encoding="utf-8")
+    except Exception as e:
+        log("  AVISO: nao consegui gravar %s (%s)" % (RECIBO_DO_ENXUGAR, e))
 
 
 def _ler_registro_dos_pesos(oficina):
@@ -1123,6 +1395,7 @@ def baixar_pesos_ts(py, tasks, pesos, cache, extra=(), env=None,
                 "mesmo): %s" % velho)
             shutil.rmtree(str(p), ignore_errors=True)
     registro = _ler_registro_dos_pesos(oficina) if oficina else {}
+    enxutos = _ler_recibo_do_enxugar(oficina) if oficina else {}
     falhas = {}
     try:
         for n, item in enumerate(tab["itens"], 1):
@@ -1130,7 +1403,8 @@ def baixar_pesos_ts(py, tasks, pesos, cache, extra=(), env=None,
                 % (n, len(tab["itens"]), item["id"], item["de_onde"]))
             try:
                 instalar_peso_ts(item, pesos, cache, py_recuo=py,
-                                 registro=registro)
+                                 registro=registro, py_do_pacote=py,
+                                 enxutos=enxutos)
             except (SemRede, DivergeDaOrigem):
                 raise
             except Exception as e:
@@ -1144,7 +1418,8 @@ def baixar_pesos_ts(py, tasks, pesos, cache, extra=(), env=None,
         for item in segunda:
             try:
                 instalar_peso_ts(item, pesos, cache, py_recuo=py,
-                                 registro=registro)
+                                 registro=registro, py_do_pacote=py,
+                                 enxutos=enxutos)
                 del falhas[item["id"]]
                 log("  -- Dataset%s veio na segunda tentativa" % item["id"])
             except (SemRede, DivergeDaOrigem):
@@ -1155,6 +1430,8 @@ def baixar_pesos_ts(py, tasks, pesos, cache, extra=(), env=None,
     finally:
         if oficina:
             _gravar_registro_dos_pesos(oficina, registro)
+            if enxutos:
+                _gravar_recibo_do_enxugar(oficina, enxutos)
     return falhas
 
 
@@ -1224,9 +1501,13 @@ def conferir_modelos_exigidos(bundle, exigidos=None):
                 continue
             d = radai_models.pasta_do_modelo(ident)
             antes = len(problemas)
-            for rel, sha in sorted((radai_models.MODELOS[ident].get("sha256")
-                                    or {}).items()):
-                if not (d / rel).is_file() or sha256_de(d / rel) != sha:
+            m = radai_models.MODELOS[ident]
+            for rel, sha in sorted((m.get("sha256") or {}).items()):
+                aceitas = {sha}
+                enxuto = (m.get("enxuto") or {}).get(rel)
+                if enxuto:
+                    aceitas.add(enxuto[1])
+                if not (d / rel).is_file() or sha256_de(d / rel) not in aceitas:
                     problemas.append(u"%s: %s nao confere com o registro"
                                      % (ident, rel))
             if len(problemas) == antes:
@@ -1245,6 +1526,9 @@ def conferir_modelos_exigidos(bundle, exigidos=None):
 def baixar_modelos_do_registro(ctx, radai_models, fora_por_escolha,
                                exigidos=None):
     exigidos = set(modelos_exigidos() if exigidos is None else exigidos)
+    oficina = ctx.get("destino")
+    enxutos = _ler_recibo_do_enxugar(oficina) if oficina else {}
+    recibo_antes = dict(enxutos)
     try:
         os.environ["RADAI_MODELOS_DIR"] = str(ctx["bundle"] / "modelos")
         faltaram = []
@@ -1265,11 +1549,14 @@ def baixar_modelos_do_registro(ctx, radai_models, fora_por_escolha,
             if not (m.get("repo") or m.get("url_direta") or m.get("url_por_arquivo")):
                 log("  -- %s: sem rota de download automatico, pulado" % ident)
                 continue
-            e = radai_models.estado_do_modelo(ident)
-            log("  -- %s (%s, %.0f MB)"
-                % (ident, m["licenca"].split("·")[-1].strip()[:46],
-                   (e["bytes_total"] or 0) / 1e6))
             try:
+                e = radai_models.estado_do_modelo(ident)
+                log("  -- %s (%s, %.0f MB)"
+                    % (ident, m["licenca"].split("·")[-1].strip()[:46],
+                       (e["bytes_total"] or 0) / 1e6))
+                pasta = radai_models.pasta_do_modelo(ident)
+                antes = dict((rel, _assinatura(Path(str(pasta)) / rel))
+                             for rel in (m.get("enxuto") or {}))
                 r = radai_models.baixar(ident)
                 log("     baixados: %s | ja tinha: %s"
                     % (", ".join(r.get("baixados") or []) or "nada",
@@ -1292,8 +1579,13 @@ def baixar_modelos_do_registro(ctx, radai_models, fora_por_escolha,
                         "ele e o aplicativo funciona normalmente -- o que "
                         "falta e o conjunto de comparacao dele.")
                 else:
-                    log("     NAO BAIXADO (%s: %s)" % (type(e2).__name__, e2))
+                    log("     %s NAO BAIXADO (%s: %s)"
+                        % (ident, type(e2).__name__, e2))
                     log("     O pacote sai sem ele; o aplicativo funciona.")
+            else:
+                if not ctx.get("instalar"):
+                    enxugar_modelo_do_registro(ctx.get("py"), ident, m, pasta,
+                                               antes, enxutos)
         entraram = [i for i, m in radai_models.MODELOS.items()
                     if not m.get("embutido")
                     and (m.get("repo") or m.get("url_direta"))
@@ -1317,6 +1609,9 @@ def baixar_modelos_do_registro(ctx, radai_models, fora_por_escolha,
         log("     nenhum modelo extra baixado (%s: %s). O bundle segue "
             "valido: o TotalSegmentator e o motor padrao."
             % (type(e).__name__, e))
+    finally:
+        if oficina and enxutos != recibo_antes:
+            _gravar_recibo_do_enxugar(oficina, enxutos)
 
 def etapa_pesos(ctx):
     import radai_tasks
@@ -1539,7 +1834,6 @@ def etapa_app(ctx):
         shutil.copy2(str(p), str(destino_tools / p.name))
         log("  tools/%s" % p.name)
 
-    # copyright e o NOTICE quando existir — e a clausula da licenca que nos
     for nome in ("LICENSE", "NOTICE"):
         origem = RAIZ / nome
         if not origem.is_file():
@@ -1704,6 +1998,7 @@ def _escrever_manifesto(ctx, pasta=None):
                   % ("arquivo", "componente", "bytes", "sha256"))
     linhas.append("")
     achados = ausentes = 0
+    _enx = _ler_recibo_do_enxugar(ctx["destino"])
     if artefatos:
         base = ctx["bundle"]
         for chave in sorted(artefatos.ARTEFATOS):
@@ -1720,7 +2015,12 @@ def _escrever_manifesto(ctx, pasta=None):
                               "AUSENTE (opcional, recusado)" if opc else "AUSENTE"))
                 continue
             achados += 1
-            linhas.append(artefatos.linha_manifesto(chave, str(caminho)))
+            _rel = chave.split("/", 1)[1] if chave.startswith("ts/") else ""
+            if _rel in _enx:
+                linhas.append(_linha_do_enxuto(artefatos, chave, caminho,
+                                               _enx[_rel]))
+            else:
+                linhas.append(artefatos.linha_manifesto(chave, str(caminho)))
     linhas.append("")
     linhas.append("  %d arquivo(s) presente(s), %d ausente(s)." % (achados, ausentes))
     linhas.append("")
@@ -1766,6 +2066,27 @@ def _escrever_manifesto(ctx, pasta=None):
         linhas.append("   montagem: os pesos ja estavam no disco, de um")
         linhas.append("   preparo anterior. Eles NAO foram conferidos aqui.)")
     linhas.append("")
+    linhas.append("  CHECKPOINTS SEM O ESTADO DO OTIMIZADOR (%d):" % len(_enx))
+    linhas.append("  O estado do otimizador (optimizer_state; no nnU-Net v1,")
+    linhas.append("  optimizer_state_dict) so serve para continuar o treino.")
+    linhas.append("  O preparo o tira de cada checkpoint do nnU-Net (os do")
+    linhas.append("  TotalSegmentator e os que o registro de modelos declara)")
+    linhas.append("  logo depois do download conferido, regrava o")
+    linhas.append("  arquivo com um aviso de modificacao dentro dele e confere")
+    linhas.append("  que os pesos da rede e as demais entradas sao identicos")
+    linhas.append("  byte a byte ao original. Peso que ja estava no disco nao")
+    linhas.append("  e reescrito.")
+    for _r in sorted(_enx):
+        _v = _enx[_r] or {}
+        linhas.append("  %s" % _r)
+        linhas.append("      bytes %s -> %s   em %s"
+                      % (_v.get("bytes_antes", "?"), _v.get("bytes_depois", "?"),
+                         _v.get("quando", "?")))
+        linhas.append("      sha256 antes  %s" % (_v.get("sha256_antes") or "?"))
+        linhas.append("      sha256 depois %s" % (_v.get("sha256_depois") or "?"))
+        linhas.append("      rede: %s tensores identicos byte a byte (digest %s)"
+                      % (_v.get("tensores", "?"), _v.get("digest_rede") or "?"))
+    linhas.append("")
     linhas.append("  Os do NV-Segment-CT conferem o sha256 NO DOWNLOAD")
     linhas.append("  (`radai_models.baixar`, campo `sha256` do registro), e")
     linhas.append("  nao so o tamanho em bytes: tamanho pega truncamento, nao")
@@ -1776,6 +2097,35 @@ def _escrever_manifesto(ctx, pasta=None):
     alvo.write_text("\n".join(linhas) + "\n", encoding="utf-8")
     log("  MANIFESTO.txt: %d arquivo(s) listado(s)" % achados)
     return alvo
+
+
+def _linha_do_enxuto(artefatos, chave, caminho, reg):
+    a = artefatos.ARTEFATOS.get(chave) or {}
+    esperado = a.get("sha256") or ""
+    antes = reg.get("sha256_antes") or ""
+    veredito = ""
+    try:
+        agora = sha256_de(caminho)
+    except OSError as e:
+        agora, veredito = "", "NAO FOI POSSIVEL SOMAR (%s)" % str(e)[:60]
+    if not agora:
+        veredito = veredito or "NAO FOI POSSIVEL SOMAR"
+    elif agora != reg.get("sha256_depois"):
+        veredito = ("NAO CONFERE com o recibo do preparo: o arquivo mudou "
+                    "depois de enxugado")
+    elif esperado and antes == esperado:
+        veredito = ("sem o estado do otimizador: a soma de ANTES confere com "
+                    "a tabela, e os pesos da rede sao identicos byte a byte")
+    elif esperado:
+        veredito = ("sem o estado do otimizador: a soma de ANTES NAO CONFERE "
+                    "com a tabela, que esperava %s" % esperado)
+    else:
+        veredito = "sem o estado do otimizador; SEM SOMA NA TABELA"
+    return ("  %s\n      componente %-20s bytes %s (antes %s)\n"
+            "      sha256     %s\n      sha256 antes %s\n      %s"
+            % (chave, a.get("componente", "?"), reg.get("bytes_depois", "?"),
+               reg.get("bytes_antes", "?"), agora or "?", antes or "?",
+               veredito))
 
 
 def _avulsos_do_pacote(ctx):
@@ -1955,17 +2305,17 @@ administrador, nem de Python instalado: o runtime vem aqui dentro.
     C:\\RADIOTERAPIA_AI\\_instalados.json.
 
  4. Abra a suite pelo atalho, e em Configuracoes ->
-    Diagnosticar e otimizar, clique em Diagnosticar: tem de dar
+    Diagnosticos e Registros, clique em Diagnosticar: tem de dar
     0 faltando.
 
  5. Abra pelo atalho "Radioterapia.ai Local Suite" na area de
     trabalho. O painel sobe em  http://127.0.0.1:8777/  (o motor
     roda sem janela; para fechar, FECHAR APP no painel).
-    Na primeira vez ele pede o aceite e, logo depois, o TPS de
-    destino (Eclipse ou Monaco) e a pasta das series que o turno
-    varre: sem ela o vigia nao varre nada. Para mudar depois:
-    Configuracoes, ou no ContourLab, em Rodar agora, Incluir
-    Overnight Run.
+    Na primeira vez ele pede o aceite e, logo depois, a pasta
+    favorita, que e opcional. A pasta que o turno varre se escolhe
+    no ContourLab, em Rodar agora, Incluir Overnight Run: sem ela o
+    vigia nao varre nada. Os aneis saem no padrao Eclipse / Monaco;
+    para Xio / Focal, Configuracoes, Geral.
 
 ================================================================
  CONTEUDO DO .ZIP

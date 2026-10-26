@@ -1060,9 +1060,9 @@ def teste_o_card_do_turno_leva_os_valores_e_a_vez():
                                               "MODALITIES": "CT,MR",
                                               "DAYS_BACK": "30"}})))
     cfg = F.config_do_turno()
-    checar(u"a rota guarda no card os valores de um turno so",
-           cfg == {"pausar_servicos": False,
-                   "temporarios": {"ROOT": SHARE, "MODALITIES": "CT,MR",
+    checar(u"a rota guarda no card os valores de um turno so, e ignora a "
+           u"pausa de servicos que um navegador antigo ainda mande",
+           cfg == {"temporarios": {"ROOT": SHARE, "MODALITIES": "CT,MR",
                                    "DAYS_BACK": "30"}}, str(cfg))
     bruto = json.dumps(_pacote_da_rota(), ensure_ascii=False)
     checar(u"  e o ROOT do turno NAO vai para o navegador (a carga sai)",
@@ -1075,10 +1075,9 @@ def teste_o_card_do_turno_leva_os_valores_e_a_vez():
            u"recusa)", t.get("TASKS") == "lung_nodules", str(t)[:120])
     checar(u"  e o valor tem teto de tamanho", len(t.get("ROOT") or "") == 1024,
            str(len(t.get("ROOT") or "")))
-    F.overnight(True, pausar_servicos=True)
+    F.overnight(True)
     checar(u"sem valores do turno, a chave nem aparece",
-           F.config_do_turno() == {"pausar_servicos": True},
-           str(F.config_do_turno()))
+           F.config_do_turno() == {}, str(F.config_do_turno()))
 
     checar(u"com serie ESPERANDO na frente, nao e a vez do turno",
            F.turno_na_vez() is False)

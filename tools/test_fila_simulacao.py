@@ -944,6 +944,54 @@ def teste_reabrir_com_a_fila_cheia():
     _zerar()
 
 
+def _turno_na_fila():
+    return [c for c in F.cards() if c.get("tipo") == Q.OVERNIGHT]
+
+
+def teste_o_turno_aberto_acaba_com_o_programa():
+    secao(u"o card do turno aberto fica «rodando» e acaba com o programa")
+    _zerar()
+    F._PERSISTIR["ligada"] = True
+    F.overnight(True)
+    checar(u"o card agendado espera", [c.get("estado") for c in
+                                       _turno_na_fila()] == [Q.ESPERANDO])
+    F._CARDS[:] = []
+    F._PERSISTIR["ligada"] = False
+    F.carregar()
+    checar(u"(isca) o turno AGENDADO volta do disco esperando",
+           [c.get("estado") for c in _turno_na_fila()] == [Q.ESPERANDO],
+           str(_turno_na_fila()))
+    F._PERSISTIR["ligada"] = True
+    checar(u"marcar o turno aberto deixa o card «rodando», com o motivo",
+           F.marcar_turno_aberto(u"turno aberto as 22:00") is True
+           and [(c.get("estado"), c.get("motivo")) for c in _turno_na_fila()]
+           == [(Q.RODANDO, u"turno aberto as 22:00")], str(_turno_na_fila()))
+    checar(u"  e a ordem da barra continua a das faixas",
+           Q.conferir_ordem(F.cards()) is True)
+    checar(u"  e o turno aberto nao e a vez de abrir de novo",
+           F.turno_na_vez() is False and F.turno_agendado() is True)
+    bruto = io.open(F.arquivo_da_fila(), encoding="utf-8").read()
+    checar(u"  e o arquivo da fila diz rodando", u"rodando" in bruto, bruto[:200])
+    F._CARDS[:] = []
+    F._PERSISTIR["ligada"] = False
+    F.carregar()
+    checar(u"o programa que caiu com o turno aberto nao traz o card de "
+           u"volta, nem como turno a abrir nem como falha",
+           _turno_na_fila() == [], str(_turno_na_fila()))
+    F._PERSISTIR["ligada"] = True
+    F.overnight(True)
+    F.marcar_turno_aberto(u"turno aberto as 23:00")
+    F.ao_fechar()
+    checar(u"fechar o programa com o turno aberto tira o card",
+           _turno_na_fila() == [], str(_turno_na_fila()))
+    F._CARDS[:] = []
+    F._PERSISTIR["ligada"] = False
+    F.carregar()
+    checar(u"  e ele nao volta na reabertura", _turno_na_fila() == [],
+           str(_turno_na_fila()))
+    _zerar()
+
+
 def teste_onde_a_fila_mora():
     secao(u"onde a fila mora: C:\\RADIOTERAPIA_AI, e a bateria nunca grava la")
     guarda = dict((k, os.environ.get(k)) for k in
@@ -1356,6 +1404,7 @@ def main():
               teste_duas_estacoes_na_mesma_pasta,
               teste_a_trava_de_processo_morto,
               teste_reabrir_com_a_fila_cheia,
+              teste_o_turno_aberto_acaba_com_o_programa,
               teste_onde_a_fila_mora,
               teste_a_fila_nao_grava_em_pasta_que_sincroniza,
               teste_reabrir_solta_a_trava_e_acha_pelo_acervo,

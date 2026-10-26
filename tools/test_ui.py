@@ -2291,10 +2291,10 @@ def teste_ver_cada_lado_le_o_seu_arquivo():
         oar, fast, full, ts, orb = [x[0] for x in _VER_ARQUIVOS]
         checar(u"o FULL se chama FULL", rot[full]["curto"] == u"FULL",
                str(rot[full]))
-        checar(u"o entregue é o OAR, e é entregue",
-               rot[oar]["curto"] == u"OAR" and rot[oar]["entregue"])
-        checar(u"o OAR_Fast é reconhecido pelo infixo FAST_, e é entregue",
-               rot[fast]["curto"] == u"OAR_Fast" and rot[fast]["entregue"]
+        checar(u"o entregue é o STUDY, e é entregue",
+               rot[oar]["curto"] == u"STUDY" and rot[oar]["entregue"])
+        checar(u"o STUDY_Fast é reconhecido pelo infixo FAST_, e é entregue",
+               rot[fast]["curto"] == u"STUDY_Fast" and rot[fast]["entregue"]
                and rot[fast]["cod"] == u"fast", str(rot[fast]))
         checar(u"o TS cru e o plugin da órbita têm o nome do registro",
                rot[ts]["curto"] == u"TS cru" and rot[orb]["cod"] == u"orb")
@@ -2302,9 +2302,15 @@ def teste_ver_cada_lado_le_o_seu_arquivo():
         checar(u"o infixo desconhecido NÃO vira o entregue",
                not des["entregue"] and des["cod"] == u"", str(des))
 
-        d = cli.post("/api/verseg/series", json={"pasta": pasta}).json()
-        series = d.get("series") or []
-        checar(u"a busca acha a série com os cinco arquivos",
+        import radai_varrer
+        import radai_view
+        radai_view.registrar_varredura()
+        d = radai_varrer.estado(radai_varrer.iniciar(
+            radai_view.USO_DA_VARREDURA, pasta, dias=0,
+            em_segundo_plano=False).get("v"))
+        series = d.get("linhas") or []
+        checar(u"a busca (a varredura da casca) acha a série com os cinco "
+               u"arquivos",
                len(series) == 1 and len(series[0].get("rs") or []) == 5,
                str(d)[:200])
         if len(series) != 1:
@@ -2583,9 +2589,9 @@ def teste_ver_o_servidor_nas_bordas():
     fast = dict((c[u"cod"], c) for c in radai_sets.SAIDAS_DE_MODO).get(
         u"fast") or {}
     r = V.rotulo_do_arquivo(u"RS_RadAI_FAST_20260926_1.dcm")
-    checar(u"o OAR_Fast é o do registro (`SAIDAS_DE_MODO`), e é entregue",
+    checar(u"o STUDY_Fast é o do registro (`SAIDAS_DE_MODO`), e é entregue",
            fast.get(u"infixo") == u"FAST_" and r[u"cod"] == u"fast"
-           and r[u"curto"] == u"OAR_Fast" and r[u"entregue"] is True, str(r))
+           and r[u"curto"] == u"STUDY_Fast" and r[u"entregue"] is True, str(r))
     tela = [c for c in radai_view._conjuntos_da_tela() if c[u"cod"] == u"fast"]
     checar(u"  e a lista do /ver o tem UMA vez, com a ajuda do registro",
            len(tela) == 1 and tela[0][u"ajuda"] == fast.get(u"ajuda")
@@ -2748,10 +2754,11 @@ def teste_onda_4b_a_casca():
            u"pt.setAttribute('role', 'img')" in tj
            and u"o vigia parou com erro" in tj)
     vj = io.open(_componentes.fonte("app/radai_view.py"), encoding=u"utf-8").read()
-    checar(u"o /ver reescreve a mensagem por `uiTexto` e a contagem é molde",
+    checar(u"o /ver reescreve a mensagem por `uiTexto`, e a busca da pasta é a "
+           u"da casca, com a contagem e o vazio em molde",
            u"if(window.uiTexto) window.uiTexto(e, t || '')" in vj
-           and u"'%s série(s) com contorno'.replace('%s', VR.series.length)"
-           in vj)
+           and u"window.uiVarrerLista(" in vj
+           and u"uiMolde(@NENHUMA_JS@, [p])" in vj)
     ts = [c for c in S.CONJUNTOS if c.get(u"cod") == u"ts"]
     aj = (ts[0].get(u"ajuda") or u"") if ts else u""
     checar(u"a ajuda do TS cru (o `title` do chip) não cita o Calibrador",
@@ -3051,6 +3058,8 @@ def _medir_tema(nav, pagina):
             u"(function(){ var g = document.querySelector('.ui-seg');"
             u" return g ? [g.getAttribute('role'), g.getAttribute('aria-label')] : null })()")
         if m["botoes"]:
+            pg.click(u".ui-seg button[data-v='sistema']")
+            pg.wait_for_timeout(120)
             pg.click(u".ui-seg button[data-v='escuro']")
             pg.wait_for_timeout(150)
         m["escolheu"] = pg.evaluate(_JS_TEMA_LIDO) + [
@@ -3073,9 +3082,20 @@ def _medir_tema(nav, pagina):
             pg.wait_for_timeout(150)
         m["seta"] = pg.evaluate(_JS_TEMA_LIDO) + [pg.evaluate(
             u"document.activeElement && document.activeElement.getAttribute('data-v')")]
+        pg.bring_to_front()
+        pg.emulate_media(color_scheme=u"dark")
+        pg.wait_for_timeout(200)
+        m["sistema_segue"] = pg.evaluate(_JS_TEMA_LIDO)
+        pg.emulate_media(color_scheme=u"light")
+        pg.wait_for_timeout(120)
         if m["botoes"]:
             pg.click(u".ui-seg button[data-v='claro']")
             pg.wait_for_timeout(250)
+            try:
+                pg2.wait_for_function(u"document.documentElement.getAttribute("
+                                      u"'data-tema-escolha') === 'claro'", timeout=4000)
+            except Exception:
+                pass
         m["outra_aba_seguiu"] = pg2.evaluate(_JS_TEMA_LIDO)
         pg3 = ctx.new_page()
         pg3.on("pageerror", lambda e: erros.append(str(e)[:120]))
@@ -3097,8 +3117,11 @@ def teste_o_tema_tem_tres_escolhas():
     secao(u"tema: claro, escuro ou o do sistema, antes do primeiro desenho")
     import radai_ui as U
     import radai_porta
-    checar(u"as três escolhas e o padrão (sem escolha, vale o sistema)",
-           U.TEMAS == (u"claro", u"escuro", u"sistema") and U.TEMA_PADRAO == u"sistema")
+    checar(u"as três escolhas e o padrão (sem escolha, vale o escuro)",
+           U.TEMAS == (u"claro", u"escuro", u"sistema") and U.TEMA_PADRAO == u"escuro")
+    checar(u"  e o motor do tema usa o mesmo padrão da constante",
+           (u"guardado : '%s'" % U.TEMA_PADRAO) in U.TEMA_JS
+           and (u"uiTemaEscolha() : '%s'" % U.TEMA_PADRAO) in U.COMPONENTES_JS)
     pg = U.aplicar(u"<html><head><meta charset='utf-8'></head><body><p>x</p></body></html>")
     i_tema, i_css = pg.find(U.MARCA_TEMA), pg.find(U.MARCA_CSS)
     checar(u"o motor do tema vai no <head>, antes da folha e do corpo",
@@ -3144,18 +3167,20 @@ def teste_o_tema_tem_tres_escolhas():
         nav = pw.chromium.launch(executable_path=exe, headless=True)
         try:
             m = _medir_tema(nav, _pagina_do_tema(U))
-            checar(u"[navegador] sem escolha, com o sistema escuro: escuro, já no "
-                   u"primeiro script do corpo", m.get("inicio") == [u"escuro", u"sistema",
-                                                                    u"escuro"], repr(m.get("inicio")))
-            checar(u"  o sistema muda para claro e a tela acompanha, sem recarregar",
-                   m.get("sistema_claro", [None])[:2] == [u"claro", u"sistema"]
-                   and (m.get("avisos") or 0) >= 1, repr(m.get("sistema_claro")))
+            checar(u"[navegador] sem escolha: escuro, já no primeiro script do corpo",
+                   m.get("inicio") == [u"escuro", u"escuro", u"escuro"], repr(m.get("inicio")))
+            checar(u"  e sem escolha o sistema claro não clareia a tela (o padrão é o escuro)",
+                   m.get("sistema_claro", [None])[:2] == [u"escuro", u"escuro"],
+                   repr(m.get("sistema_claro")))
+            checar(u"com Sistema escolhido, o sistema muda e a tela acompanha, sem recarregar",
+                   (m.get("sistema_segue") or [None])[0:2] == [u"escuro", u"sistema"],
+                   repr(m.get("sistema_segue")))
             checar(u"  o controle é um radiogroup com três rádios, cada um com ícone",
                    (m.get("grupo") or [None])[0] == u"radiogroup"
                    and [b[0] for b in m.get("botoes") or []] == [u"claro", u"escuro", u"sistema"]
                    and all(b[2] for b in m.get("botoes") or []), repr(m.get("botoes")))
-            checar(u"  e marca o Sistema enquanto nada foi escolhido",
-                   [b[1] for b in m.get("botoes") or []] == [u"false", u"false", u"true"],
+            checar(u"  e marca o Escuro enquanto nada foi escolhido",
+                   [b[1] for b in m.get("botoes") or []] == [u"false", u"true", u"false"],
                    repr(m.get("botoes")))
             checar(u"escolher Escuro grava no navegador e pinta na hora",
                    m.get("escolheu") == [u"escuro", u"escuro", u"escuro", u"escuro"],
@@ -3174,9 +3199,9 @@ def teste_o_tema_tem_tres_escolhas():
             checar(u"a escolha numa aba chega à outra aberta, sem recarregar",
                    (m.get("outra_aba_seguiu") or [None])[0:2] == [u"claro", u"claro"],
                    repr(m.get("outra_aba_seguiu")))
-            checar(u"sem localStorage (a leitura lança), a tela abre pelo sistema",
+            checar(u"sem localStorage (a leitura lança), a tela abre escura",
                    m.get("sem_storage_lanca") is True
-                   and (m.get("sem_storage") or [None])[0:2] == [u"escuro", u"sistema"],
+                   and (m.get("sem_storage") or [None])[0:2] == [u"escuro", u"escuro"],
                    repr(m.get("sem_storage")))
             checar(u"  e a escolha vale na memória da tela, sem erro de JS",
                    (m.get("sem_storage_escolheu") or [None])[0:2] == [u"claro", u"claro"]
@@ -3187,20 +3212,22 @@ def teste_o_tema_tem_tres_escolhas():
                    and (mf.get("outra_aba_seguiu") or [None])[0] == u"escuro",
                    repr([mf.get("sistema_claro"), mf.get("outra_aba_seguiu")]))
             i1 = _medir_tema(nav, _pagina_do_tema(U, js_tema=U.TEMA_JS.replace(
-                u"guardado : 'sistema'", u"guardado : 'escuro'")))
-            checar(u"  (isca) o padrão antigo (escuro) não segue o sistema claro",
-                   (i1.get("sistema_claro") or [None])[0] == u"escuro", repr(i1.get("sistema_claro")))
+                u"guardado : 'escuro'", u"guardado : 'sistema'")))
+            checar(u"  (isca) o padrão antigo (o do sistema) clareia com o sistema claro",
+                   (i1.get("sistema_claro") or [None])[0] == u"claro", repr(i1.get("sistema_claro")))
             i2 = _medir_tema(nav, _pagina_do_tema(U, js_tema=U.TEMA_JS.replace(
                 u"mq.addEventListener('change', seguirOSistema)", u"0")))
             checar(u"  (isca) sem o ouvinte, o sistema muda e a tela não",
-                   (i2.get("sistema_claro") or [None])[0] == u"escuro", repr(i2.get("sistema_claro")))
+                   (i2.get("sistema_segue") or [None])[0] == u"claro", repr(i2.get("sistema_segue")))
             i3 = _medir_tema(nav, _pagina_do_tema(U, tema_no_fim=True))
             checar(u"  (isca) o tema aplicado no fim do corpo chega depois do primeiro script",
                    (i3.get("inicio") or [None] * 3)[2] is None, repr(i3.get("inicio")))
             i4 = _medir_tema(nav, _pagina_do_tema(U, js_tema=U.TEMA_JS.replace(
                 u"try{ localStorage.setItem(CHAVE, t) }catch(e){}", u"")))
-            checar(u"  (isca) sem gravar, recarregar volta ao sistema",
-                   (i4.get("recarregou") or [None])[0] == u"claro", repr(i4.get("recarregou")))
+            checar(u"  (isca) sem gravar, a escolha não chega ao navegador nem à outra aba",
+                   (i4.get("escolheu") or [None] * 4)[3] is None
+                   and (i4.get("outra_aba_seguiu") or [None])[0] != u"claro",
+                   repr([i4.get("escolheu"), i4.get("outra_aba_seguiu")]))
         finally:
             nav.close()
 
@@ -3551,6 +3578,83 @@ def teste_o_popup_de_serie():
             nav.close()
 
 
+_JS_PILHA_LIDA = u"""(function(){
+ var vis = document.querySelectorAll('.ui-modal-veu.vis');
+ return {abertos: vis.length,
+         explorador: !!document.querySelector('.ui-modal-veu.vis .ui-fp-modal'),
+         popup: !!document.querySelector('.ui-modal-veu.vis .ui-ps-modal')};
+})()"""
+
+_PILHA_CERTA = (u"if(!aberto || _MODAIS[_MODAIS.length - 1] !== m) return;\n"
+                u"   if(e.key === 'Escape'){ e.preventDefault(); "
+                u"e.stopImmediatePropagation(); fechar() }")
+_PILHA_ANTIGA = (u"if(!aberto) return;\n"
+                 u"   if(e.key === 'Escape'){ e.preventDefault(); "
+                 u"e.stopPropagation(); fechar() }")
+
+
+def _medir_pilha(nav, pagina):
+    ctx = nav.new_context(viewport={"width": 1280, "height": 800})
+    _servir_uma(ctx, _BASE_TEMA, pagina)
+    m, erros = {}, []
+    try:
+        pg = ctx.new_page()
+        pg.on("pageerror", lambda e: erros.append(str(e)[:120]))
+        pg.goto(_BASE_TEMA + u"/")
+        pg.wait_for_timeout(400)
+        m["so_o_popup"] = pg.evaluate(_JS_PILHA_LIDA)
+        pg.evaluate(u"uiExplorador({titulo: 'Escolher a pasta'}); true")
+        pg.wait_for_timeout(400)
+        m["os_dois"] = pg.evaluate(_JS_PILHA_LIDA)
+        pg.keyboard.press(u"Escape")
+        pg.wait_for_timeout(400)
+        m["um_esc"] = pg.evaluate(_JS_PILHA_LIDA)
+        pg.keyboard.press(u"Escape")
+        pg.wait_for_timeout(400)
+        m["dois_esc"] = pg.evaluate(_JS_PILHA_LIDA)
+    finally:
+        ctx.close()
+    m["erros"] = erros
+    return m
+
+
+def teste_o_esc_fecha_so_o_modal_de_cima():
+    secao(u"o Esc fecha só o modal de cima: o explorador de pastas sobre o popup de série")
+    import radai_ui as U
+    p = _pagina_ps(U)
+    checar(u"o uiModal guarda a pilha e só o de cima ouve o Esc",
+           _PILHA_CERTA in p and u"_MODAIS.push(m)" in p
+           and u"_MODAIS.splice(i, 1)" in p)
+    exe = _chromium()
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception:
+        sync_playwright = None
+    if not exe or sync_playwright is None:
+        print(u"    PULADO o navegador: sem Playwright ou sem Chromium")
+        return
+    with sync_playwright() as pw:
+        nav = pw.chromium.launch(executable_path=exe, headless=True)
+        try:
+            m = _medir_pilha(nav, p)
+            checar(u"[navegador] o popup abre sozinho, e o explorador abre por cima dele",
+                   (m.get("so_o_popup") or {}).get("abertos") == 1
+                   and m.get("os_dois") == {"abertos": 2, "explorador": True,
+                                            "popup": True}, repr(m))
+            checar(u"  o primeiro Esc fecha só o explorador, e o popup continua aberto",
+                   m.get("um_esc") == {"abertos": 1, "explorador": False,
+                                       "popup": True}, repr(m.get("um_esc")))
+            checar(u"  o segundo Esc fecha o popup",
+                   (m.get("dois_esc") or {}).get("abertos") == 0, repr(m.get("dois_esc")))
+            checar(u"  e nenhum erro de JS", not m.get("erros"), repr(m.get("erros")))
+            i = _medir_pilha(nav, p.replace(_PILHA_CERTA, _PILHA_ANTIGA))
+            checar(u"  (isca) sem a pilha, um Esc fechava os dois juntos",
+                   _PILHA_ANTIGA not in p
+                   and (i.get("um_esc") or {}).get("abertos") == 0, repr(i.get("um_esc")))
+        finally:
+            nav.close()
+
+
 def _fantoma_no_acervo():
     import json as _json
     import radai_archive
@@ -3784,7 +3888,8 @@ def main():
               teste_c2_a_tabela_do_acervo,
               teste_o_tema_tem_tres_escolhas,
               teste_o_seletor_segmentado,
-              teste_o_popup_de_serie]
+              teste_o_popup_de_serie,
+              teste_o_esc_fecha_so_o_modal_de_cima]
     todos = set(k for k, v in globals().items()
                 if k.startswith(u"teste_") and callable(v))
     fora = sorted(todos - set(f.__name__ for f in testes))

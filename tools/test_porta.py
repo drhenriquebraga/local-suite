@@ -99,6 +99,14 @@ def _porta():
     return radai_router.montar_porta()
 
 
+def _controles(m):
+    grupo = re.search(r'(?s)<div class="ls-controles">(.*?)</div>\s*</header>', m)
+    grupo = grupo.group(1) if grupo else u""
+    return [(re.search(r"(data-radai-[a-z]+)(?: hidden)?>", d).group(1), d)
+            for d in re.findall(r'(?s)<details class="ls-ctl[^"]*" data-radai-[a-z]+(?: hidden)?>'
+                                r'.*?</details>', grupo)]
+
+
 FRONTEIRA_TXT = _texto(P.FRONTEIRA)
 
 
@@ -449,30 +457,75 @@ def teste_a_pagina():
     checar(u"FRONTEIRA é constante própria (não o recuo das mini-páginas)",
            P.FRONTEIRA != radai_modules.ALERTA_DA_PORTA)
 
-    secao(u"LND-11: só a engrenagem no cabeçalho, e o Fechar dentro dela")
+    secao(u"LND-11: três controles no cabeçalho (minimizar, configurações, power), "
+          u"cada um com uma ação")
     topo = re.search(r'(?s)<header class="ls-topo"[^>]*>(.*?)</header>', m)
     checar(u"o cabeçalho tem o nome da raiz para a pilha do Voltar",
            u'<header class="ls-topo" data-radai-tela="Radioterapia.AI Local">' in m)
     topo = topo.group(1) if topo else u""
-    eng = re.search(r'(?s)<details class="ls-engrenagem" data-radai-engrenagem>(.*?)</details>', m)
-    eng = eng.group(1) if eng else u""
-    checar(u"a engrenagem tem /config e a âncora do Fechar",
-           u'href="/config"' in eng and u"data-radai-encerrar" in eng, eng[:200])
-    fora_eng = m.replace(eng, u"")
-    checar(u"  e nenhuma das duas fora dela",
-           u'href="/config"' not in fora_eng and u"data-radai-encerrar" not in fora_eng)
-    checar(u"  o summary diz Configurações",
-           u'<summary aria-label="Configurações">' in eng
-           and u"<span data-radai-frase>Configurações</span>" in eng)
+    ctl = _controles(m)
+    checar(u"três <details> no grupo, na ordem minimizar, configurações, power",
+           [c[0] for c in ctl] == [u"data-radai-minimizar", u"data-radai-engrenagem",
+                                   u"data-radai-power"], repr([c[0] for c in ctl]))
+    por = dict(ctl)
+    eng = por.get(u"data-radai-engrenagem", u"")
+    pwr = por.get(u"data-radai-power", u"")
+    mnz = por.get(u"data-radai-minimizar", u"")
+    checar(u"a engrenagem tem só /config", u'href="/config"' in eng
+           and u"data-radai-encerrar" not in eng, eng[:200])
+    checar(u"o power tem só a âncora do Fechar", u"data-radai-encerrar" in pwr
+           and u'href="/config"' not in pwr, pwr[:200])
+    checar(u"o minimizar tem a ação e a linha da falha, apagada de partida",
+           u"data-radai-minimizar-acao" in mnz and u"data-radai-falha hidden" in mnz,
+           mnz[:300])
+    checar(u"  e ele nasce escondido, até o motor dizer que a janela é a do app",
+           u'<details class="ls-ctl" data-radai-minimizar hidden>' in mnz, mnz[:80])
+    fora = m
+    for _k, c in ctl:
+        fora = fora.replace(c, u"")
+    checar(u"  e nenhuma das três ações fora do seu controle",
+           u'href="/config"' not in fora and u"data-radai-encerrar" not in fora
+           and u"data-radai-minimizar-acao" not in fora)
+    for chave, rot in ((u"data-radai-minimizar", u"Minimizar"),
+                       (u"data-radai-engrenagem", u"Configurações"),
+                       (u"data-radai-power", u"Fechar app")):
+        s = re.search(r"(?s)<summary\b[^>]*>(.*?)</summary>", por.get(chave, u""))
+        s = s.group(1) if s else u""
+        checar(u"  o summary de %s é ícone com o nome «%s» para o leitor" % (chave, rot),
+               u"<svg" in s and (u'<span class="ls-rot" data-radai-frase>%s</span>' % rot) in s,
+               s[:200])
     checar(u"o diálogo do Fechar foi costurado", u'id="rx-veu"' in p)
-    isca = m.replace(u'<span class="ls-encerrar" data-radai-encerrar></span>', u"")
-    isca = isca.replace(u"</header>", u'<span data-radai-encerrar></span></header>')
-    eng2 = re.search(r'(?s)<details class="ls-engrenagem" data-radai-engrenagem>(.*?)</details>', isca)
-    checar(u"  (isca) a âncora fora do <details> reprova",
-           u"data-radai-encerrar" not in (eng2.group(1) if eng2 else u""))
-    checar(u"o script do menu é pequeno, ES5 e sem temporizador",
+    velha = m.replace(pwr, u"").replace(
+        u'<a href="/config"', u'<span data-radai-encerrar></span><a href="/config"')
+    checar(u"  (isca) o Fechar de volta dentro da engrenagem reprova",
+           u"data-radai-encerrar" in dict(_controles(velha)).get(
+               u"data-radai-engrenagem", u""))
+    checar(u"o script dos menus é pequeno, ES5 e sem temporizador",
            u"=>" not in P.JS and u"setInterval" not in P.JS
-           and u"setTimeout" not in P.JS and len(P.JS) < 1500)
+           and u"setTimeout" not in P.JS and len(P.JS) < 2600, str(len(P.JS)))
+
+    secao(u"LND-23: o final do nome de cada módulo em gradiente, sem mudar o nome")
+    import radai_modules
+    for _t, a, c in cs:
+        k = re.search(r'data-mod="([^"]+)"', a).group(1)
+        mod = radai_modules.MODULOS.get(k) or {}
+        fim = mod.get(u"destaque", u"").strip()
+        nome = re.search(r'(?s)<span class="ls-nome tool-name"[^>]*>(.*?</span>)</span>', c)
+        nome = nome.group(1) if nome else u""
+        checar(u"[%s] o nome leva o final «%s» num span" % (k, fim),
+               (u'data-ls-fim="%s"' % fim) in c
+               and (u'<span class="ls-fim">%s</span>' % fim) in nome, c[-220:])
+        checar(u"  e o texto do nome continua o da trilha",
+               re.sub(r"<[^>]+>", u"", nome) == dict((x, n) for x, _r, n in ORDEM)[k],
+               re.sub(r"<[^>]+>", u"", nome))
+    orig = radai_modules.MODULOS[u"nidus"]
+    try:
+        radai_modules.MODULOS[u"nidus"] = dict(orig, titulo=u"Neuro ")
+        t = P.cartao(u"nidus", 3)
+    finally:
+        radai_modules.MODULOS[u"nidus"] = orig
+    checar(u"  (isca) registro que não monta o nome da trilha não parte o nome",
+           u"ls-fim" not in t and u">Nidus RT</span>" in t, t[-200:])
 
     secao(u"LND-21/22: o ícone do Elastic pronto e a cena decorativa")
     el = [c for _t, a, c in cs if u'data-mod="elastic"' in a]
@@ -587,6 +640,15 @@ def _servir(ctx, paginas, reg, sem=()):
         elif c == u"/api/status":
             route.fulfill(status=200, content_type=u"application/json",
                           body=u'{"ocupado":null,"current":null}')
+        elif c == u"/api/pulso":
+            route.fulfill(status=200, content_type=u"application/json", body=u"{}")
+        elif c == u"/api/janela/estado":
+            route.fulfill(status=200, content_type=u"application/json",
+                          body=u'{"pid": 4321}')
+        elif c == u"/api/janela/registrar":
+            route.fulfill(status=200, content_type=u"application/json", body=u'{"ok": true}')
+        elif c in (u"/api/atualizar", u"/api/roteiro"):
+            route.fulfill(status=200, content_type=u"application/json", body=u"{}")
         elif c == u"/api/encerrar":
             reg["encerrar"] = reg.get("encerrar", 0) + 1
             route.fulfill(status=200, content_type=u"application/json",
@@ -847,7 +909,7 @@ def teste_nunca_recorta_a_fronteira():
 
 
 def teste_a_engrenagem_e_o_fechar():
-    secao(u"LND-11/12: a engrenagem abre o menu, o Fechar abre o diálogo de sempre")
+    secao(u"LND-11/12: cada controle abre o seu menu, o power abre o diálogo de sempre")
 
     def f(nav):
         reg = {}
@@ -856,16 +918,27 @@ def teste_a_engrenagem_e_o_fechar():
         try:
             pg = _abrir(ctx)
             pg.click(u"[data-radai-engrenagem] summary")
+            pg.wait_for_timeout(120)
             aberto = pg.evaluate(u"document.querySelector('[data-radai-engrenagem]').open")
             checar(u"o summary abre o menu", aberto is True)
-            checar(u"  com Configurações → /config",
+            checar(u"  com Configurações → /config, e aria-expanded acompanha",
                    pg.evaluate(u"!!document.querySelector('[data-radai-engrenagem] "
-                               u".ls-menu a[href=\"/config\"]')"))
-            pg.click(u"[data-radai-engrenagem] .rx-fechar")
+                               u".ls-menu a[href=\"/config\"]') && document.querySelector("
+                               u"'[data-radai-engrenagem] summary').getAttribute("
+                               u"'aria-expanded')==='true'"))
+            pg.click(u"[data-radai-power] summary")
+            pg.wait_for_timeout(120)
+            st = pg.evaluate(u"[document.querySelector('[data-radai-engrenagem]').open,"
+                             u"document.querySelector('[data-radai-power]').open,"
+                             u"document.querySelector('[data-radai-engrenagem] summary')"
+                             u".getAttribute('aria-expanded')]")
+            checar(u"abrir o power fecha a engrenagem: um menu por vez",
+                   st == [False, True, u"false"], repr(st))
+            pg.click(u"[data-radai-power] .rx-fechar")
             pg.wait_for_timeout(200)
             st = pg.evaluate(u"[!!document.querySelector('#rx-veu.on'),"
                              u"(document.activeElement||{}).id,"
-                             u"document.querySelector('[data-radai-engrenagem]').open]")
+                             u"document.querySelector('[data-radai-power]').open]")
             checar(u"«Fechar app» abre #rx-veu com o foco no Cancelar, e o menu fica",
                    st == [True, u"rx-cancelar", True], repr(st))
             pg.click(u"#rx-cancelar")
@@ -874,17 +947,19 @@ def teste_a_engrenagem_e_o_fechar():
                              u"(document.activeElement||{}).className]")
             checar(u"Cancelar fecha e devolve o foco ao botão",
                    st[0] is False and u"rx-fechar" in (st[1] or u""), repr(st))
-            pg.click(u"[data-radai-engrenagem] .rx-fechar")
+            pg.click(u"[data-radai-power] .rx-fechar")
             pg.wait_for_timeout(150)
             pg.keyboard.press(u"Escape")
             pg.wait_for_timeout(100)
             st1 = pg.evaluate(u"[!!document.querySelector('#rx-veu.on'),"
-                              u"document.querySelector('[data-radai-engrenagem]').open]")
+                              u"document.querySelector('[data-radai-power]').open]")
             pg.keyboard.press(u"Escape")
             pg.wait_for_timeout(100)
-            st2 = pg.evaluate(u"document.querySelector('[data-radai-engrenagem]').open")
-            checar(u"Escape fecha o diálogo e, depois, o menu",
-                   st1 == [False, True] and st2 is False, repr((st1, st2)))
+            st2 = pg.evaluate(u"[document.querySelector('[data-radai-power]').open,"
+                              u"(document.activeElement||{}).parentNode"
+                              u"=== document.querySelector('[data-radai-power]')]")
+            checar(u"Escape fecha o diálogo, depois o menu, e o foco volta ao ícone",
+                   st1 == [False, True] and st2 == [False, True], repr((st1, st2)))
             pg.click(u"[data-radai-engrenagem] summary")
             pg.mouse.click(640, 300)
             pg.wait_for_timeout(100)
@@ -935,6 +1010,154 @@ def teste_a_engrenagem_e_o_fechar():
     _com_navegador(f)
 
 
+def _minimizar(nav, porta, resposta):
+    reg = {}
+    pgs = {u"/": porta}
+    ctx = _ctx(nav, pgs, reg)
+
+    def janela(route):
+        reg.setdefault("janela", []).append(route.request.method)
+        if resposta is None:
+            route.fulfill(status=404, body=u"")
+        else:
+            route.fulfill(status=200, content_type=u"application/json",
+                          body=json.dumps(resposta))
+    ctx.route(_BASE + u"/api/janela/minimizar", janela)
+    try:
+        pg = _abrir(ctx)
+        pg.wait_for_selector(u"[data-radai-minimizar] summary", state="visible", timeout=5000)
+        pg.click(u"[data-radai-minimizar] summary")
+        pg.wait_for_timeout(100)
+        pg.click(u"[data-radai-minimizar-acao]")
+        pg.wait_for_timeout(400)
+        return reg.get("janela", []), pg.evaluate(
+            u"[document.querySelector('[data-radai-minimizar]').open,"
+            u"!document.querySelector('[data-radai-falha]').hidden,"
+            u"document.querySelector('[data-radai-falha]').getAttribute('role')]")
+    finally:
+        ctx.close()
+
+
+def _minimizar_visivel(nav, porta, estado):
+    ctx = _ctx(nav, {u"/": porta}, {})
+    ctx.route(_BASE + u"/api/janela/estado",
+              lambda r: r.fulfill(status=200, content_type=u"application/json",
+                                  body=json.dumps(estado)))
+    try:
+        pg = _abrir(ctx, espera=1800)
+        return pg.evaluate(u"(function(){var m=document.querySelector('[data-radai-minimizar]');"
+                           u"return [m.hidden, m.getBoundingClientRect().width>0]})()")
+    finally:
+        ctx.close()
+
+
+def teste_o_minimizar():
+    secao(u"LND-24: o Minimizar pede ao motor e diz quando não conseguiu")
+
+    def f(nav):
+        p = _porta()
+        checar(u"com a janela do app reconhecida pelo motor, o minimizar aparece",
+               _minimizar_visivel(nav, p, {u"pid": 4321}) == [False, True])
+        r = _minimizar_visivel(nav, p, {})
+        checar(u"sem a janela do app (navegador comum), ele não aparece", r == [True, False],
+               repr(r))
+        isca = p.replace(u"data-radai-minimizar hidden>", u"data-radai-minimizar>").replace(
+            u"document.addEventListener('radai-janela'", u"document.addEventListener('x-isca'")
+        r = _minimizar_visivel(nav, isca, {})
+        checar(u"  (isca) sem esconder nem ouvir o motor, o botão que não funciona aparece",
+               isca != p and r == [False, True], repr(r))
+        ped, st = _minimizar(nav, p, {u"ok": True})
+        checar(u"um POST em /api/janela/minimizar, e o menu fecha",
+               ped == [u"POST"] and st[0] is False and st[1] is False, repr((ped, st)))
+        ped, st = _minimizar(nav, p, None)
+        checar(u"sem a rota (navegador comum), a falha aparece, como status",
+               ped == [u"POST"] and st[0] is True and st[1] is True
+               and st[2] == u"status", repr((ped, st)))
+        ped, st = _minimizar(nav, p, {u"ok": False})
+        checar(u"com ok:false, a falha aparece também", st[1] is True, repr((ped, st)))
+        isca = p.replace(u"querySelector('[data-radai-minimizar-acao]')",
+                         u"querySelector('[data-x-isca]')")
+        ped, st = _minimizar(nav, isca, {u"ok": True})
+        checar(u"  (isca) sem o ouvinte, nada é pedido", isca != p and ped == [],
+               repr(ped))
+    _com_navegador(f)
+
+
+def _animacao_do_menu(nav, porta, reduzir):
+    ctx = _ctx(nav, {u"/": porta}, {}, reduzir=reduzir)
+    try:
+        pg = _abrir(ctx, espera=300)
+        fechado = pg.evaluate(u"getComputedStyle(document.querySelector("
+                              u"'[data-radai-engrenagem] .ls-menu')).animationName")
+        pg.click(u"[data-radai-engrenagem] summary")
+        pg.wait_for_timeout(50)
+        aberto = pg.evaluate(u"getComputedStyle(document.querySelector("
+                             u"'[data-radai-engrenagem] .ls-menu')).animationName")
+        return fechado, aberto
+    finally:
+        ctx.close()
+
+
+def teste_o_menu_anima_so_aberto():
+    secao(u"LND-25: o mini-menu anima só ao abrir, e nada anima com movimento reduzido")
+
+    def f(nav):
+        p = _porta()
+        r = _animacao_do_menu(nav, p, False)
+        checar(u"fechado sem animação (o varredor de contraste não o lê apagado), "
+               u"aberto com a entrada", r == (u"none", u"lsMenu"), repr(r))
+        r = _animacao_do_menu(nav, p, True)
+        checar(u"com movimento reduzido, nem aberto anima", r == (u"none", u"none"), repr(r))
+        isca = p.replace(u'body[data-tela="inicio"] .ls-ctl[open]>.ls-menu{animation:none}',
+                         u'body[data-tela="inicio"] .ls-menu{animation:none}')
+        r = _animacao_do_menu(nav, isca, True)
+        checar(u"  (isca) a regra do reduzido mais fraca que a da entrada deixa animar",
+               isca != p and r[1] == u"lsMenu", repr(r))
+    _com_navegador(f)
+
+
+def teste_o_final_do_nome_sobrevive_a_traducao():
+    secao(u"LND-23: traduzido, o final do nome volta ao gradiente onde ele existe")
+
+    def f(nav):
+        p = _porta()
+        out = {}
+        for idioma in (u"en", u"de", u"zh-CN"):
+            ctx = _ctx(nav, {u"/": p}, {}, idioma=idioma)
+            try:
+                pg = _abrir(ctx, espera=500)
+                out[idioma] = pg.evaluate(u"""(function(){
+                  var n=document.querySelector('.ls-card[data-mod="recon3d"] .ls-nome');
+                  var b=document.querySelector('.ls-card[data-mod="bridge"] .ls-nome .ls-fim');
+                  var f=n.querySelector('.ls-fim');
+                  return [n.textContent, f?f.textContent:'', b?b.textContent:'',
+                          f?getComputedStyle(f).backgroundImage:'']})()""")
+            finally:
+                ctx.close()
+        en = out[u"en"]
+        checar(u"[en] «3D reconstructions», com o 3D no gradiente",
+               en[0] == u"3D reconstructions" and en[1] == u"3D"
+               and u"gradient" in en[3], repr(en))
+        checar(u"[en] e a marca do DicomBridge continua com o final", en[2] == u"Bridge",
+               repr(en))
+        checar(u"[de] «3D-Rekonstruktionen», com o 3D",
+               out[u"de"][1] == u"3D", repr(out[u"de"]))
+        checar(u"[zh] sem o token 3D, o nome fica inteiro e sem span",
+               out[u"zh-CN"][1] == u"" and out[u"zh-CN"][0] == u"三维重建",
+               repr(out[u"zh-CN"]))
+        isca = p.replace(u"querySelectorAll('[data-ls-fim]')", u"querySelectorAll('[data-ls-fim-isca]')")
+        ctx = _ctx(nav, {u"/": isca}, {}, idioma=u"en")
+        try:
+            r = _abrir(ctx, espera=500).evaluate(
+                u"(document.querySelector('.ls-card[data-mod=\"recon3d\"] .ls-nome .ls-fim')"
+                u"||{}).textContent||''")
+        finally:
+            ctx.close()
+        checar(u"  (isca) sem o religar, a tradução apaga o final", isca != p and r == u"",
+               repr(r))
+    _com_navegador(f)
+
+
 def _sair_do_menu_pelo_tab(pg):
     pg.focus(u"[data-radai-engrenagem] summary")
     pg.keyboard.press(u"Enter")
@@ -951,7 +1174,8 @@ def _sair_do_menu_pelo_tab(pg):
 
 
 PERMITIDOS = re.compile(r"^(/|/porta/[A-Za-z0-9.\-]+|/radai-idiomas\.js|/favicon\.\w+"
-                        r"|/api/versao|/api/pulso)$")
+                        r"|/api/versao|/api/pulso|/api/janela/estado|/api/janela/registrar"
+                        r"|/api/atualizar|/api/roteiro)$")
 
 
 def _pedidos_da_porta(nav, porta):
@@ -1093,9 +1317,11 @@ def _sem_o_script(nav, porta):
         r = pg.evaluate(_MEDIR_RODAPE)
         n = pg.evaluate(u"document.querySelectorAll('.ls-card[href]').length")
         pg.click(u"[data-radai-engrenagem] summary")
-        menu = pg.evaluate(u"[document.querySelector('[data-radai-engrenagem]').open,"
-                           u"!!document.querySelector('[data-radai-engrenagem] .rx-fechar')]")
+        menu = [pg.evaluate(u"document.querySelector('[data-radai-engrenagem]').open")]
+        pg.click(u"[data-radai-power] summary")
+        menu.append(pg.evaluate(u"!!document.querySelector('[data-radai-power] .rx-fechar')"))
         pg.keyboard.press(u"Escape")
+        pg.click(u"[data-radai-power] summary")
         pg.click(u'.ls-card[data-mod="elastic"]')
         pg.wait_for_load_state("networkidle")
         url = pg.url.replace(_BASE, u"")
@@ -1145,10 +1371,85 @@ def _cores(nav, porta):
         pg = _abrir(ctx)
         return pg.evaluate(u"""(function(){function c(s){var e=document.querySelector(s);
           return e?getComputedStyle(e).color:''}
-          return {eng:c('[data-radai-engrenagem] summary'), nome:c('.ls-nome'),
+          return {eng:c('[data-radai-engrenagem] summary'),
+                  mnz:c('[data-radai-minimizar] summary'), pwr:c('[data-radai-power] summary'),
+                  nome:c('.ls-nome'),
                   rodape:c('.ls-rodape p'), autor:c('.ls-autor')}})()""")
     finally:
         ctx.close()
+
+
+_MENU_ABERTO = u"""(sel) => {
+ function rgba(s){ const m = (s || '').match(/[\\d.]+/g) || [0, 0, 0, 0];
+  return [+m[0], +m[1], +m[2], m.length > 3 ? +m[3] : 1] }
+ function sobre(a, b){ const k = a[3]; return [a[0]*k + b[0]*(1-k), a[1]*k + b[1]*(1-k),
+  a[2]*k + b[2]*(1-k), 1] }
+ const e = document.querySelector(sel);
+ if(!e || !e.getClientRects().length) return null;
+ const camadas = []; let n = e;
+ while(n && n.nodeType === 1){ const f = rgba(getComputedStyle(n).backgroundColor);
+  if(f[3] > 0) camadas.push(f); if(f[3] >= 1) break; n = n.parentElement }
+ let fundo = [2, 9, 23, 1];
+ for(let i = camadas.length - 1; i >= 0; i--) fundo = sobre(camadas[i], fundo);
+ return {cor: sobre(rgba(getComputedStyle(e).color), fundo).slice(0, 3),
+         fundo: fundo.slice(0, 3)};
+}"""
+
+
+def _menus_abertos(nav, porta, tema):
+    ctx = _ctx(nav, {u"/": porta}, {})
+    ctx.add_init_script(u"try{localStorage.setItem('radai_tema','%s')}catch(e){}" % tema)
+    fora = {}
+    try:
+        pg = _abrir(ctx)
+        for ctl, sel in ((u"engrenagem", u"[data-radai-engrenagem] .ls-menu a"),
+                         (u"power", u"[data-radai-power] .ls-encerrar button")):
+            pg.click(u"[data-radai-%s] > summary" % ctl)
+            pg.wait_for_timeout(350)
+            fora[ctl] = pg.evaluate(_MENU_ABERTO, sel)
+            pg.click(u"[data-radai-%s] > summary" % ctl)
+            pg.wait_for_timeout(250)
+    finally:
+        ctx.close()
+    return fora
+
+
+def _razao(m):
+    if not m:
+        return 0.0
+    l1, l2 = _luminancia(m["cor"]), _luminancia(m["fundo"])
+    return (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)
+
+
+def _vermelho(m):
+    r, g, b = (m or {}).get("cor") or (0, 0, 0)
+    return r > 180 and r > g * 1.6 and r > b * 1.6
+
+
+def teste_os_menus_abertos_nos_dois_temas():
+    secao(u"os menus abertos da porta passam 4,5:1 nos dois temas, e o FECHAR APP "
+          u"continua vermelho")
+
+    def f(nav):
+        p = _porta()
+        for tema in (u"escuro", u"claro"):
+            m = _menus_abertos(nav, p, tema)
+            checar(u"[%s] «Configurações» no menu da engrenagem: %.1f:1"
+                   % (tema, _razao(m.get(u"engrenagem"))),
+                   _razao(m.get(u"engrenagem")) >= 4.5, repr(m.get(u"engrenagem")))
+            checar(u"[%s] «FECHAR APP» no menu do power: %.1f:1"
+                   % (tema, _razao(m.get(u"power"))),
+                   _razao(m.get(u"power")) >= 4.5, repr(m.get(u"power")))
+            checar(u"[%s]   e em vermelho" % tema, _vermelho(m.get(u"power")),
+                   repr(m.get(u"power")))
+        isca = p.replace(u"</head>", u"<style>.ls-suite .ls-menu>a{color:#33415a!important}"
+                                     u".ls-suite .ls-encerrar .rx-fechar{color:#5a2a26!important}"
+                                     u"</style></head>")
+        mi = _menus_abertos(nav, isca, u"escuro")
+        checar(u"  (isca) as cores apagadas de antes reprovam nos dois menus",
+               _razao(mi.get(u"engrenagem")) < 4.5 and _razao(mi.get(u"power")) < 4.5,
+               u"%.2f %.2f" % (_razao(mi.get(u"engrenagem")), _razao(mi.get(u"power"))))
+    _com_navegador(f)
 
 
 def teste_o_contraste():
@@ -1176,7 +1477,9 @@ def main():
               teste_a_porta_nao_consulta_estado_clinico,
               teste_a_porta_entra_na_pilha_do_voltar, teste_o_movimento_reduzido,
               teste_o_console_limpo, teste_a_porta_sem_o_script,
-              teste_o_contraste):
+              teste_o_contraste, teste_os_menus_abertos_nos_dois_temas,
+              teste_o_minimizar, teste_o_menu_anima_so_aberto,
+              teste_o_final_do_nome_sobrevive_a_traducao):
         try:
             t()
         except Exception as e:

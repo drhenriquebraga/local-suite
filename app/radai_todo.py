@@ -73,12 +73,11 @@ def atividade(ler_vigia=None):
                     "icone": u"▤",
                     "titulo": u"%s MB de memória livres"
                               % "{:,}".format(m["livre_mb"]).replace(",", "."),
-                    "detalhe": (u"apertado para uma TC de planejamento — "
-                                u"veja o que dá para liberar")
+                    "detalhe": u"apertado para uma TC de planejamento"
                                if apertado else
                                (u"%d%% da memória em uso" % m.get("pct", 0)),
                     "href": "/config#ps_limpar",
-                    "botao": u"Otimizar"})
+                    "botao": u"Diagnosticar"})
         except Exception:
             pass
     return fora
@@ -201,19 +200,6 @@ html.dir-recolhida .radai-tarefas{width:%(r)dpx}
 .radai-tarefas .pipe-est{grid-column:1 / -1;min-height:14px;
  font:400 11px/1.35 var(--font-mono,monospace);color:var(--text-dim,#72829b)}
 .radai-tarefas .pipe-est:empty{display:none}
-.radai-tarefas .pipe-otm{grid-column:1 / -1;border:1px solid var(--borda-aviso,#4a3a18);
- background:var(--fundo-aviso,#1c1608);border-radius:var(--r-md,6px);
- padding:8px 9px;font-size:11.5px;line-height:1.45;color:var(--text-muted,#a3b1c6)}
-.radai-tarefas .pipe-otm[hidden]{display:none}
-.radai-tarefas .pipe-otm b{color:var(--text,#e6edf7)}
-.radai-tarefas .pipe-otm .otm-bts{display:flex;gap:6px;margin-top:7px;
- flex-wrap:wrap}
-.radai-tarefas .pipe-otm button{font:600 11px/1 var(--font-display,inherit);
- padding:6px 10px;border-radius:var(--r-sm,5px);cursor:pointer;
- border:1px solid var(--line-strong,#2a3a55);background:var(--panel-2,#0f1729);
- color:var(--text,#e6edf7)}
-.radai-tarefas .pipe-otm button.otm-sim{background:var(--ok,#12873F);
- border-color:var(--ok,#12873F);color:var(--ok-txt,#fff)}
 @media (prefers-reduced-motion:reduce){
  .radai-tarefas .pipe-bt{transition:none}
  .radai-tarefas .pipe-bt:active:not([disabled]){transform:none}
@@ -221,8 +207,14 @@ html.dir-recolhida .radai-tarefas{width:%(r)dpx}
 
 .radai-tarefas .cd{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;
  align-items:center;padding:7px 8px;margin-bottom:6px;border-radius:6px;
- background:var(--bg-2,#0f172a);border:1px solid var(--line,#1e293b);
+ background:linear-gradient(160deg,
+  color-mix(in srgb,var(--accent,#4DA3FF) 8%%,var(--panel,#0c1322)) 0%%,
+  var(--panel,#0c1322) 72%%);
+ border:1px solid var(--line-strong,#2a3a55);
  position:relative}
+:where(:root[data-tema="claro"]) .radai-tarefas .cd{
+ background:linear-gradient(160deg,var(--panel,#ffffff) 28%%,
+  color-mix(in srgb,var(--accent,#0B62C6) 7%%,var(--panel,#ffffff)) 100%%)}
 .radai-tarefas .cd .cd-rot{position:static;font-size:12px;color:var(--txt,#e2e8f0);
  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .radai-tarefas .cd .cd-sub{position:static;margin:2px 0 0;font-size:10px;
@@ -385,7 +377,6 @@ _FILA_HTML = u"""
   <button type="button" class="pipe-bt can" id="radai_pipe_can"
     data-radai-frase>Cancelar</button>
   <span class="pipe-est" id="radai_pipe_est" role="status"></span>
-  <div class="pipe-otm" id="radai_pipe_otm" hidden></div>
  </div>
   <div class="notif-pede" id="radai_notif_pede" hidden>
    <span data-radai-frase>Avisar com som e notificação quando uma série terminar ou falhar? O navegador pede a permissão uma vez.</span>
@@ -503,7 +494,7 @@ function radaiFilaCard(c, i, n){
       + radaiTfEsc(c.dono || '');
  } else if(T.tag){
   sub = '<span class="tag ' + T.cls + '" data-radai-frase>' + T.tag + '</span>';
-  if(c.tipo === 'overnight' && fim && c.motivo){
+  if(c.tipo === 'overnight' && (fim || rodando) && c.motivo){
    sub += ' <span class="cd-motivo" title="' + radaiTfEsc(c.motivo) + '">'
         + radaiTfEsc(c.motivo) + '</span>';
   }
@@ -788,7 +779,6 @@ function radaiPipeMandar(acao){
      else est.textContent = d.erro.slice(0, 60);
     }
    }
-   if(acao === 'iniciar' && d && d.ok) radaiOtimSugerir();
    if(typeof radaiFilaCarregar === 'function') radaiFilaCarregar();
   })
   .catch(function(){ if(typeof radaiFilaCarregar === 'function') radaiFilaCarregar() });
@@ -859,69 +849,6 @@ document.addEventListener('click', function(ev){
  if(!b || b.disabled) return;
  radaiPipe(RADAI_PIPE_ACAO[b.id]);
 });
-
-function radaiOtimSugerir(){
- var cx = document.getElementById('radai_pipe_otm');
- if(!cx) return;
- fetch('/api/lote/otimizacao').then(function(r){ return r.json() })
- .then(function(d){
-  if(!d || d.erro || d.turno_ativo){ cx.hidden = true; return }
-  var h = '<b data-radai-frase>A estação não está otimizada para a fila.</b>';
-  var placa = (d.placa || []).map(function(p){
-   return radaiTfEsc(p.nome) + (p.mb != null ? (' (' + p.mb + ' MB)') : '');
-  }).join(', ');
-  if(placa){
-   h += '<div><span data-radai-frase>Na placa de vídeo agora:</span> '
-      + placa + '</div>';
-  } else if(d.placa_erro){
-   h += '<div><span data-radai-frase>A placa de vídeo não foi lida:</span> '
-      + radaiTfEsc(String(d.placa_erro).slice(0, 90)) + '</div>';
-  }
-  if(d.protegidos_na_placa){
-   h += '<div><b>' + Number(d.protegidos_na_placa) + '</b> '
-      + '<span data-radai-frase>programa(s) clínico(s) protegido(s) também usam a placa, e nunca são fechados.</span></div>';
-  }
-  if((d.servicos || []).length){
-   h += '<div><span data-radai-frase>Serviços que a otimização pausa:</span> '
-      + (d.servicos || []).map(radaiTfEsc).join(', ') + '</div>';
-  }
-  h += '<div class="otm-bts">'
-     + '<button type="button" class="otm-sim" onclick="radaiOtimizar(true)" data-radai-frase>Otimizar a estação</button>'
-     + '<button type="button" onclick="radaiOtimFechar()" data-radai-frase>Agora não</button>'
-     + '</div>';
-  if(typeof uiHTML === 'function') uiHTML(cx, h); else cx.innerHTML = h;
-  cx.hidden = false;
-  try{ if(window.radaiRetraduzir) window.radaiRetraduzir() }catch(e){}
- }).catch(function(){ cx.hidden = true });
-}
-function radaiOtimFechar(){
- var cx = document.getElementById('radai_pipe_otm'); if(cx) cx.hidden = true;
-}
-function radaiOtimizar(ligar){
- var cx = document.getElementById('radai_pipe_otm');
- fetch('/api/lote/otimizar', {method:'POST',
-   headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({ligar: !!ligar})})
- .then(function(r){ return r.json() })
- .then(function(d){
-  if(!cx) return;
-  var h;
-  if(d && d.turno_ativo){
-   h = '<b>' + Number(d.n_pausados || 0) + '</b> '
-     + '<span data-radai-frase>serviço(s) pausado(s). Eles voltam quando a estação for restaurada.</span>'
-     + '<div class="otm-bts"><button type="button" onclick="radaiOtimizar(false)" data-radai-frase>Restaurar a estação</button>'
-     + '<button type="button" onclick="radaiOtimFechar()" data-radai-frase>Fechar</button></div>';
-  } else if(d && d.ok){
-   h = '<span data-radai-frase>Estação restaurada: os serviços pausados voltaram.</span>'
-     + '<div class="otm-bts"><button type="button" onclick="radaiOtimFechar()" data-radai-frase>Fechar</button></div>';
-  } else {
-   h = radaiTfEsc('ERRO: ' + ((d && (d.erro || d.msg)) || ''));
-  }
-  if(typeof uiHTML === 'function') uiHTML(cx, h); else cx.innerHTML = h;
-  cx.hidden = false;
-  try{ if(window.radaiRetraduzir) window.radaiRetraduzir() }catch(e){}
- }).catch(function(e){ if(cx){ cx.textContent = 'ERRO: ' + e; cx.hidden = false } });
-}
 
 function radaiForaDaFila(){
  var cx = document.getElementById('radai_fora_fila');

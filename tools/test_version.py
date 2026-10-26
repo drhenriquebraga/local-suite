@@ -39,6 +39,14 @@ _falhou = 0
 _falhas = []
 VERBOSO = "-v" in sys.argv
 
+ERRO_DO_404_ANTIGO = (u"nao consultei a versao publicada: sem credencial o "
+                      u"GitHub responde 404 tanto para repositorio privado "
+                      u"quanto para endereco errado, e este programa nao usa "
+                      u"conta. Confira o endereco das versoes "
+                      u"(RADAI_URL_VERSOES).")
+FRASE_DO_404_ANTIGA = (u"consulta indisponivel (nao consultei a versao "
+                       u"publicada)")
+
 
 def secao(t):
     print(u"\n── %s %s" % (t, u"─" * max(0, 66 - len(t))))
@@ -193,15 +201,42 @@ def teste_consulta():
             s.fechar()
 
         s = _Servidor({"message": "Not Found"}, codigo=404)
+        guardado = dict(V._CONSULTA)
         try:
             E.carimbo = _com_versao("3.0")
             r = V.consultar(s.url_pagina, timeout=5)
-            checar(u"404 -> `privado`, e nao «nao existe»",
-                   r["estado"] == "privado", r["estado"])
-            checar(u"e a frase admite as duas hipoteses",
-                   "privado" in r["erro"] and "endereco" in r["erro"],
-                   r["erro"][:70])
+            checar(u"404 -> `nao_achada`: com os repositorios publicos, "
+                   u"endereco errado ou release que nao existe",
+                   r["estado"] == "nao_achada", r["estado"])
+            checar(u"  e o 404 deixou de ser dado como esperado",
+                   not r.get("esperado"), r.get("esperado"))
+
+            def _diz_o_404(erro):
+                return (u"endereco" in erro and u"release" in erro
+                        and u"privad" not in erro)
+            checar(u"  e o motivo diz as duas hipoteses de agora, sem "
+                   u"repositorio privado", _diz_o_404(r["erro"]),
+                   r["erro"][:90])
+            checar(u"  (isca) o motivo de antes, que dizia repositorio "
+                   u"privado, e acusado", not _diz_o_404(ERRO_DO_404_ANTIGO))
+            V._CONSULTA.update(dict(r, quando=None))
+            fr = V.ultima_consulta().get("frase") or u""
+            checar(u"  a frase da tela e do log diz o 404 e as duas hipoteses",
+                   fr == V.FRASE_DO_404 and u"404" in fr
+                   and u"endereco errado" in fr and u"nao existe" in fr, fr)
+            import radai_phrases as F
+            ent = [l for l in F.TABELA
+                   if F.normalizar(l[0]) == F.normalizar(fr)]
+            checar(u"  e ela tem entrada no dicionario, nos doze idiomas",
+                   len(ent) == 1 and len(ent[0]) == 12
+                   and all(t and t != fr for t in ent[0][1:]),
+                   len(ent[0]) if ent else 0)
+            checar(u"  (isca) a frase de antes saiu do dicionario",
+                   not any(F.normalizar(l[0]) == F.normalizar(
+                       FRASE_DO_404_ANTIGA) for l in F.TABELA))
         finally:
+            V._CONSULTA.clear()
+            V._CONSULTA.update(guardado)
             s.fechar()
 
         E.carimbo = _com_versao("3.0")
@@ -450,7 +485,7 @@ def teste_constante_e_porta():
     try:
         E.carimbo = _com_versao("8.2")
         for est, acende in (("nova", True), ("atual", False),
-                            ("privado", False), ("erro", False),
+                            ("nao_achada", False), ("erro", False),
                             ("sem_endereco", False), ("nunca", False)):
             V._CONSULTA.update({"estado": est, "versao": u"8.4",
                                 "url": u"", "erro": u"x", "quando": None})
@@ -469,9 +504,9 @@ def teste_constante_e_porta():
         t = V.para_a_tela()
         checar(u"  e o espelho da instituicao nao ganha link inventado",
                t.get("nova") and t.get("link") == u"", str(t)[:90])
-        V._CONSULTA.update({"estado": "privado", "versao": u""})
+        V._CONSULTA.update({"estado": "nao_achada", "versao": u""})
         t = V.para_a_tela()
-        checar(u"com `privado`, nada de versao nem de link na porta",
+        checar(u"com `nao_achada` (o 404), nada de versao nem de link na porta",
                not t.get("publicada") and not t.get("link"), str(t)[:90])
         checar(u"a resposta tem so as cinco chaves",
                sorted(t) == ["aqui", "estado", "link", "nova", "publicada"],

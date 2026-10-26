@@ -36,7 +36,10 @@ def _topo_de_reserva():
     return (u'<header class="ls-topo" data-radai-tela="%s">'
             u'<details class="ls-engrenagem" data-radai-engrenagem>'
             u'<summary data-radai-frase>Configurações</summary>'
-            u'<a href="/config" data-radai-frase>Configurações</a> '
+            u'<a href="/config" data-radai-frase>Configurações</a>'
+            u'</details> '
+            u'<details class="ls-power" data-radai-power>'
+            u'<summary data-radai-frase>Fechar app</summary>'
             u'<span class="ls-encerrar" data-radai-encerrar></span>'
             u'</details></header>' % html.escape(nome, quote=True))
 
@@ -94,6 +97,10 @@ CSS_AVISO_VERSAO = u"""
 .rv-aviso .rv-sec{background:transparent;color:var(--text,#e6edf7);
  border:1px solid var(--line-strong,#2a3a55)}
 .rv-aviso .rv-sec:hover{border-color:var(--accent,#4DA3FF);color:var(--accent,#4DA3FF)}
+.rv-aviso .rv-man{margin:10px 0 0;font-size:12px;text-align:right}
+.rv-aviso .rv-man a{color:var(--text-muted,#a3b1c6);text-decoration:underline;
+ text-underline-offset:2px}
+.rv-aviso .rv-man a:hover{color:var(--accent,#4DA3FF)}
 .rv-aviso a:focus-visible,.rv-aviso button:focus-visible{
  outline:2px solid var(--accent,#4DA3FF);outline-offset:2px}
 body[data-tela="inicio"] .rv-aviso{top:76px;right:16px;bottom:auto;left:auto}
@@ -124,20 +131,28 @@ JS_AVISO_VERSAO = u"""<script id="radai-versao-js">
   var cx=document.createElement('div');
   cx.className='rv-aviso'; cx.id='rv-aviso';
   cx.setAttribute('role','status'); cx.setAttribute('aria-live','polite');
+  var agora=(typeof window.radaiAtualizarAgora==='function');
   cx.innerHTML='<div class="rv-cab"><span class="rv-marca" aria-hidden="true"></span>'
    +'<span data-radai-frase>Versão nova disponível</span></div>'
    +'<p class="rv-v"><code>'+esc(d.aqui||'?')+'</code><span class="rv-seta"'
    +' aria-hidden="true">&#8594;</span><code>'+esc(d.publicada)+'</code></p>'
-   +'<p class="rv-txt" data-radai-frase>'
-   +'O programa não se atualiza sozinho: baixe o instalador e rode-o quando a estação estiver livre.'
-   +'</p>'
+   +(agora?'<p class="rv-txt" data-radai-frase>'
+     +'O app fecha, o atualizador roda numa janela do Windows e o app reabre sozinho, com a sua configuração.'
+     +'</p>':'')
    +'<div class="rv-bts">'
-   +(d.link?'<a class="rv-pri" target="_blank" rel="noopener" href="'+esc(d.link)
-     +'" data-radai-frase>Baixar o instalador mais recente</a>':'')
-   +'<button type="button" class="rv-sec" data-radai-frase>Fechar</button></div>';
+   +'<button type="button" class="rv-sec" data-rv="fechar" data-radai-frase>Fechar</button>'
+   +(agora?'<button type="button" class="rv-pri" data-rv="agora" data-radai-frase>Atualizar agora</button>'
+     :(d.link?'<a class="rv-pri" target="_blank" rel="noopener" href="'+esc(d.link)
+       +'" data-radai-frase>Baixar o instalador mais recente</a>':''))
+   +'</div>'
+   +(agora&&d.link?'<p class="rv-man"><a target="_blank" rel="noopener" href="'+esc(d.link)
+     +'" data-radai-frase>Baixar o instalador mais recente</a></p>':'');
   document.body.appendChild(cx);
-  cx.querySelector('.rv-sec').addEventListener('click',function(){
+  cx.querySelector('[data-rv="fechar"]').addEventListener('click',function(){
    fechar(cx, d.publicada) });
+  var ag=cx.querySelector('[data-rv="agora"]');
+  if(ag) ag.addEventListener('click',function(){
+   fechar(cx, d.publicada); window.radaiAtualizarAgora() });
   document.addEventListener('keydown',function(e){
    if(e.key==='Escape'&&cx.parentNode) fechar(cx, d.publicada) });
   try{ if(window.radaiRetraduzir) window.radaiRetraduzir() }catch(e){}

@@ -324,7 +324,7 @@ def teste_as_frases_tem_os_doze_idiomas():
     fr = [R.SEM_CONFERENCIA, RL.SO_O_NOME, RL.TITULO, RL.DICA, RL.RECEBIDO,
           T.SUJEITOS_DIFERENTES,
           T.SUJEITOS_NO_LAUDO, T.ESCOLHA_DUAS, T.FUSAO_EM_ANDAMENTO,
-          u"Pasta não encontrada: %s",
+          T.ESCOLHA_A_PASTA, T.BUSCA_AINDA_LENDO,
           u"Esta pasta já está na lista, com o número [%s]. Para varrê-la de novo, "
           u"tire-a da lista antes.", V.OSSO_E_O_VASO]
     falta = []
@@ -500,7 +500,9 @@ def _tela_do_rodar(nv, root, pasta_a, pasta_b):
         checar(u"[pt] com o caminho absoluto: o campo recebe o caminho e varre",
                pg.input_value("#pasta") == pasta_a
                and pg.evaluate("document.querySelectorAll('#tab tr[id^=linha_]').length") >= 1)
-        pg.evaluate("ltEscolha(); true")
+        pg.evaluate("ltEscolha(); msg('Nenhuma série nesta pasta.', false);"
+                    " _notaNoPopup(_notaDasCurtas() || '<b>3</b> série(s) desta pasta"
+                    " não aparecem na lista'); true")
         pg.wait_for_timeout(400)
         for larg in (1280, 1600):
             pg.set_viewport_size({"width": larg, "height": 900})

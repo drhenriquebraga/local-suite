@@ -25,6 +25,45 @@ def _arvore_suja(raiz):
         return False
 
 
+def _raiz_do_git(pasta):
+    try:
+        saida = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], cwd=str(pasta),
+            stderr=subprocess.DEVNULL, timeout=30)
+        topo = saida.decode("utf-8", "replace").strip()
+        return bool(topo) and os.path.samefile(topo, str(pasta))
+    except Exception:
+        return False
+
+
+def componentes_sujos(raiz):
+    ferramentas = os.path.join(str(raiz), "tools")
+    if not os.path.isfile(os.path.join(ferramentas, "_componentes.py")):
+        return []
+    try:
+        import sys
+        if ferramentas not in sys.path:
+            sys.path.insert(0, ferramentas)
+        import _componentes
+        pastas = [p for p, _d in _componentes.componentes(str(raiz))]
+    except Exception:
+        return []
+    sujos = []
+    for pasta in pastas:
+        # GUARDA: app baixado da trava nao tem Git proprio; a arvore dele ja foi conferida pela trava.
+        if not _raiz_do_git(pasta):
+            continue
+        try:
+            saida = subprocess.check_output(
+                ["git", "status", "--porcelain", "--untracked-files=no"],
+                cwd=str(pasta), stderr=subprocess.DEVNULL, timeout=30)
+        except Exception:
+            continue
+        if saida.strip():
+            sujos.append(os.path.basename(os.path.normpath(pasta)))
+    return sujos
+
+
 def _commit_curto(raiz):
     try:
         saida = subprocess.check_output(
@@ -33,7 +72,7 @@ def _commit_curto(raiz):
         commit = saida.decode("ascii", "replace").strip()
     except Exception:
         return u""
-    if commit and _arvore_suja(raiz):
+    if commit and (_arvore_suja(raiz) or componentes_sujos(raiz)):
         commit += MARCA_DE_ARVORE_SUJA
     return commit
 
