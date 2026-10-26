@@ -440,7 +440,7 @@ def teste_a_trilha_navega_e_o_voltar_nao_faz_laco():
 
 _VERSAO_NOVA = {u"estado": u"nova", u"nova": True, u"publicada": u"8.4",
                 u"aqui": u"8.2",
-                u"link": u"https://github.com/radioterapia-ai/local-suite/"
+                u"link": u"https://github.com/drhenriquebraga/local-suite/"
                          u"releases/latest/download/X_SETUP_LATEST.zip"}
 _VERSAO_404 = {u"estado": u"nao_achada", u"nova": False, u"publicada": u"",
                u"aqui": u"8.2", u"link": u""}

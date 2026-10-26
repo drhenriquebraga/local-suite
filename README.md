@@ -2,7 +2,7 @@
 
 **Part of the Radioterapia.AI local ecosystem. A study bench for AI segmentation in radiation oncology — teaching and research material, not a medical device.**
 
-`License: Apache-2.0` · `Version: 8.7` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
+`License: Apache-2.0` · `Version: 8.7.1` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
 
 > **Teaching and research material. This is not a medical device.**
 > It is **not** validated for clinical use, it has no ANVISA registration, no
@@ -639,5 +639,5 @@ Built by Dr. Henrique Braga, radiation oncologist —
 [moose]: https://github.com/ENHANCE-PET/MOOSE
 [hnlnl]: https://github.com/putzfn/HNLNL_autosegmentation_trained_models
 [buti]: https://huggingface.co/GregoryButi/CT_Brain_Segmentation_Radiotherapy
-[rel]: https://github.com/radioterapia-ai/local-suite/releases
-[latest]: https://github.com/radioterapia-ai/local-suite/releases/latest/download/RADIOTERAPIA_AI_LOCAL_SUITE_SETUP_LATEST.zip
+[rel]: https://github.com/drhenriquebraga/local-suite/releases
+[latest]: https://github.com/drhenriquebraga/local-suite/releases/latest/download/RADIOTERAPIA_AI_LOCAL_SUITE_SETUP_LATEST.zip

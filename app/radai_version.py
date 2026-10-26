@@ -139,7 +139,7 @@ def idade(hoje=None):
 
 TIMEOUT_S = 8.0
 
-URL_VERSOES = u"https://github.com/radioterapia-ai/local-suite/releases"
+URL_VERSOES = u"https://github.com/drhenriquebraga/local-suite/releases"
 
 VARIAVEL_URL_VERSOES = "RADAI_URL_VERSOES"
 _DESLIGADA = ("0", "off", "desligado", "desligada", "nao", "no", "false")

@@ -7657,17 +7657,29 @@ def teste_o_que_a_v85_muda_na_18():
     div = _contato_divergente(((u"Politica", CS.POLITICA),
                                (u"Termos", CS.TERMOS),
                                (u"aceite", CS.PAGINA_ACEITE)),
-                              v_ver.get("URL_VERSOES"))
+                              v_ver.get("URL_VERSOES"), CS.VERSAO_DOCS)
     checar(u"o contato dos documentos e o canal publicado (radioterapia.ai e "
            u"o relato privado do repositorio de %s), sem e-mail"
            % v_ver.get("URL_VERSOES"), not div, u" | ".join(div))
+    doc_antes = (u'<a href="https://radioterapia.ai">x</a> '
+                 u'<a href="%s/security">x</a>' % _DONO_RENOMEADO["antes"])
+    url_depois = _DONO_RENOMEADO["depois"] + u"/releases"
+    checar(u"  isca: o link do dono anterior com os documentos da versao "
+           u"seguinte: reprova",
+           bool(_contato_divergente(((u"Politica", doc_antes),), url_depois,
+                                    u"2.1")))
+    checar(u"  controle: o link do dono anterior com os documentos %s e o "
+           u"repositorio sucessor: passa" % _DONO_RENOMEADO["versao_docs"],
+           not _contato_divergente(((u"Politica", doc_antes),), url_depois,
+                                   _DONO_RENOMEADO["versao_docs"]))
     checar(u"  isca: um e-mail pessoal de volta na Politica: reprova",
            bool(_contato_divergente(((u"Politica", CS.POLITICA
                                       + u" fulano" + u"@" + u"gmail.com"),),
                                     v_ver.get("URL_VERSOES"))))
     checar(u"  isca: o repositorio da versao muda e o link nao: reprova",
            bool(_contato_divergente(((u"Politica", CS.POLITICA),),
-                                    u"https://github.com/outro/repo/releases")))
+                                    u"https://github.com/outro/repo/releases",
+                                    CS.VERSAO_DOCS)))
 
     src_ap = ler(u"app/radai_bolus_aplicador.py")
     fa = _fatos_do_aplicador(src_ap)
@@ -8233,10 +8245,19 @@ _RE_EMAIL_NO_DOC = re.compile(
     r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 
 
-def _contato_divergente(docs, url_versoes):
+_DONO_RENOMEADO = {"versao_docs": u"2.0",
+                   "antes": u"https://github.com/radioterapia-ai/local-suite",
+                   "depois": u"https://github.com/drhenriquebraga/local-suite"}
+
+
+def _contato_divergente(docs, url_versoes, versao_docs=None):
     fora = []
     m = re.match(r"(https://github\.com/[^/]+/[^/?#]+)", url_versoes or u"")
     repo = m.group(1) if m else u""
+    aceitos = [repo]
+    if (versao_docs == _DONO_RENOMEADO["versao_docs"]
+            and repo == _DONO_RENOMEADO["depois"]):
+        aceitos.append(_DONO_RENOMEADO["antes"])
     for nome, html in docs:
         for e in _RE_EMAIL_NO_DOC.findall(html or u""):
             fora.append(u"%s traz um e-mail (%s…)" % (nome, e[:3]))
@@ -8244,7 +8265,8 @@ def _contato_divergente(docs, url_versoes):
             continue
         if u'href="https://radioterapia.ai"' not in (html or u""):
             fora.append(u"%s nao aponta a pagina do projeto" % nome)
-        if not repo or (u'href="%s/security"' % repo) not in (html or u""):
+        if not repo or not any((u'href="%s/security"' % r) in (html or u"")
+                               for r in aceitos):
             fora.append(u"%s nao aponta o relato privado do repositorio da "
                         u"versao (%s)" % (nome, repo))
     return fora

@@ -3091,7 +3091,7 @@ def teste_o_cartao_de_atualizar_da_o_link_permanente():
         finally:
             RV.URL_VERSOES = velha
 
-    gh = u"https://github.com/radioterapia-ai/local-suite/releases"
+    gh = u"https://github.com/drhenriquebraga/local-suite/releases"
     checar(u"a constante de fabrica e a do repositorio do projeto",
            RV.URL_VERSOES == gh, RV.URL_VERSOES)
     t = _config(gh)

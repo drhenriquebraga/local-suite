@@ -942,7 +942,7 @@ function PedirPastaInstalada {
     return $null
 }
 
-$script:URL_REPOSITORIO = 'https://github.com/radioterapia-ai/local-suite'
+$script:URL_REPOSITORIO = 'https://github.com/drhenriquebraga/local-suite'
 $script:URL_PAGINA_VERSOES = $script:URL_REPOSITORIO + '/releases'
 
 function UrlDaConsultaDeVersao {

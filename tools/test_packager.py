@@ -6701,7 +6701,7 @@ def teste_atualizar_app_e_uma_cascata():
                u"$script:PY = %(py)s\n"
                u"$script:VERSAO_INSTALADOR = '8.5'\n"
                u"$script:PROJETO_RT = 'LOCAL_SUITE'\n"
-               u"$script:URL_REPOSITORIO = 'https://github.com/radioterapia-ai/local-suite'\n"
+               u"$script:URL_REPOSITORIO = 'https://github.com/drhenriquebraga/local-suite'\n"
                u"$script:Ocupado = $false\n"
                u"$script:CascataConferiuAVersao = $false\n"
                u"$script:PacoteEscolhido = ''\n"
@@ -6873,7 +6873,7 @@ def teste_atualizar_app_e_uma_cascata():
 
         import radai_version as _rv
         h = (u"$ErrorActionPreference = 'Stop'\nSet-StrictMode -Version Latest\n"
-             u"$script:URL_REPOSITORIO = 'https://github.com/radioterapia-ai/local-suite'\n"
+             u"$script:URL_REPOSITORIO = 'https://github.com/drhenriquebraga/local-suite'\n"
              u"$script:URL_PAGINA_VERSOES = $script:URL_REPOSITORIO + '/releases'\n"
              + fs[u"UrlDaConsultaDeVersao"] + u"\n"
              u"$env:RADAI_URL_VERSOES = $null; 'PADRAO:' + (UrlDaConsultaDeVersao)\n"
