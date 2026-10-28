@@ -139,7 +139,7 @@ NV-Segment-CT (NVIDIA)
 
   O MAPA DE ROTULOS VIAJA NO INSTALADOR LEVE, sob a Apache License 2.0: o
   arquivo tools/data/nv_segment_ct_labels.json, que mora no repositorio
-  radioterapia-ai/contourlab, e o mapa nome -> indice das 132 classes, tirado
+  drhenriquebraga/contourlab, e o mapa nome -> indice das 132 classes, tirado
   do configs/metadata.json do repositorio do modelo. Esse arquivo nao e peso,
   e o LICENSE do repositorio do modelo poe sob a Apache License 2.0 todo
   arquivo que nao e peso; a NVIDIA Open Model License vale so para os pesos.
@@ -401,7 +401,7 @@ A montagem da ROI do rt-utils, reproduzida no motor
   rt-utils 1.2.7 (o metodo add_roi da classe RTStruct), chamando as funcoes
   do proprio rt-utils, para gravar o ContourData ja convertido em texto; com
   outra versao do rt-utils instalada, ele usa o add_roi original. O trecho
-  mora no repositorio radioterapia-ai/contourlab (app/engine.py, funcao
+  mora no repositorio drhenriquebraga/contourlab (app/engine.py, funcao
   _adicionar_roi). Origem: https://github.com/qurit/rt-utils. O aviso da
   licenca MIT do rt-utils, que vale para esse trecho:
 

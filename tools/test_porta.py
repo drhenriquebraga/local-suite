@@ -40,7 +40,7 @@ RENDERER_APROVADO = u"62ee9cc24715d0ff933e832c6c78facba184a56863754609dea76398dc
 LOCKFILE_APROVADO = u"d6419887d9d9ef944a9289f9b979a49e999709bf14cebd72f797fe7a7617143c"
 # GUARDA: o porta.js aprovado, fixo aqui; sem node o rebuild pula, e e' este
 # hash (e nao o carimbo, que se regrava junto) que prova o arquivo servido.
-PORTA_JS_APROVADO = u"b3a11b30615410109e039a6bedd974e475dafbb781bd6c641ccaf1f686c481b9"
+PORTA_JS_APROVADO = u"0e51fd9dc1d028d337d96b365d6c99627d6541a2b90e27d1d49ccd496921d673"
 
 ORDEM = ((u"bridge", u"/bridge", u"DicomBridge"),
          (u"autocontorno", u"/autocontorno", u"ContourLab"),
@@ -465,7 +465,7 @@ def teste_a_pagina():
     topo = topo.group(1) if topo else u""
     ctl = _controles(m)
     checar(u"três <details> no grupo, na ordem minimizar, configurações, power",
-           [c[0] for c in ctl] == [u"data-radai-minimizar", u"data-radai-engrenagem",
+           [c[0] for c in ctl] == [u"data-radai-minimizar", u"data-radai-maximizar", u"data-radai-engrenagem",
                                    u"data-radai-power"], repr([c[0] for c in ctl]))
     por = dict(ctl)
     eng = por.get(u"data-radai-engrenagem", u"")
@@ -504,20 +504,16 @@ def teste_a_pagina():
            u"=>" not in P.JS and u"setInterval" not in P.JS
            and u"setTimeout" not in P.JS and len(P.JS) < 2600, str(len(P.JS)))
 
-    secao(u"LND-23: o final do nome de cada módulo em gradiente, sem mudar o nome")
+    secao(u"os seis nomes dos cards ficam inteiros, sem gradiente")
     import radai_modules
     for _t, a, c in cs:
         k = re.search(r'data-mod="([^"]+)"', a).group(1)
-        mod = radai_modules.MODULOS.get(k) or {}
-        fim = mod.get(u"destaque", u"").strip()
-        nome = re.search(r'(?s)<span class="ls-nome tool-name"[^>]*>(.*?</span>)</span>', c)
+        nome = re.search(r'(?s)<span class="ls-nome tool-name"[^>]*>(.*?)</span>', c)
         nome = nome.group(1) if nome else u""
-        checar(u"[%s] o nome leva o final «%s» num span" % (k, fim),
-               (u'data-ls-fim="%s"' % fim) in c
-               and (u'<span class="ls-fim">%s</span>' % fim) in nome, c[-220:])
-        checar(u"  e o texto do nome continua o da trilha",
-               re.sub(r"<[^>]+>", u"", nome) == dict((x, n) for x, _r, n in ORDEM)[k],
-               re.sub(r"<[^>]+>", u"", nome))
+        checar(u"[%s] nome sem span de gradiente" % k,
+               u"data-ls-fim" not in c and u"ls-fim" not in c)
+        checar(u"nome continua igual ao da trilha",
+               re.sub(r"<[^>]+>", u"", nome) == dict((x,n) for x,_r,n in ORDEM)[k])
     orig = radai_modules.MODULOS[u"nidus"]
     try:
         radai_modules.MODULOS[u"nidus"] = dict(orig, titulo=u"Neuro ")
@@ -1117,44 +1113,17 @@ def teste_o_menu_anima_so_aberto():
 
 
 def teste_o_final_do_nome_sobrevive_a_traducao():
-    secao(u"LND-23: traduzido, o final do nome volta ao gradiente onde ele existe")
-
+    secao(u"a traducao conserva os nomes da home sem inserir gradiente")
     def f(nav):
         p = _porta()
-        out = {}
-        for idioma in (u"en", u"de", u"zh-CN"):
-            ctx = _ctx(nav, {u"/": p}, {}, idioma=idioma)
+        for idioma, esperado in ((u"en",u"3D reconstructions"),(u"de",u"3D-Rekonstruktionen"),(u"zh-CN",u"三维重建")):
+            ctx = _ctx(nav,{u"/":p},{},idioma=idioma)
             try:
-                pg = _abrir(ctx, espera=500)
-                out[idioma] = pg.evaluate(u"""(function(){
-                  var n=document.querySelector('.ls-card[data-mod="recon3d"] .ls-nome');
-                  var b=document.querySelector('.ls-card[data-mod="bridge"] .ls-nome .ls-fim');
-                  var f=n.querySelector('.ls-fim');
-                  return [n.textContent, f?f.textContent:'', b?b.textContent:'',
-                          f?getComputedStyle(f).backgroundImage:'']})()""")
-            finally:
-                ctx.close()
-        en = out[u"en"]
-        checar(u"[en] «3D reconstructions», com o 3D no gradiente",
-               en[0] == u"3D reconstructions" and en[1] == u"3D"
-               and u"gradient" in en[3], repr(en))
-        checar(u"[en] e a marca do DicomBridge continua com o final", en[2] == u"Bridge",
-               repr(en))
-        checar(u"[de] «3D-Rekonstruktionen», com o 3D",
-               out[u"de"][1] == u"3D", repr(out[u"de"]))
-        checar(u"[zh] sem o token 3D, o nome fica inteiro e sem span",
-               out[u"zh-CN"][1] == u"" and out[u"zh-CN"][0] == u"三维重建",
-               repr(out[u"zh-CN"]))
-        isca = p.replace(u"querySelectorAll('[data-ls-fim]')", u"querySelectorAll('[data-ls-fim-isca]')")
-        ctx = _ctx(nav, {u"/": isca}, {}, idioma=u"en")
-        try:
-            r = _abrir(ctx, espera=500).evaluate(
-                u"(document.querySelector('.ls-card[data-mod=\"recon3d\"] .ls-nome .ls-fim')"
-                u"||{}).textContent||''")
-        finally:
-            ctx.close()
-        checar(u"  (isca) sem o religar, a tradução apaga o final", isca != p and r == u"",
-               repr(r))
+                pg = _abrir(ctx,espera=500)
+                resultado = pg.evaluate("""(function(){var n=document.querySelector('.ls-card[data-mod="recon3d"] .ls-nome');return [n.textContent,!!n.querySelector('.ls-fim')]})()""")
+                checar(u"[%s] nome traduzido inteiro e sem gradiente" % idioma,
+                       resultado == [esperado,False],repr(resultado))
+            finally: ctx.close()
     _com_navegador(f)
 
 
@@ -1466,6 +1435,29 @@ def teste_o_contraste():
     _com_navegador(f)
 
 
+
+def teste_maximizar_restaurar_explicito():
+    secao(u"a home so alterna tela cheia por clique, com as setas e nome do estado")
+    def f(nav):
+        ctx=_ctx(nav,{u"/":_porta()},{})
+        try:
+            pg=_abrir(ctx,espera=300)
+            pg.evaluate("""window.cliquesTela=0;window.tela=false;
+             window.radaiJanelaTelaCheia=function(){cliquesTela++;tela=!tela;var d={ok:true,tela_cheia:tela};document.dispatchEvent(new CustomEvent('radai-janela-tela-cheia',{detail:d}));return Promise.resolve(d)};
+             document.dispatchEvent(new CustomEvent('radai-janela',{detail:{ok:true}}));""")
+            checar(u"sem clique nao pede F11",pg.evaluate('cliquesTela')==0)
+            for cheia,rot in ((True,u"Restaurar"),(False,u"Maximizar")):
+                pg.locator('[data-radai-maximizar] summary').click()
+                pg.locator('[data-radai-maximizar-acao]').click()
+                pg.wait_for_timeout(100)
+                estado=pg.locator('[data-radai-maximizar]').get_attribute('data-tela-cheia')
+                nome=pg.locator('[data-radai-maximizar] summary').inner_text().strip()
+                checar(u"apos o clique: %s e setas do estado" % rot,
+                       estado==('true' if cheia else 'false') and nome==rot,repr((estado,nome)))
+            checar(u"dois cliques fazem duas acoes",pg.evaluate('cliquesTela')==2)
+        finally:ctx.close()
+    _com_navegador(f)
+
 def main():
     print("test_porta | a porta da suite: a landing Local Suite")
     for t in (teste_os_arquivos, teste_o_carimbo_do_script,
@@ -1479,7 +1471,8 @@ def main():
               teste_o_console_limpo, teste_a_porta_sem_o_script,
               teste_o_contraste, teste_os_menus_abertos_nos_dois_temas,
               teste_o_minimizar, teste_o_menu_anima_so_aberto,
-              teste_o_final_do_nome_sobrevive_a_traducao):
+              teste_o_final_do_nome_sobrevive_a_traducao,
+              teste_maximizar_restaurar_explicito):
         try:
             t()
         except Exception as e:

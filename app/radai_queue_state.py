@@ -496,11 +496,24 @@ def config_do_turno():
 def turno_na_vez():
     with _TRAVA:
         turno = [c for c in _CARDS if c.get("tipo") == Q.OVERNIGHT]
-        if not turno or turno[0].get("estado") != Q.ESPERANDO:
+        if (not turno or turno[0].get("estado") != Q.ESPERANDO
+                or not turno[0].get("iniciar_pedido")):
             return False
         return not any(Q.e_do_lote(c)
                        and c.get("estado") in (Q.ESPERANDO, Q.RODANDO)
                        for c in _CARDS)
+
+
+def autorizar_turno():
+    mudou = False
+    with _TRAVA:
+        for c in _CARDS:
+            if c.get("tipo") == Q.OVERNIGHT and c.get("estado") == Q.ESPERANDO:
+                c["iniciar_pedido"] = True
+                mudou = True
+    if mudou:
+        _gravar()
+    return mudou
 
 
 def turno_agendado():
@@ -580,7 +593,10 @@ def _temporarios_do_pedido(tmp):
         return {}
     fora = {}
     for k, v in list(tmp.items())[:8]:
-        fora[(u"%s" % k)[:40]] = (u"%s" % (v if v is not None else u""))[:1024]
+        texto = u"%s" % (v if v is not None else u"")
+        if len(texto) > (65536 if k == "ROOTS" else 1024):
+            raise ValueError(u"o valor de %s e grande demais" % k)
+        fora[(u"%s" % k)[:40]] = texto
     return fora
 
 
@@ -588,7 +604,7 @@ def overnight(ligado=True, rotulo=u"Turno da noite", temporarios=None):
     with _TRAVA:
         atuais = [c for c in _CARDS if c.get("tipo") != Q.OVERNIGHT]
         if ligado:
-            extra = {}
+            extra = {"iniciar_pedido": False}
             tmp = _temporarios_do_pedido(temporarios)
             if tmp:
                 extra["carga"] = {"temporarios": tmp}
@@ -1313,7 +1329,7 @@ ESCOLHA_PERSISTIDA = ("modo", "tasks", "protocolos", "protocolos_3d",
 CAMPOS_DO_ARQUIVO = ("id", "tipo", "origem", "executor", "estado", "uid",
                      "fim", "criado", "dono", "pendentes_por_memoria",
                      "tentativa_complemento", "ja_concluida",
-                     "complemento", "trava_solta")
+                     "complemento", "trava_solta", "iniciar_pedido")
 CAMPOS_DO_INDICE = ("pasta", "rotulo", "copiar_rs_para", "mensagem", "motivo",
                     "faltou", "sem_estrutura", "nao_contornavel")
 

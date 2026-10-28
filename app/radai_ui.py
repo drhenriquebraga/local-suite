@@ -398,11 +398,11 @@ TRANSICOES = u"""
 
 .ui-ponto-alvo{position:relative}
 .ui-ponto{position:absolute;top:-3px;right:-3px;width:9px;height:9px;
- border-radius:50%;background:var(--perigo,#E96A5C);pointer-events:none;
+ border-radius:50%;background:var(--ui-ponto-cor,var(--perigo,#E96A5C));pointer-events:none;
  box-shadow:0 0 0 2px var(--panel-2,#0f1729);
  animation:uiNasce .34s cubic-bezier(.34,1.56,.64,1) both}
 .ui-ponto::after{content:"";position:absolute;inset:0;border-radius:50%;
- background:var(--perigo,#E96A5C);
+ background:var(--ui-ponto-cor,var(--perigo,#E96A5C));
  animation:uiPontoOnda 1.2s cubic-bezier(.22,1,.36,1) .34s 2 both}
 @keyframes uiPontoOnda{from{transform:scale(1);opacity:.55}
  to{transform:scale(2.8);opacity:0}}
@@ -438,7 +438,7 @@ AJUDA = u"""
  margin-left:6px;font-family:var(--font-display);flex:0 0 auto}
 .ui-ajuda:hover,.ui-ajuda:focus{border-color:var(--accent);color:var(--accent);
  outline:none}
-.ui-ajuda .ui-balao{display:block;opacity:0;visibility:hidden;
+.ui-ajuda .ui-balao,.ui-balao-flutuante{display:block;opacity:0;visibility:hidden;
  transform:translateY(-6px) scale(.97);transform-origin:top left;
  transition:opacity .16s ease,transform .18s cubic-bezier(.22,1,.36,1),
             visibility 0s linear .18s;
@@ -448,6 +448,8 @@ AJUDA = u"""
  color:var(--text-muted);font-size:12px;line-height:1.55;font-weight:400;
  text-align:left;box-shadow:var(--sombra);cursor:auto;letter-spacing:0;
  text-transform:none;white-space:normal}
+.ui-balao-flutuante{position:fixed!important;z-index:6500!important;opacity:1!important;visibility:visible!important;transform:none!important;max-height:70vh;overflow:auto}
+.ui-ajuda[data-ui-flutuante] .ui-balao{visibility:hidden!important;opacity:0!important}
 .ui-ajuda .ui-balao p{margin:0 0 9px}
 .ui-ajuda .ui-balao p:last-child{margin-bottom:0}
 .ui-ajuda .ui-balao b{color:var(--text);font-weight:600}
@@ -950,7 +952,12 @@ JS = u"""
   }
   sim.onclick = function(){ fim(true) };
   nao.onclick = function(){ fim(false) };
-  v.onclick = function(e){ if(e.target === v) fim(false) };
+   var gestoNoVeu = false;
+   v.onpointerdown = function(e){ gestoNoVeu = e.target === v };
+   v.onclick = function(e){
+    if(o.fecharFora !== false && gestoNoVeu && e.target === v) fim(false);
+    gestoNoVeu = false;
+   };
   v.onkeydown = function(e){
    if(e.key === 'Tab'){ window.uiPrenderFoco(v, e); return }
    if(e.key === 'Escape'){ e.preventDefault(); fim(false) }
@@ -1476,7 +1483,10 @@ COMPONENTES = u"""
  border-bottom:1px solid var(--line);font:600 14.5px/1.3 var(--font-display)}
 .ui-modal-cab .ui-modal-tit{flex:1 1 auto;min-width:0;overflow:hidden;
  text-overflow:ellipsis;white-space:nowrap}
-.ui-modal-x{display:grid;place-items:center;width:30px;height:30px;
+.ui-modal-x{display:grid!important;place-items:center!important;width:30px;height:30px;
+ min-width:30px;max-width:30px;min-height:30px;margin:0!important;padding:0!important;line-height:1!important;box-sizing:border-box}
+.ui-modal-x .ui-ic{margin:0!important;width:16px;height:16px;display:block;flex:none}
+.ui-modal-x{
  border-radius:var(--r-md);border:1px solid transparent;background:transparent;
  color:var(--text-dim);cursor:pointer;font-size:16px;flex:0 0 auto}
 .ui-modal-x:hover{color:var(--text);border-color:var(--line-strong)}
@@ -1600,6 +1610,12 @@ COMPONENTES = u"""
  border:1px solid var(--line);border-radius:var(--r-lg);background:var(--panel);
  scrollbar-color:var(--line-strong) transparent}
 .ui-acervo > .ui-esqueleto{margin:10px 12px}
+.ui-acervo-busca{position:sticky;top:0;z-index:4;display:flex;gap:8px;align-items:center;
+ padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
+.ui-acervo-busca .ui-ic{flex:none;margin:0;color:var(--text-dim)}
+.ui-acervo-busca input{flex:1;min-width:0;margin:0;padding:6px 8px;background:var(--panel-2);
+ color:var(--text);border:1px solid var(--line);border-radius:var(--r-md);font-size:12px}
+.ui-acervo:has(.ui-acervo-busca) thead th{top:46px}
 .ui-acervo table{width:100%;border-collapse:collapse;font-size:12.5px}
 .ui-acervo thead th{position:sticky;top:0;z-index:2;background:var(--panel);
  text-align:left;padding:7px 8px;font:400 9.5px/1.3 var(--font-mono);
@@ -1783,7 +1799,38 @@ COMPONENTES_JS = u"""
   }
  });
 
- var _MODAIS = [];
+  var ajudaAtiva = null, ajudaTimer = null;
+  function fecharAjuda(){
+   if(ajudaAtiva){ ajudaAtiva.de.removeAttribute('data-ui-flutuante');
+    if(ajudaAtiva.no.parentNode) ajudaAtiva.no.parentNode.removeChild(ajudaAtiva.no); ajudaAtiva = null }
+  }
+  function abrirAjuda(de){
+   if(ajudaTimer) clearTimeout(ajudaTimer);
+   if(ajudaAtiva && ajudaAtiva.de === de) return;
+   var fonte = de.querySelector('.ui-balao');
+   if(!fonte || !de.closest('.ui-modal,.ui-acervo')) return;
+   fecharAjuda();
+   var no = fonte.cloneNode(true); no.className = 'ui-balao-flutuante';
+   no.removeAttribute('id'); document.body.appendChild(no);
+   de.setAttribute('data-ui-flutuante', ''); ajudaAtiva = {de:de,no:no};
+   var r=de.getBoundingClientRect(), q=no.getBoundingClientRect();
+   no.style.left=Math.max(12,Math.min(r.left,innerWidth-q.width-12))+'px';
+   no.style.top=Math.max(12,Math.min(r.bottom+7,innerHeight-q.height-12))+'px';
+   no.addEventListener('pointerenter',function(){if(ajudaTimer)clearTimeout(ajudaTimer)});
+   no.addEventListener('pointerleave',fecharAjuda);
+  }
+  document.addEventListener('pointerover',function(e){
+   var de=e.target && e.target.closest ? e.target.closest('.ui-ajuda') : null;
+   if(de) abrirAjuda(de);
+  });
+  document.addEventListener('pointerout',function(e){
+   if(!ajudaAtiva || ajudaAtiva.de.contains(e.relatedTarget) || ajudaAtiva.no.contains(e.relatedTarget)) return;
+   ajudaTimer=setTimeout(fecharAjuda,100);
+  });
+  document.addEventListener('focusin',function(e){var de=e.target.closest?e.target.closest('.ui-ajuda'):null;if(de)abrirAjuda(de)});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')fecharAjuda()});
+  document.addEventListener('scroll',fecharAjuda,true);
+  var _MODAIS = [];
  window.uiModal = function(o){
   o = o || {};
   var antes = document.activeElement;
@@ -1831,7 +1878,7 @@ COMPONENTES_JS = u"""
    else if(o.aoTecla) o.aoTecla(e);
   }
   document.addEventListener('keydown', tecla, true);
-  v.addEventListener('mousedown', function(e){ if(e.target === v) fechar() });
+   v.addEventListener('mousedown', function(e){ if(o.fecharFora !== false && e.target === v) fechar() });
   m.querySelector('.ui-modal-x').addEventListener('click', fechar);
   function abrir(){
    if(v.classList.contains('vis') || !aberto) return;
@@ -2058,8 +2105,8 @@ COMPONENTES_JS = u"""
   return { fechar: morfoFechar, painel: p };
  };
  document.addEventListener('mousedown', function(e){
-  if(!_morfo) return;
-  if(_morfo.painel.contains(e.target) || _morfo.botao.contains(e.target)) return;
+   if(!_morfo || _morfo.o.fecharFora === false) return;
+   if(_morfo.painel.contains(e.target) || _morfo.botao.contains(e.target)) return;
   morfoFechar();
  });
  document.addEventListener('keydown', function(e){
@@ -2151,7 +2198,7 @@ COMPONENTES_JS = u"""
   var cx = (typeof alvo === 'string') ? $(alvo) : alvo;
   if(!cx) return null;
   cx.classList.add('ui-acervo');
-  var est = {linhas: [], det: [], marcada: -1, vez: 0};
+   var est = {linhas: [], det: [], marcada: -1, vez: 0, busca: ''};
   var url = o.url || '/api/acervo/tabela';
   var urlDet = o.detalhes || '/api/acervo/tabela/detalhes';
   function esq(){ return '<span class="ui-esqueleto ua-esq" aria-hidden="true"></span>' }
@@ -2239,7 +2286,19 @@ COMPONENTES_JS = u"""
     tr.hidden = !fica;
    }
   }
-  function detalhes(ini, vez){
+   function filtrarBusca(){
+    Array.prototype.forEach.call(cx.querySelectorAll('tbody tr[data-i]'), function(tr){
+     var i = Number(tr.getAttribute('data-i')), s = Object.assign({}, est.linhas[i] || {}, est.det[i] || {});
+     var fica = true;
+     try{ if(o.filtro) fica = o.filtro(s) !== false }catch(e){}
+     tr.hidden = !fica || (est.busca && tr.textContent.toLowerCase().indexOf(est.busca) < 0);
+    });
+   }
+   cx.addEventListener('input', function(e){
+    if(!e.target || !e.target.hasAttribute('data-ua-busca')) return;
+    est.busca = e.target.value.trim().toLowerCase(); filtrarBusca();
+   });
+   function detalhes(ini, vez){
    var L = est.linhas;
    if(vez !== est.vez || ini >= L.length) return;
    var fim = Math.min(L.length, ini + UA_LOTE), bs = [];
@@ -2248,8 +2307,8 @@ COMPONENTES_JS = u"""
     if(vez !== est.vez) return;
     var R = (d && d.itens) || [];
     for(var k = ini; k < fim; k++) preencher(k, R[k - ini]);
-    traduzir(); ajustar();
-    detalhes(fim, vez);
+     traduzir(); ajustar(); filtrarBusca();
+     detalhes(fim, vez);
    });
   }
   function msg(txt, ruim, extra){
@@ -2270,14 +2329,16 @@ COMPONENTES_JS = u"""
         : (o.vazioTexto || 'Nenhuma série foi contornada nesta máquina ainda.'),
         !!d.erro, d.erro ? '' : (o.vazio || ''));
    } else {
-    var h = '<table>' + cab() + '<tbody>';
+     var h = '<label class="ui-acervo-busca">' + ico('buscar')
+      + '<input type="search" data-ua-busca aria-label="Pesquisar no acervo" placeholder="Pesquisar no acervo" value="'
+      + esc(est.busca) + '"></label><table>' + cab() + '<tbody>';
     est.linhas.forEach(function(s, i){ h += linha(s, i) });
     if(d.sumiram) h += '<tr><td colspan="12" class="sub">'
      + esc('%s série(s) que esta máquina contornou já não estão no lugar — a pasta foi movida ou apagada.'
            .replace('%s', d.sumiram)) + '</td></tr>';
     cx.innerHTML = h + '</tbody></table>';
-    traduzir(); ajustar();
-    detalhes(0, est.vez);
+     traduzir(); ajustar(); filtrarBusca();
+     detalhes(0, est.vez);
    }
    try{ if(o.aoCarregar) o.aoCarregar(est.linhas.slice()) }catch(e){}
   }
@@ -3102,7 +3163,7 @@ COMPONENTES_JS = u"""
 ICONES_DOS_COMPONENTES = (u"fechar", u"esquerda", u"direita", u"acima",
                           u"estrela", u"pasta", u"subir", u"mais",
                           u"alerta", u"desmarcar", u"sol", u"lua", u"monitor",
-                          u"rede")
+                          u"rede", u"buscar")
 
 
 def moldes_de_icone():
@@ -3180,7 +3241,11 @@ CSS_EXPLORADOR = u"""
 
 
 CSS_VARREDURA = u"""
-.ui-pensa{--ui-pensa-troca:150ms;--ui-pensa-curva:ease-in-out;
+ [data-ui-carregando]{opacity:.7;cursor:progress}
+ .ui-numero-pop{display:inline-block;animation:uiNumeroPop .22s cubic-bezier(.22,1,.36,1)}
+ @keyframes uiNumeroPop{from{opacity:.3;transform:translateY(4px) scale(.88)}to{opacity:1;transform:none}}
+ @media(prefers-reduced-motion:reduce){.ui-numero-pop{animation:none}}
+ .ui-pensa{--ui-pensa-troca:150ms;--ui-pensa-curva:ease-in-out;
  --ui-pensa-dist:8px;--ui-pensa-borra:2px;--ui-pensa-brilho:2000ms;
  position:relative;display:block;width:100%;height:1.5em;
  font:500 14px/1.5 var(--font-display);color:var(--text-muted);text-align:center}
@@ -3671,22 +3736,55 @@ VARREDURA_JS = u"""
     traduzir();
     return;
    }
-   (linhas || []).forEach(function(s){
-    var k = String(s.uid || s.bilhete || s.curto || '');
+    var presentes = {};
+    (linhas || []).forEach(function(s){
+     var k = String(s.uid || s.bilhete || s.curto || '');
+     presentes[k] = true;
     var h = o.linha ? o.linha(s) : esc(s.desc || s.descricao || k);
-    var velho = vistos[k];
-    if(velho && velho.getAttribute('data-h') === h) return;
+    var assinatura = h + '|carregando:' + !!s.carregando;
+     var velho = vistos[k];
+    if(velho && velho.getAttribute('data-h') === assinatura) return;
     var cx = document.createElement('div');
     cx.innerHTML = h;
-    var novo = cx.firstElementChild || cx;
-    novo.setAttribute('data-h', h);
+     var novo = cx.firstElementChild || cx;
+     novo.setAttribute('data-h', assinatura);
+     if(s.carregando){
+      novo.setAttribute('data-ui-carregando', '1');
+      novo.setAttribute('aria-disabled', 'true');
+      if('disabled' in novo) novo.disabled = true;
+      Array.prototype.forEach.call(novo.querySelectorAll('button,input,select,a,[data-b],[data-bilhete]'), function(el){
+       if('disabled' in el) el.disabled = true;
+       el.setAttribute('tabindex', '-1');
+       el.removeAttribute('href'); el.removeAttribute('data-b'); el.removeAttribute('data-bilhete');
+      });
+     }
+     if(velho && velho.getAttribute('data-h') !== assinatura){
+      var numerais = novo.querySelectorAll('b,.num,[data-c="cortes"],.r3-i-meta');
+      Array.prototype.forEach.call(numerais, function(el){ el.classList.add('ui-numero-pop') });
+     }
     if(velho && velho.parentNode) velho.parentNode.replaceChild(novo, velho);
     else { alvo.appendChild(novo); n++ }
-    vistos[k] = novo;
-   });
-   traduzir();
+     vistos[k] = novo;
+    });
+    Object.keys(vistos).forEach(function(k){
+     if(!presentes[k] && vistos[k].hasAttribute('data-ui-carregando')){
+      if(vistos[k].parentNode) vistos[k].parentNode.removeChild(vistos[k]);
+      delete vistos[k]; n--;
+     }
+    });
+    traduzir();
   }
-  if(est && !est._uiVl){
+   if(alvo && !alvo._uiVlSeguro){
+    alvo._uiVlSeguro = true;
+    function impedirParcial(e){
+     if(e.target && e.target.closest && e.target.closest('[data-ui-carregando]')){
+      e.preventDefault(); e.stopImmediatePropagation();
+     }
+    }
+    alvo.addEventListener('click', impedirParcial, true);
+    alvo.addEventListener('keydown', impedirParcial, true);
+   }
+   if(est && !est._uiVl){
    est._uiVl = true;
    est.addEventListener('click', function(e){
     var b = e.target.closest ? e.target.closest('[data-ui-vl]') : null;
@@ -3990,6 +4088,10 @@ def aplicar(pagina):
     pagina = _pendurar_icone(pagina)
     if not pagina or MARCA_CSS in pagina:
         return pagina
+    import re
+    import radai_cover
+    pagina = re.sub(r'<a\b[^>]*\bclass="rc-marca"[^>]*>.*?</a>',
+                    lambda _m: radai_cover.marca(), pagina, flags=re.S)
     baixa = pagina.lower()
     fim_head = baixa.find(u"</head>")
     if fim_head < 0:
@@ -4022,6 +4124,7 @@ _TRACOS = {
                 u'c0 1.9-2.8 2.3-2.8 4"/><path d="M12 17.6h.01"/>',
     u"estrela": u'<path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8'
                 u'-4.2-4.1 5.8-.8z"/>',
+    u"buscar": u'<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20 20"/>',
     u"zoom_mais":  u'<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20 20M10.5 7.8v5.4M7.8 10.5h5.4"/>',
     u"zoom_menos": u'<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20 20M7.8 10.5h5.4"/>',
     u"inverter":   u'<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/>',

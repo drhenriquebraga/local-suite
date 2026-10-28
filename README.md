@@ -2,7 +2,7 @@
 
 **Part of the Radioterapia.AI local ecosystem. A study bench for AI segmentation in radiation oncology — teaching and research material, not a medical device.**
 
-`License: Apache-2.0` · `Version: 8.7.1` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
+`License: Apache-2.0` · `Version: 8.8` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
 
 > **Teaching and research material. This is not a medical device.**
 > It is **not** validated for clinical use, it has no ANVISA registration, no

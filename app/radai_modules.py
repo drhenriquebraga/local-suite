@@ -331,6 +331,7 @@ def _esc(t):
 CSS = u"""
 @font-face{font-family:Anton;src:url('/porta/Anton-Regular.ttf') format('truetype');font-display:swap;font-weight:400}
 body{margin:0}
+body[data-tela="autocontorno"] .wrap:has(.md-pg){max-width:none;margin:0;width:100%}
 .md-pg{--md-topo:clamp(24px,calc(34vh - 86px),240px);position:relative;isolation:isolate;
  box-sizing:border-box;display:flex;flex-direction:column;overflow-x:clip;
  min-height:calc(100dvh - var(--ui-topo,60px));padding:36px clamp(24px,5vw,68px) 22px}

@@ -74,7 +74,7 @@ def _porta_livre():
 
 
 def teste_tela_cheia():
-    secao(u"a janela do app abre em tela cheia (F11), nao maximizada")
+    secao(u"a janela do app abre maximizada, com as barras do Windows visiveis")
     import radai_lancador as L
     amb = {u"ProgramFiles(x86)": u"C:\\PF86", u"ProgramFiles": u"C:\\PF",
            u"LOCALAPPDATA": u"C:\\LA", u"TEMP": u"C:\\T"}
@@ -86,17 +86,17 @@ def teste_tela_cheia():
                           existe=lambda c, a=alvo: c.endswith(a),
                           padrao=lambda a: None)
         c = chamadas[0] if chamadas else []
-        checar(u"%s: --app com --start-fullscreen" % rot,
-               u"--start-fullscreen" in c and any(
+        checar(u"%s: --app com --start-maximized" % rot,
+               u"--start-maximized" in c and any(
                    str(x).startswith(u"--app=") for x in c), repr(c))
-        checar(u"  e sem --start-maximized nem --kiosk (o F11 continua saindo)",
-               u"--start-maximized" not in c and u"--kiosk" not in c, repr(c))
+        checar(u"  e sem --start-fullscreen nem --kiosk (o F11 continua saindo)",
+               u"--start-fullscreen" not in c and u"--kiosk" not in c, repr(c))
     cmd = ler_bytes("app", "launchers", "open_browser.cmd")
     txt = cmd.decode("ascii", "replace")
     linhas = [l for l in txt.splitlines() if u"--app=" in l]
-    checar(u"o recuo do codigo 90 (open_browser.cmd) abre em tela cheia nos dois",
-           len(linhas) == 2 and all(u"--start-fullscreen" in l
-                                    and u"--start-maximized" not in l
+    checar(u"o recuo do codigo 90 (open_browser.cmd) abre maximizado nos dois",
+           len(linhas) == 2 and all(u"--start-maximized" in l
+                                    and u"--start-fullscreen" not in l
                                     for l in linhas), repr(linhas))
     checar(u"  e continua em CRLF e ASCII",
            b"\r\n" in cmd and b"\n" not in cmd.replace(b"\r\n", b"")
@@ -106,7 +106,7 @@ def teste_tela_cheia():
 _MONITOR = (0, 0, 1920, 1080)
 _MAXIMIZADA = (-8, -8, 1928, 1040)
 _APPCMD = (u'"C:\\PF\\msedge.exe" --app=file:///C:/T/p.html '
-           u'--start-fullscreen --user-data-dir=C:\\Users\\user\\AppData\\'
+           u'--start-maximized --user-data-dir=C:\\Users\\user\\AppData\\'
            u'Local\\Temp\\radai_janela --no-first-run')
 _PESSOAL = u'"C:\\PF\\msedge.exe" --profile-directory=Default'
 
@@ -202,14 +202,15 @@ def teste_a_janela_do_app():
     checar(u"  sem a ficha no titulo, nada", J.achar(u"rjnadanadanada1234", pf,
                                                     teto_s=0) == 0)
     r = J.registrar(f, pf, teto_s=0)
-    checar(u"a segunda janela de um perfil aberto nasce maximizada: o F11 vai "
-           u"uma vez", r.get("ok") and r.get("tela_cheia_pedida")
-           and pf.chamadas.count((u"f11", 3)) == 1, repr((r, pf.chamadas)))
+    checar(u"a segunda janela de um perfil aberto fica maximizada sem F11",
+           r.get("ok") and not r.get("tela_cheia_pedida")
+           and (u"mostrar", 3, J.SW_MAXIMIZE) in pf.chamadas
+           and not any(c[0] == u"f11" for c in pf.chamadas), repr((r, pf.chamadas)))
     pf.j[3]["barra"] = True
     r2 = J.registrar(f, pf, teto_s=0)
     checar(u"  quem saiu da tela cheia pelo F11 nao e posto nela de novo",
            r2.get("ok") and not r2.get("nova")
-           and pf.chamadas.count((u"f11", 3)) == 1, repr(r2))
+           and pf.chamadas.count((u"f11", 3)) == 0, repr(r2))
     J._JANELAS.clear()
     pf.j[3]["min"] = True
     r3 = J.registrar(f, pf, teto_s=0)
@@ -301,18 +302,22 @@ def teste_a_janela_pelo_titulo_e_o_f11_que_nao_desliga():
         pf.j[9].update(barra=True, ret=_MAXIMIZADA)
         pf.chamadas[:] = []
         r = J.registrar(f, pf, teto_s=0)
-        checar(u"  a maximizada (a barra de tarefas fica de fora) recebe uma vez",
-               r.get("tela_cheia_pedida") and pf.chamadas.count((u"f11", 9)) == 1,
-               repr((r, pf.chamadas)))
-        checar(u"  trazida para a frente antes do F11 (o Edge ignora o F11 "
-               u"postado na janela de tras)",
-               pf.chamadas[-2:] == [(u"frente", 9), (u"f11", 9)],
-               repr(pf.chamadas))
-        J._JANELAS.clear()
-        pf.j[9].update(barra=True, ret=None)
-        r = J.registrar(f, pf, teto_s=0)
-        checar(u"  sem medida da janela, vale a barra de titulo (como antes)",
-               r.get("tela_cheia_pedida"), repr(r))
+        checar(u"a maximizada mantem as barras e nao recebe F11 ao registrar",
+               not r.get("tela_cheia_pedida") and (u"f11", 9) not in pf.chamadas)
+        r = J.tela_cheia(f, True, pf, teto_s=0)
+        checar(u"Maximizar por ato declarado envia F11 so para a janela achada",
+               r.get("ok") and r.get("tela_cheia")
+               and pf.chamadas[-2:] == [(u"frente", 9), (u"f11", 9)])
+        r = J.tela_cheia(f, False, pf, teto_s=0)
+        checar(u"consultar o estado nao envia outra tecla", r.get("tela_cheia")
+               and pf.chamadas.count((u"f11", 9)) == 1)
+        r = J.tela_cheia(f, True, pf, teto_s=0)
+        checar(u"Restaurar envia F11 uma vez e devolve as barras", r.get("ok")
+               and not r.get("tela_cheia") and pf.tem_barra(9))
+        antes_f11 = len(pf.chamadas)
+        r = J.tela_cheia(u"invalida", True, pf, teto_s=0)
+        checar(u"ficha invalida nao toca nenhuma janela", not r.get("ok")
+               and len(pf.chamadas) == antes_f11)
         checar(u"cobrir o monitor e conter os quatro lados dele",
                J.cobre_o_monitor(_MONITOR, _MONITOR)
                and J.cobre_o_monitor((-8, -8, 1928, 1088), _MONITOR)
@@ -426,13 +431,14 @@ def _uma_janela_de_verdade(exe):
                u"monitor (a segunda janela de um perfil aberto)" % nome,
                pf.tem_barra(h) and not J.ja_cobre_o_monitor(h, pf),
                repr((pf.retangulo(h), pf.monitor(h))))
-        r = J.registrar(f, pf, teto_s=5)
+        normal = J.registrar(f, pf, teto_s=5)
+        checar(u"registro deixa a janela maximizada com barra", normal.get("ok") and pf.tem_barra(h))
+        r = J.tela_cheia(f, True, pf, teto_s=5)
         time.sleep(3.0)
         checar(u"[janela %s] o registro poe em tela cheia (sem barra, cobrindo "
-               u"o monitor)" % nome, r.get("tela_cheia_pedida")
+               u"o monitor)" % nome, r.get("tela_cheia")
                and not pf.tem_barra(h) and J.ja_cobre_o_monitor(h, pf),
                repr((r, pf.retangulo(h), pf.monitor(h))))
-        J._JANELAS.clear()
         r2 = J.registrar(f, pf, teto_s=5)
         time.sleep(1.5)
         checar(u"[janela %s] a que ja esta em tela cheia nao recebe F11 de novo"

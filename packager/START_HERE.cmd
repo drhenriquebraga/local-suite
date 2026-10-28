@@ -40,6 +40,7 @@ if exist "%AQUI%\%SUB_AQUI%packager\prepare.ps1" (
     echo   I will run from here instead.
     echo.
     set "CASA=%AQUI%"
+    set "SUB_CASA=%SUB_AQUI%"
     goto :rodar
   )
   xcopy "%AQUI%\*" "%CASA%\" /E /I /Y /Q >nul 2>&1
@@ -126,7 +127,7 @@ exit /b 1
 
 :rodar
 set "TAMANHO="
-if exist "%CASA%\PACKAGE_SIZE.txt" set /p TAMANHO=<"%CASA%\PACKAGE_SIZE.txt"
+if exist "%CASA%\%SUB_CASA%PACKAGE_SIZE.txt" set /p TAMANHO=<"%CASA%\%SUB_CASA%PACKAGE_SIZE.txt"
 if not defined TAMANHO set "TAMANHO=20"
 
 set "LOGDIR=%LOCALAPPDATA%\RadioterapiaAI\logs"
@@ -206,5 +207,5 @@ if not exist "%RADAI_P1%" (
   goto :eof
 )
 if not exist "%RADAI_P2%" goto :eof
-for /f "usebackq delims=" %%R in (`powershell -NoProfile -Command "if((Get-Item -LiteralPath $env:RADAI_P2).LastWriteTime -gt (Get-Item -LiteralPath $env:RADAI_P1).LastWriteTime){'programa\'}"`) do set "SUB=%%R"
+for /f "usebackq delims=" %%R in (`powershell -NoProfile -Command "function V($p){$e=Join-Path (Split-Path (Split-Path $p -Parent) -Parent) 'entrega.txt';$v=Get-Content -LiteralPath $e -EA SilentlyContinue|Where-Object{$_ -match '^VERSAO='}|Select-Object -First 1;try{return [version]($v -replace '^VERSAO=','')}catch{return [version]'0.0'}};$a=V $env:RADAI_P1;$b=V $env:RADAI_P2;if(($b -gt $a) -or (($b -eq $a) -and ((Get-Item -LiteralPath $env:RADAI_P2).LastWriteTime -gt (Get-Item -LiteralPath $env:RADAI_P1).LastWriteTime))){'programa\'}"`) do set "SUB=%%R"
 goto :eof

@@ -202,7 +202,7 @@ JS = u"""<script id="radai-roteiro-js">
   if(i > 0) escrever(c.querySelector('.rt-voltar'), T(R.voltar));
   document.body.appendChild(veu); document.body.appendChild(furo); document.body.appendChild(c);
   c.querySelector('.rt-pular').addEventListener('click', pular);
-  c.querySelector('.rt-proximo').addEventListener('click', function(){ if(ult){ guardar(-1); fechar() } else ir(i + 1) });
+  c.querySelector('.rt-proximo').addEventListener('click', function(){ if(ult){ guardar(-1); fechar(); location.href = '/' } else ir(i + 1) });
   if(i > 0) c.querySelector('.rt-voltar').addEventListener('click', function(){ ir(i - 1) });
   function medir(){
    var n = alvoDe(p), vw = window.innerWidth, vh = window.innerHeight;

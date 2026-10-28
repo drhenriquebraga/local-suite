@@ -11,12 +11,12 @@ const drift = document.querySelector('#art-drift');
 const canvas = document.querySelector('#light-canvas');
 const glassLayers = document.querySelector('#glass-layers');
 const panels = [
-  { x: 451, y: 314, rx: 78, ry: 107, shape: 'M355 206Q355 186 377 182L543 169Q562 167 565 187L565 442Q565 455 546 461L374 475Q354 477 354 454Z' },
-  { x: 605, y: 332, rx: 75, ry: 112, shape: 'M510 224Q510 204 532 199L680 182Q700 180 700 201L701 452Q701 470 682 475L528 491Q508 493 508 470Z' },
-  { x: 760, y: 348, rx: 75, ry: 114, shape: 'M660 245Q660 223 681 216L830 191Q850 187 851 210L851 474Q850 489 832 495L679 514Q658 516 658 492Z' },
-  { x: 922, y: 365, rx: 72, ry: 114, shape: 'M831 263Q831 244 851 237L979 204Q998 199 1001 221L1001 481Q1001 498 982 506L851 537Q830 540 831 516Z' },
-  { x: 1090, y: 385, rx: 76, ry: 116, shape: 'M1003 284Q1003 264 1023 256L1157 210Q1177 203 1178 225L1178 498Q1178 516 1160 524L1026 558Q1004 562 1003 537Z' },
-  { x: 1260, y: 402, rx: 72, ry: 116, shape: 'M1184 303Q1184 285 1203 276L1309 225Q1329 217 1330 240L1330 518Q1330 535 1312 543L1207 581Q1184 587 1184 560Z' }
+  { x: 451, y: 314, rx: 78, ry: 107, shape: 'M354 209Q354 190 376 184L547 168Q565 166 566 188L566 418Q566 431 550 436L375 465Q354 469 354 448Z' },
+  { x: 605, y: 332, rx: 75, ry: 112, shape: 'M508 225Q508 206 530 199L682 180Q701 178 703 201L703 434Q703 447 686 451L529 480Q508 486 508 464Z' },
+  { x: 760, y: 348, rx: 75, ry: 114, shape: 'M655 244Q655 222 678 215L832 189Q852 188 853 211L853 454Q853 468 834 473L679 497Q656 502 655 480Z' },
+  { x: 922, y: 365, rx: 72, ry: 114, shape: 'M827 266Q827 245 849 238L978 204Q999 198 1001 220L1001 468Q1001 485 982 490L850 525Q828 531 827 508Z' },
+  { x: 1090, y: 385, rx: 76, ry: 116, shape: 'M999 286Q999 265 1021 255L1156 210Q1177 203 1179 225L1179 480Q1179 498 1159 505L1024 542Q1001 550 999 526Z' },
+  { x: 1260, y: 402, rx: 72, ry: 116, shape: 'M1178 307Q1178 285 1200 274L1309 224Q1329 217 1331 241L1331 491Q1331 509 1311 517L1204 564Q1180 573 1178 549Z' }
 ];
 
 function svgElement(tag, attributes = {}) {
@@ -43,7 +43,11 @@ function iniciar() {
     const halo = svgElement('ellipse', { cx: panel.x, cy: panel.y, rx: panel.rx * 1.35, ry: panel.ry * 1.15, fill: 'url(#pane-light)' });
     const edge = svgElement('path', { d: panel.shape, fill: '#8477ff', 'fill-opacity': '.018', stroke: '#f7dfb6', 'stroke-opacity': '.48', 'stroke-width': '1.25' });
     const ring = svgElement('ellipse', { class: 'ls-anel', cx: panel.x, cy: panel.y, rx: panel.rx * .53, ry: panel.ry * .62, fill: 'none', stroke: '#d3c5ff', 'stroke-width': '1.4', filter: 'url(#soft-light)' });
-    group.append(halo, edge, ring);
+    const clip = svgElement('clipPath', { id: `ls-pane-${index}` });
+    clip.append(svgElement('path', { d: panel.shape }));
+    halo.setAttribute('clip-path', `url(#ls-pane-${index})`);
+    ring.setAttribute('clip-path', `url(#ls-pane-${index})`);
+    group.append(clip, halo, edge, ring);
     glassLayers.append(group);
   });
   const feedback = [...glassLayers.children];

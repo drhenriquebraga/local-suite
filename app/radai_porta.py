@@ -171,17 +171,7 @@ def cartao(chave, i):
 
 
 def nome_com_fim(chave, nome):
-    try:
-        import radai_modules
-        m = radai_modules.MODULOS.get(chave) or {}
-    except Exception:
-        m = {}
-    titulo, fim = m.get("titulo") or u"", (m.get("destaque") or u"").strip()
-    if not fim or titulo + m.get("destaque", u"") != nome:
-        return u'<span class="ls-nome tool-name" data-radai-frase>%s</span>' % _esc(nome)
-    return (u'<span class="ls-nome tool-name" data-radai-frase data-ls-fim="%s">%s'
-            u'<span class="ls-fim">%s</span></span>' % (_esc(fim), _esc(titulo), _esc(fim)))
-
+    return u'<span class="ls-nome tool-name" data-radai-frase>%s</span>' % _esc(nome)
 
 def ordem():
     try:
@@ -313,10 +303,11 @@ JS = u"""<script id="radai-porta-menu">
   ms.forEach(function(m){ if(m.open && !m.contains(e.target) && !noVeu(e.target)) fechar(m) });
  });
  var mz = document.querySelector('[data-radai-minimizar]');
- function janela(ok){ if(mz) mz.hidden = !ok }
+  var max = document.querySelector('[data-radai-maximizar]');
+  function janela(ok){ if(mz) mz.hidden = !ok; if(max) max.hidden = !ok }
  if(typeof window.radaiJanelaDoApp === 'boolean') janela(window.radaiJanelaDoApp);
  document.addEventListener('radai-janela', function(e){ janela(!!(e.detail && e.detail.ok)) });
- var b = document.querySelector('[data-radai-minimizar-acao]');
+  var b = document.querySelector('[data-radai-minimizar-acao]');
  if(!b) return;
  var f = document.querySelector('[data-radai-falha]');
  function falhou(){ if(f) f.hidden = false }
@@ -352,6 +343,10 @@ PAGINA = u"""<!doctype html><html lang="pt-BR" data-tema-fixo="escuro"><head><me
 <button type="button" class="ls-acao" data-radai-minimizar-acao>@MINIMIZAR@<span data-radai-frase>Minimizar</span></button>
 <p class="ls-falha" role="status" data-radai-falha hidden data-radai-frase>@FALHA_MINIMIZAR@</p>
 </div>
+</details>
+<details class="ls-ctl" data-radai-maximizar hidden>
+<summary><svg class="ls-max-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M3 3l6 6M21 3l-6 6M3 21l6-6M21 21l-6-6"/></svg><span class="ls-rot" data-radai-frase data-radai-maximizar-rot>Maximizar</span></summary>
+<div class="ls-menu"><button type="button" class="ls-acao" data-radai-maximizar-acao><span data-radai-frase data-radai-maximizar-rot>Maximizar</span></button></div>
 </details>
 <details class="ls-ctl ls-engrenagem" data-radai-engrenagem>
 <summary>@ENGRENAGEM@<span class="ls-rot" data-radai-frase>Configurações</span></summary>

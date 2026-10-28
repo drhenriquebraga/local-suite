@@ -477,7 +477,10 @@ def _fechar(series, ignorados):
             "ignorados": ignorados}
 
 
-def _ler_nomes(pasta, nomes, series, ignorados, parar=None, ao_ler=None):
+def _ler_nomes(pasta, nomes, series, ignorados, parar=None, ao_ler=None,
+               ao_atualizar=None):
+    import time
+    ultimo = 0.0
     for nome in sorted(nomes):
         if parar is not None and parar():
             return True
@@ -486,6 +489,12 @@ def _ler_nomes(pasta, nomes, series, ignorados, parar=None, ao_ler=None):
         _ler_arquivo(os.path.join(pasta, nome), nome, series, ignorados)
         if ao_ler is not None:
             ao_ler()
+        if ao_atualizar is not None and any(len(s["arquivos"]) >= 2 for s in series.values()):
+            agora = time.monotonic()
+            if agora - ultimo >= 0.25:
+                copia = {k: dict(v, arquivos=list(v["arquivos"])) for k, v in series.items()}
+                ao_atualizar(_fechar(copia, list(ignorados)))
+                ultimo = agora
     return False
 
 
@@ -519,7 +528,7 @@ def _arquivos_da_pasta(pasta):
     return nomes
 
 
-def varrer_pasta(pasta, parar=None, ao_ler=None, nomes=None):
+def varrer_pasta(pasta, parar=None, ao_ler=None, nomes=None, ao_atualizar=None):
     series, ignorados = {}, []
     try:
         if nomes is None:
@@ -528,7 +537,8 @@ def varrer_pasta(pasta, parar=None, ao_ler=None, nomes=None):
         r = _fechar(series, ignorados)
         r.update(parado=False, erro=u"%s" % type(e).__name__)
         return r
-    parado = _ler_nomes(pasta, nomes, series, ignorados, parar, ao_ler)
+    parado = _ler_nomes(pasta, nomes, series, ignorados, parar, ao_ler,
+                         ao_atualizar=ao_atualizar)
     r = _fechar(series, ignorados)
     r["parado"] = parado
     return r

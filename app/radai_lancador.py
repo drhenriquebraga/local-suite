@@ -481,7 +481,7 @@ def abrir_navegador(alvo, arquivo=None, ambiente=None, popen=None,
     for exe in candidatos_de_navegador(amb):
         if not existe(exe):
             continue
-        cmd = [exe, "--app=" + alvo, "--start-fullscreen",
+        cmd = [exe, "--app=" + alvo, "--start-maximized",
                "--user-data-dir=" + perfil_da_janela(amb),
                "--no-first-run", "--no-default-browser-check"]
         kw = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,

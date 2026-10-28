@@ -422,11 +422,29 @@ def _limpar_nomes(bruto):
     return saida
 
 
+def _limpar_cores(bruto):
+    if not isinstance(bruto, dict):
+        return {}
+    return {k: list(v) for k, v in bruto.items()
+            if isinstance(k, str) and k.strip()
+            and isinstance(v, (list, tuple)) and len(v) == 3
+            and all(type(c) is int and 0 <= c <= 255 for c in v)}
+
+
+def cor_propria(nome_padrao, cfg=None, caminho_cfg=None):
+    d = ler_nomes(caminho_cfg) if cfg is None else cfg
+    if d.get("modo") != "proprios":
+        return None
+    cor = _limpar_cores(d.get("cores")).get(nome_padrao)
+    return tuple(cor) if cor is not None else None
+
+
 def ler_nomes(caminho_cfg=None):
     d = _ler_json(ao_lado_do_config(NOME_DOS_NOMES, caminho_cfg))
     d = d if isinstance(d, dict) else {}
     modo = d.get("modo") if d.get("modo") in MODOS_DOS_NOMES else u"padrao"
-    return {"modo": modo, "nomes": _limpar_nomes(d.get("nomes"))}
+    return {"modo": modo, "nomes": _limpar_nomes(d.get("nomes")),
+            "cores": _limpar_cores(d.get("cores"))}
 
 
 def modo_dos_nomes(caminho_cfg=None):
@@ -500,19 +518,27 @@ def conferir_nomes(nomes, estruturas_por_modalidade, protocolos=()):
 
 
 def gravar_nomes(modo, nomes, estruturas_por_modalidade, protocolos=None,
-                 caminho_cfg=None):
+                 caminho_cfg=None, cores=None):
     modo = modo if modo in MODOS_DOS_NOMES else u"padrao"
     nomes = _limpar_nomes(nomes)
+    if cores is None:
+        cores = ler_nomes(caminho_cfg).get("cores", {})
+    limpas = _limpar_cores(cores)
+    conhecidas = set(n for ls in (estruturas_por_modalidade or {}).values()
+                     for n in _padroes_da_lista(ls))
+    if not isinstance(cores, dict) or len(limpas) != len(cores) or set(limpas) - conhecidas:
+        return False, {"ok": False, "erro": u"Cor inválida: use três inteiros de 0 a 255 para uma estrutura conhecida.", "erros": {}}
+    cores = limpas
     if protocolos is None:
         protocolos = ler_protocolos(caminho_cfg)
     erros = conferir_nomes(nomes, estruturas_por_modalidade, protocolos)
     if erros:
         return False, {"ok": False, "erros": erros}
     ok, erro = _gravar_json(ao_lado_do_config(NOME_DOS_NOMES, caminho_cfg),
-                            {"versao": 1, "modo": modo, "nomes": nomes})
+                            {"versao": 1, "modo": modo, "nomes": nomes, "cores": cores})
     if not ok:
         return False, {"ok": False, "erro": erro, "erros": {}}
-    return True, {"ok": True, "modo": modo, "nomes": nomes, "erros": {}}
+    return True, {"ok": True, "modo": modo, "nomes": nomes, "cores": cores, "erros": {}}
 
 
 _ID_DO_PROTOCOLO = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
@@ -720,7 +746,7 @@ VERSAO_DA_EXPORTACAO = 1
 SECOES_DA_EXPORTACAO = ("configuracao", "nomes", "protocolos")
 # GUARDA: placa, dispositivo e porta sao desta maquina; GUIA_VISTO e da estacao.
 DA_MAQUINA = ("DEVICE", "PORT", "GUIA_VISTO")
-CHAVES_DE_PASTA = ("ROOT", "OUT_DIR", "LOG_DIR", "STATUS_DIR", "PASTA_FAVORITA")
+CHAVES_DE_PASTA = ("ROOT", "ROOTS", "OUT_DIR", "LOG_DIR", "STATUS_DIR", "PASTA_FAVORITA")
 MOTIVO_CAMINHO = u"caminho que não existe nesta máquina: não será gravado"
 MOTIVO_ROOT = (u"a pasta que o vigia varre precisa existir aqui, com leitura e "
                u"escrita: não será gravada")
@@ -767,6 +793,19 @@ def _aviso_da_chave(chave, valor, validar=None):
         return MOTIVO_QUEBRA
     if chave == "TPS_DESTINO" and valor.strip() and not tps_canonico(valor):
         return MOTIVO_TPS
+    if chave == "ROOTS":
+        try:
+            raizes = json.loads(valor or "[]")
+        except (TypeError, ValueError):
+            return MOTIVO_ROOT
+        if (not isinstance(raizes, list) or len(valor) > 65536
+                or any(not isinstance(v, str) or not v.strip() for v in raizes)):
+            return MOTIVO_ROOT
+        for raiz in raizes:
+            laudo = (validar or validar_pasta)(raiz)
+            if not all(laudo.get(k) for k in ("existe", "leitura", "escrita")):
+                return MOTIVO_ROOT
+        return u""
     limpo = valor.split(u"#")[0].strip().strip(u'"')
     if chave in CHAVES_DE_PASTA and limpo:
         if chave == "ROOT":
@@ -819,6 +858,8 @@ def previa_da_importacao(dados, caminho_cfg, chaves, estruturas, validar=None,
     return {"ok": True,
             "configuracao": {"itens": itens, "ignoradas": ignoradas},
             "nomes": {"modo": modo, "total": len(nomes),
+                      "cores": {k: v for k, v in _limpar_cores(bruto_n.get("cores")).items()
+                                if any(k in _padroes_da_lista(ls) for ls in (estruturas or {}).values())},
                       "recusados": erros_n,
                       "validos": dict((k, v) for k, v in nomes.items()
                                       if k not in erros_n)},
@@ -859,7 +900,7 @@ def importar(dados, secoes, caminho_cfg, chaves, estruturas, modelo=u"",
             validos = dict((k, v) for k, v in validos.items() if k not in erros)
         ok, erro = _gravar_json(ao_lado_do_config(NOME_DOS_NOMES, caminho_cfg),
                                 {"versao": 1, "modo": previa["nomes"]["modo"],
-                                 "nomes": validos})
+                                 "nomes": validos, "cores": previa["nomes"].get("cores", {})})
         if not ok:
             return {"ok": False, "erro": erro}
         feito["gravado"]["nomes"] = len(validos)

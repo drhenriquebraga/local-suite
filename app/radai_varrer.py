@@ -19,8 +19,7 @@ PASTA_NAO_ENCONTRADA = u"Pasta não encontrada."
 USO_DESCONHECIDO = u"esta tela não tem varredura de pasta"
 VARREDURA_DESCONHECIDA = (u"Esta busca não existe mais — o programa pode ter "
                           u"sido reiniciado. Procure de novo.")
-BUSCA_INTERROMPIDA = (u"A busca foi interrompida: a lista tem só o que foi "
-                      u"achado até ali.")
+BUSCA_INTERROMPIDA = (u"A descoberta foi interrompida; as séries já encontradas terminaram de ser lidas.")
 BUSCA_CORTADA_PASTAS = (u"A busca parou depois de %d pastas olhadas. Aponte "
                         u"a pasta do exame, e não a raiz do disco.")
 BUSCA_CORTADA_SERIES = (u"A busca parou em %d séries. Aponte uma pasta mais "
@@ -47,6 +46,7 @@ class Uso(object):
         self.iniciar = iniciar
         self.pular = pular or _pular_padrao
         self.filtra = bool(filtra)
+        self.paralela = False
 
 
 def registrar(nome, ler, linhas, fechar=None, iniciar=None, pular=None,
@@ -112,8 +112,19 @@ def publicar(job, linhas, extra=None, final=False):
         job["versao"] += 1
 
 
+def publicar_linhas(job, ler):
+    trava = job.get("dados", {}).get("trava")
+    if trava is None:
+        publicar(job, ler(job))
+        return
+    # GUARDA: copiar e publicar sob a mesma trava impede uma parcial velha de apagar a completa.
+    with trava:
+        publicar(job, ler(job))
+
+
 def contar_arquivo(job, n=1):
-    job["arquivos"] += int(n)
+    with job["trava"]:
+        job["arquivos"] += int(n)
 
 
 def _falhou(job):
@@ -123,6 +134,7 @@ def _falhou(job):
 
 
 def trabalhar(job, u):
+    pool = None
     try:
         if u.iniciar is not None:
             u.iniciar(job)
@@ -133,6 +145,16 @@ def trabalhar(job, u):
             job["erro"] = PASTA_NAO_ENCONTRADA
             return
         limite = job["limite"] if u.filtra else None
+        from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+        pendentes = set()
+        pool = ThreadPoolExecutor(max_workers=3) if u.paralela else None
+
+        def ler_pasta(atual, arqs):
+            if job["parado"]:
+                return
+            if u.ler(job, atual, arqs):
+                publicar_linhas(job, u.linhas)
+
         for atual, dirs, arqs in os.walk(raiz, onerror=_falhou(job)):
             if job["parado"]:
                 break
@@ -141,8 +163,14 @@ def trabalhar(job, u):
             if arqs:
                 if not dentro_da_data(atual, limite):
                     job["fora_da_data"] += 1
-                elif u.ler(job, atual, sorted(arqs)):
-                    publicar(job, u.linhas(job))
+                elif pool is None:
+                    ler_pasta(atual, sorted(arqs))
+                else:
+                    pendentes.add(pool.submit(ler_pasta, atual, sorted(arqs)))
+                    if len(pendentes) >= 6:
+                        feitos, pendentes = wait(pendentes, return_when=FIRST_COMPLETED)
+                        for futuro in feitos:
+                            futuro.result()
             if job["parado"]:
                 break
             if job["pastas"] >= TETO_PASTAS:
@@ -154,6 +182,13 @@ def trabalhar(job, u):
             if len(job["linhas"]) >= TETO_SERIES:
                 job["cortada"] = "series"
                 break
+        if pool is not None:
+            try:
+                for futuro in pendentes:
+                    futuro.result()
+            finally:
+                pool.shutdown(wait=True)
+                pool = None
         job["etapa"] = "fechando"
         if u.fechar is not None:
             linhas, extra = u.fechar(job)
@@ -163,6 +198,8 @@ def trabalhar(job, u):
     except Exception as e:
         job["erro"] = u"%s: %s" % (type(e).__name__, str(e)[:200])
     finally:
+        if pool is not None:
+            pool.shutdown(wait=True)
         job["fim_em"] = time.time()
         job["fim"] = True
 
@@ -279,7 +316,8 @@ def _iniciar_series(job, resolver=None):
         job["pasta"] = alvo
     job["raiz"] = radai_dicom.caminho_longo(job["pasta"])
     mods, piso = _opcoes_das_series(job)
-    job["dados"] = {"por_uid": {}, "mods": mods, "piso": piso}
+    job["dados"] = {"por_uid": {}, "mods": mods, "piso": piso,
+                    "trava": threading.RLock()}
 
 
 def linha_da_serie(pasta, s, bilhete):
@@ -293,46 +331,82 @@ def linha_da_serie(pasta, s, bilhete):
     return linha
 
 
-def _ler_series(job, pasta, nomes, enriquecer=None):
-    import radai_dicom
+def _aceitar_series(job, pasta, r, enriquecer=None, carregando=False):
     import radai_thumbnail
     d = job["dados"]
-    r = radai_dicom.varrer_pasta(pasta, parar=lambda: job["parado"],
-                                 ao_ler=lambda: contar_arquivo(job),
-                                 nomes=nomes)
+    irmas = tuple(str(x.get("uid") or u"") for x in r.get("series") or ())
+    for serie in r.get("series") or ():
+        uid = serie["uid"]
+        mod = str(serie.get("modalidade") or u"").upper()
+        cortes = int(serie.get("cortes") or 0)
+        with d["trava"]:
+            velha = d["por_uid"].get(uid)
+            if mod not in d["mods"] or cortes < (2 if carregando else d["piso"]):
+                if not carregando and velha and velha.get("carregando") and velha["cortes"] <= cortes:
+                    d["por_uid"].pop(uid, None)
+                continue
+            if velha and not velha.get("carregando") and (carregando or velha["cortes"] >= cortes):
+                continue
+        b = None if carregando else radai_thumbnail.registrar_series(pasta, [serie]).get(uid)
+        linha = linha_da_serie(pasta, serie, b)
+        linha["carregando"] = carregando
+        if carregando:
+            linha["recusa"] = u"Lendo os cortes da série…"
+        elif enriquecer is not None and enriquecer(linha, pasta, dict(serie, irmas=irmas)) is False:
+            with d["trava"]:
+                velha = d["por_uid"].get(uid)
+                if velha and velha.get("carregando") and velha["cortes"] <= cortes:
+                    d["por_uid"].pop(uid, None)
+            continue
+        with d["trava"]:
+            velha = d["por_uid"].get(uid)
+            if velha and not velha.get("carregando") and (carregando or velha["cortes"] >= cortes):
+                continue
+            if carregando and velha and velha["cortes"] > cortes:
+                continue
+            d["por_uid"][uid] = linha
+
+
+def _ler_series(job, pasta, nomes, enriquecer=None):
+    import radai_dicom
+
+    conhecidas = set()
+
+    def encontradas(r):
+        return dict(r, series=[s for s in r.get("series", ())
+                               if s["uid"] in conhecidas])
+
+    def parcial(r):
+        if not job["parado"]:
+            conhecidas.update(s["uid"] for s in r.get("series", ())
+                              if int(s.get("cortes") or 0) >= 2)
+        _aceitar_series(job, pasta, encontradas(r), carregando=True)
+        publicar_linhas(job, _linhas_series)
+
+    r = radai_dicom.varrer_pasta(
+        pasta, parar=lambda: job["parado"] and not conhecidas,
+        ao_ler=lambda: contar_arquivo(job), nomes=nomes, ao_atualizar=parcial)
+    if job["parado"]:
+        r = encontradas(r)
     if r.get("erro"):
         job["falhas"] += 1
     job["zips"] += sum(1 for n, _p in r.get("ignorados") or ()
                        if str(n).lower().endswith(u".zip"))
-    mudou = False
-    irmas = tuple(str(x.get("uid") or u"") for x in r.get("series") or ())
-    for s in r.get("series") or ():
-        mod = str(s.get("modalidade") or u"").upper()
-        if mod not in d["mods"] or int(s.get("cortes") or 0) < d["piso"]:
-            continue
-        velha = d["por_uid"].get(s["uid"])
-        # GUARDA: série repartida em pastas fica na pasta que tem mais cortes dela.
-        if velha is not None and velha["cortes"] >= int(s.get("cortes") or 0):
-            continue
-        b = radai_thumbnail.registrar_series(pasta, [s]).get(s["uid"])
-        linha = linha_da_serie(pasta, s, b)
-        if enriquecer is not None and enriquecer(
-                linha, pasta, dict(s, irmas=irmas)) is False:
-            continue
-        d["por_uid"][s["uid"]] = linha
-        mudou = True
-    return mudou
+    _aceitar_series(job, pasta, r, enriquecer=enriquecer)
+    return True
 
 
 def _linhas_series(job):
-    return list(job["dados"].get("por_uid", {}).values())
+    with job["dados"]["trava"]:
+        return [dict(l) for l in job["dados"].get("por_uid", {}).values()]
 
 
 def registrar_series_de_pasta(nome, enriquecer=None, resolver=None):
-    return registrar(
-        nome, lambda job, pasta, nomes: _ler_series(job, pasta, nomes,
-                                                    enriquecer),
+    u = registrar(
+        nome, lambda job, pasta, nomes: _ler_series(job, pasta, nomes, enriquecer),
         _linhas_series, iniciar=lambda job: _iniciar_series(job, resolver))
+    u.paralela = True
+    return u
 
 
 registrar_series_de_pasta("series")

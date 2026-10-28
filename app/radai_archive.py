@@ -913,11 +913,18 @@ def _instalar_desvio():
         def mkdtemp(suffix=None, prefix=None, dir=None):
             if dir is None:
                 dir = pasta_da_serie_atual()
+                if dir is not None and (isinstance(prefix, bytes)
+                                        or isinstance(suffix, bytes)):
+                    dir = os.fsencode(dir)
             return mkdtemp_de_antes(suffix, prefix, dir)
 
         def mkstemp(suffix=None, prefix=None, dir=None, text=False):
             if dir is None:
                 dir = pasta_da_serie_atual()
+                # GUARDA: o scipy pede prefixo bytes; o dir injetado precisa do mesmo tipo.
+                if dir is not None and (isinstance(prefix, bytes)
+                                        or isinstance(suffix, bytes)):
+                    dir = os.fsencode(dir)
             return mkstemp_de_antes(suffix, prefix, dir, text)
 
         # GUARDA: o desvio so age na thread com a serie aberta; nas outras e o

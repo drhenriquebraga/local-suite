@@ -7,8 +7,8 @@ import radai_archive
 import radai_menu
 import radai_web
 
-VERSAO_DOCS = "2.0"
-DATA_DOCS = "2026-10-25"
+VERSAO_DOCS = "2.1"
+DATA_DOCS = "2026-10-28"
 ARQUIVO_ACEITE = "aceite.json"
 
 IMPRESSOES_PUBLICADAS = {
@@ -19,6 +19,7 @@ IMPRESSOES_PUBLICADAS = {
     "1.8": "3d4a4f8773824f220e2e58d61b85522681a10a7ca78daf4618e151845f781ad5",
     "1.9": "087a47baff075f36e14b23ddac71396fc206f7ab9b611a0c88936b2f47948e1d",
     "2.0": "c6b3c126af07cd56a14230008af944a09824c7d7f9ed51b834dcfdca4728aa97",
+    "2.1": "5ec308c786f4495cd965ec6a5b6acda89853731f5415eacf9556cf2ea6f28013",
 }
 
 # GUARDA: versao publicada nao se retoca (mudou o texto, versao nova); so a
@@ -26,9 +27,13 @@ IMPRESSOES_PUBLICADAS = {
 # abaixo, com o que entrou no texto.
 RESSELAGENS_ANTES_DA_PUBLICACAO = {"1.4": 2, "1.5": 3, "1.6": 4, "1.7": 3,
                                    "1.8": 6, "1.9": 2,
-                                   "2.0": 2}
+                                   "2.0": 2, "2.1": 2}
 
 IMPRESSOES_TROCADAS_ANTES_DA_PUBLICACAO = {
+    "2.1": (("fedb3e1174c9",
+             u"a regra clinica nova detalhada, cores, multiplas origens, Cancelar e leitura sem escrita ao abrir, escolha da serie e alteracao das origens so no proximo turno"),
+            ("6c55fafa4fb4",
+             u"a limitacao explicita das tasks atuais, que nao fornecem mascaras separadas das arterias pulmonares e do tronco pulmonar; essas estruturas nao sao acrescentadas ao composto, sem novos modelos ou plugins")),
     "2.0": (
         ("4ed91a7fa1c7",
          u"a janela achada pelo titulo, com a linha de comando so como "
@@ -596,12 +601,13 @@ tem armazenamento próprio fora dela. Os lugares, um por um:</p>
  <code>radai_watcher.config</code>, na pasta do programa, ou onde a variável
  <code>RADAI_CONFIG</code> apontar): os nomes próprios das estruturas
  (<code>nomes_proprios.json</code>: a chave «Padrão / Tags próprias» e, por
- estrutura, o nome que a estação escolheu) e os protocolos próprios
+ estrutura, o nome e a cor RGB que a estação escolheu) e os protocolos próprios
  (<code>protocolos_proprios.json</code>: de cada um, o nome, a modalidade, as
  estruturas, as uniões e se ele procura achado) — nada de paciente. A
  atualização os preserva, e o desinstalador oferece guardá-los, como faz com
  o arquivo de configuração. No próprio arquivo de configuração vão também a
- pasta favorita (<code>PASTA_FAVORITA</code>) e a marca de que o guia já
+ lista de pastas do turno (<code>ROOTS</code>), a pasta principal
+ (<code>ROOT</code>), a pasta favorita (<code>PASTA_FAVORITA</code>) e a marca de que o guia já
  foi visto nesta estação (<code>GUIA_VISTO</code>).</li>
  <li><b>O acervo</b> (<code>calibracao\\</code>, na pasta do programa, ou onde o
  <code>_dados.txt</code> ou a variável <code>RADAI_CALIB_DIR</code> apontarem):
@@ -1158,7 +1164,7 @@ aberto (seção 3).</p>
 <p>Sobre o software: a página do projeto,
 <a href="https://radioterapia.ai">radioterapia.ai</a>. Uma vulnerabilidade se
 relata em particular, pelo relato privado do repositório do projeto no GitHub
-(<a href="https://github.com/radioterapia-ai/local-suite/security">radioterapia-ai/local-suite</a>,
+(<a href="https://github.com/drhenriquebraga/local-suite/security">drhenriquebraga/local-suite</a>,
 aba Security), e nunca numa issue pública — e nenhum relato leva dado de
 paciente. Sobre os dados do seu serviço: o encarregado de dados da sua
 instituição.</p>
@@ -1323,7 +1329,12 @@ obrigatória (seção 1.4).</p>
  seios da face, o crânio, os músculos da mastigação e os digástricos, a
  língua, os dentes, os processos estiloides e os arcos zigomáticos — ficam só
  no completo; e, sem o tórax identificado, os grandes vasos também. As
- carótidas (<code>A_Carotid_ai</code>) ficam só no completo em toda série.
+ carótidas (<code>A_Carotid_ai</code>) ficam como estrutura própria só no
+ completo; suas máscaras também compõem <code>GreatArteries_ai</code>, fora do
+ <code>Heart_ai</code>. As tarefas atuais não fornecem máscaras separadas das
+ artérias pulmonares e do tronco pulmonar; essas estruturas não são acrescentadas
+ ao composto. <code>GreatVeins_ai</code> conserva a sobreposição
+ com o coração de radioterapia.
  A laringe (<code>Larynx_ai</code>), as articulações temporomandibulares
  (<code>TMJ_L_ai</code> e <code>TMJ_R_ai</code>) e a mandíbula
  (<code>Bone_Mandible_ai</code>) entram no entregue sempre que são
@@ -1420,8 +1431,12 @@ topo delas, a união não vai ao entregue daquela série, e a descrição de cad
 nível marca o estudo e manda conferir a extensão caudal antes de usar
 qualquer nível dela. Com pesos de outra versão que não a do mapa dos nomes
 (seção 4), a união sai com o nome neutro e não vai ao entregue. Antes da
-união, o nível IVb de cada lado perde a clavícula do mesmo lado, e a união
-sai recortada igual.</p>
+união, o nível IVb de cada lado perde a clavícula do mesmo lado. No
+acabamento final, a união perde as intersecções com os esternocleidomastoideos,
+os platismais, a mandíbula, os escalenos anteriores, médios e posteriores,
+as clavículas e o hioide, conforme as máscaras anatômicas disponíveis. Esse
+recorte pode reduzir o volume; a revisão médica continua obrigatória e a
+união não se torna um alvo aprovado.</p>
 </div>
 <p><b>O índice 26 entra no sacro.</b> O TotalSegmentator dá um rótulo
 próprio a uma vértebra de transição lombossacra — o índice 26,
@@ -1458,7 +1473,8 @@ sacroilíaca — sem ela, do polo da cabeça femoral —, o que passa de 50 mm d
 parede anterior. A veia porta fica fora de toda conta. Depois de suavizada em
 20 mm, ela recebe de volta, inteiros, o estômago, o duodeno, o pâncreas e o
 delgado, e o cólon sem o reto, e sai como um volume só; por último, depois
-de todas as subtrações, o furo de cada corte axial é preenchido. Segue o
+de todas as subtrações, o furo de cada corte axial é preenchido; a
+cartilagem costal é retirada também depois desse preenchimento. Segue o
 atlas de Orton
 et al. (2022), menos num ponto, que a descrição da estrutura diz: mantém o
 estômago e o pâncreas. A <code>Bag_Bowel_ai</code>, da receita anterior,
@@ -1487,16 +1503,17 @@ estruturas já segmentadas e, na metade anterior, junto das alças e da
 cavidade abdominal, o tecido a até 10 mm e um fechamento de 5 mm: o estoma, a
 gastrostomia, a hérnia e a parede fina sobre o ar da alça ficam dentro; a
 mesa e o braço separado ficam fora.</p>
-<p><b>O coração não desce pela veia cava, e não perde o pericárdio.</b> A
-veia cava inferior sai do coração de radioterapia (<code>Heart_ai</code>) só
-onde está separada dele — fora do pericárdio, do coração do modelo e do
-derrame pericárdico —: nenhum pixel desses três sai, e nenhum corte que os
-tem é descartado. Depois do derrame e do preenchimento dos furos de cada
-corte, saem dele o esôfago e os outros vizinhos de fora do pericárdio — os
-pulmões, a traqueia, as vértebras, o esterno, as costelas, as escápulas, as
-clavículas, o fígado, o estômago e o baço —, e o log diz quanto de cada. A
-suavização final dele é a do parênquima mais 3 mm fixos — 5,5 mm com a
-suavização padrão.</p>
+<p><b>O coração de radioterapia.</b> Antes da suavização, somente nos
+cortes em que existe máscara da veia cava inferior, o <code>Heart_ai</code>
+é limitado ao pericárdio disponível. Nos outros cortes essa restrição não é
+aplicada. A cartilagem costal sai do coração, inclusive após o preenchimento.
+A regra que retira a cava quando separada do coração continua, assim como o
+recorte do esôfago e dos vizinhos de fora do pericárdio. A suavização final é
+a do parênquima mais 3 mm fixos — 5,5 mm com o padrão. O
+<code>Heart_Model_ai</code> das tarefas atuais é uma máscara única: não
+contém rótulos separados de câmaras e vasos. Ela é preservada no FULL; o
+programa não inventa essas partes nem aciona o MOOSE para desmembrá-la.
+O MOOSE continua como comparação opcional, fora do FAST e do AUTO.</p>
 <p><b>As estruturas finas saem como o modelo as entregou.</b> Os nervos
 ópticos, o quiasma, os constritores da faringe e a tireoide saem sem
 suavização da máscara e, no FAST, sem redução de pontos do contorno; o corte
@@ -1515,7 +1532,7 @@ corte com a cricoide; sem o hioide ou sem a cricoide na série, ela não sai.
 Cada articulação temporomandibular (<code>TMJ_L_ai</code> e
 <code>TMJ_R_ai</code>) é o côndilo da mandíbula do lado, do corte em que o
 ramo se divide em dois contornos — o processo coronoide à frente, o côndilo
-atrás — ao topo do côndilo, com 1 mm de margem em 3D. O lado sai de um
+atrás — ao topo do côndilo, com margem total de 3 mm em 3D além do côndilo. O lado sai de um
 plano médio que passa pelo centro do crânio sem a mandíbula — na falta dele,
 do encéfalo, da vértebra C1 ou da C2 —, e só sem nenhum deles pelo meio da
 largura da mandíbula; numa mandíbula parcial sem essas estruturas na série, o lado pode
@@ -1765,6 +1782,12 @@ completo ou o nome padrão.</p>
  CTV, ITV ou PTV) nem de contorno externo (BODY, External). A tela recusa o
  nome com o motivo na linha, e o programa confere de novo ao gravar o
  RTSTRUCT: o nome recusado sai como o padrão, e o log diz.</li>
+ <li><b>As cores próprias.</b> No mesmo editor, a estação pode escolher a cor
+ RGB de cada estrutura do STUDY, mesmo sem trocar seu nome. São três inteiros
+ de 0 a 255, gravados em <code>ROIDisplayColor</code>. A escolha só vale no
+ modo «Tags próprias»; em «Padrão» fica guardada sem valer. O FULL mantém as
+ cores padrão. A cor não muda a máscara, a procedência nem a condição
+ não aprovada da estrutura.</li>
  <li><b>Os protocolos próprios.</b> Cada protocolo vale para uma modalidade
  (TC ou RM) e escolhe as estruturas do entregue entre as que alimentam o
  completo, com uniões — só por soma, cada uma com um nome que segue as regras
@@ -2235,43 +2258,41 @@ programa), com uma linha no log: o programa que foi fechado volta no
 próximo logon, e o serviço que ficou parado, no próximo arranque do
 Windows.</p>
 <ul>
- <li><b data-radai-t="1">O Overnight Run</b> — o turno da noite — entra na fila como o último
- cartão, e abre quando a fila chega nele. A pasta dos
- exames, as modalidades e os dias para trás que você escolhe ao pedir o turno
- vão para o arquivo de configuração, e a estrela do seletor da pasta põe nele
- a pasta favorita. A folha tem dois botões: «Cancelar», que
- fecha sem mudar nada, e «Salvar e iniciar», que só se habilita depois que o
- programa confere que a pasta existe e se deixa ler — ao abrir a folha, ele só
- lê, sem gravar nada nela. Para saber se a pasta grava, o programa cria e
- apaga nela um arquivo de teste ao clicar em «Salvar e iniciar», antes de
- gravar a configuração, e a data da pasta muda; se ela não grava, nada é
- salvo, e a tela diz o motivo. Com
- a fila parada ou pausada, «Salvar e iniciar» a inicia, e o turno começa
- quando ela chegar no card. Trocar a pasta com o turno aberto vale a partir
- do turno seguinte: o que está aberto segue na pasta em que abriu, e o
- cartão do turno diz isso. Com o turno aberto, o programa pede ao Windows
- para não suspender a estação, mesmo com a fila vazia; o vigia lê a pasta e
- põe na fila a série sugerida de cada exame, no AUTO — a TC de simulação do
- exame ou, num exame sem TC, a RM do exame, pela mesma regra no vigia e no
- «Rodar agora» —; quando a fila esvazia depois de uma série pronta, ele varre
- de novo na hora, e, sem nada novo, no intervalo. O cartão do turno fica
- rodando até o turno ser encerrado; e o turno que volta à fila ao reabrir o
- programa, esperando, abre sozinho quando nada está na frente dele.</li>
+ <li><b data-radai-t="1">O Overnight Run</b> — o turno da noite — entra na fila
+ como o último cartão. «Cancelar» fecha a folha sem mudar nada. Ao abrir a
+ folha, o programa só confere que as pastas existem e leem, sem gravar nelas.
+ «Salvar e incluir na fila» guarda as pastas, as
+ modalidades e os dias para trás, mas não inicia o turno nem a fila. É preciso
+ clicar em <b>INICIAR</b>. O turno começa quando a fila chega no cartão
+ autorizado; um cartão novo ou recuperado sem essa autorização espera.
+ O botão «Adicionar pasta» permite escolher mais de uma origem. Ao salvar,
+ o programa confere a leitura e a escrita de todas as pastas, criando e
+ apagando um arquivo de teste; isso pode mudar a data da pasta. Sem escrita,
+ nada é salvo e o motivo aparece. Com o turno aberto, o programa pede ao
+ Windows para não suspender a estação. A descoberta começa pelas subpastas
+ mais recentes; cada subárvore de exame concluída pode alimentar a fila
+ enquanto as outras são descobertas, preservando a triagem por exame, o
+ intervalo de espera de arquivos em trânsito e as travas entre estações.
+ No AUTO, a fila usa a TC de simulação do exame ou, num exame sem TC,
+ a RM do exame, pela mesma regra do vigia e do «Rodar agora». Trocar ROOT ou
+ ROOTS com o turno aberto vale a partir do turno seguinte: o turno atual
+ mantém as origens capturadas ao abrir. O pedido ao Windows para não
+ suspender a estação vale mesmo com a fila vazia.
+ Uma lista parcial nunca autoriza segmentar um volume incompleto. O botão
+ «Interromper Overnight Run» para a descoberta e solicita o cancelamento da
+ série em curso; as entregas já concluídas são preservadas. Encerrar o turno
+ sem cancelar deixa a série em curso terminar. Nenhum outro programa é
+ fechado e nenhum serviço de terceiros é pausado.</li>
  <li><b>A janela do programa.</b> Aberto pelo atalho, o programa abre o
- navegador em modo de aplicativo e em tela cheia, num perfil próprio
- (<code>radai_janela</code>); o F11 sai da tela cheia. Para pôr a janela em
- tela cheia e para o «Minimizar» da porta, o motor acha a janela do programa
- pelo título: a janela em modo de aplicativo, cujo título termina na ficha
- que a tela põe nele, é aceita sem ler processo nenhum, e só quando o título
- não basta ele confere pela linha de comando do processo do navegador que a
- janela é do perfil próprio dele. Nenhuma janela de abas do navegador é
- tocada, e a janela guardada se reconfere pelo processo dono e pela classe
- dela. O motor manda o F11 uma vez por janela, e só se ela ainda não cobre o
- monitor inteiro — antes, a traz para a frente —; quem saiu da tela cheia
- pelo F11 não volta a ser posto nela. A pedido, ele a minimiza ou a
- restaura. Uma linha no log do vigia diz por qual dos dois caminhos a janela
- foi achada, sem o título nem a ficha; fora ela, nada disso é gravado em
- disco.</li>
+ navegador em modo de aplicativo, maximizado com as barras do Windows
+ visíveis, num perfil próprio (<code>radai_janela</code>). O botão
+ «Maximizar» da porta pede explicitamente a tela cheia pelo F11 e passa a
+ «Restaurar»; o F11 também permite sair dela. Para controlar a janela, o
+ motor a acha pelo título que termina na ficha da tela; se isso não basta,
+ confere a linha de comando do processo do navegador. Nenhuma janela de abas
+ da pessoa é tocada; a janela guardada é reconferida pelo processo e classe.
+ O F11 só é enviado por pedido explícito. «Minimizar» afeta apenas a janela
+ do programa. O log informa o método de identificação sem título nem ficha.</li>
  <li><b>A atualização com um clique.</b> O «Atualizar agora» — no aviso de
  versão nova da porta e no cartão «Atualizar o programa» de Configurações —
  baixa o instalador da release, confere a soma SHA-256 que a release publica
@@ -2285,7 +2306,7 @@ Windows.</p>
  <li><b>Levar as configurações para outra máquina.</b> Em Configurações, o
  «Exportar configurações» baixa um <code>.json</code> com o arquivo de
  configuração da estação — sem o que é desta máquina: a placa, o
- dispositivo, a porta e a marca do guia —, os nomes próprios e os protocolos
+ dispositivo, a porta e a marca do guia —, os nomes e cores próprios e os protocolos
  próprios; não viajam a chave do pseudônimo, o acervo nem a fila. O
  «Importar configurações…» mostra, por seção, o que vai mudar, e grava só o
  que você marcou; o caminho que não existe nesta máquina é avisado e não é
@@ -2384,7 +2405,7 @@ diferente do aceito pede aceite de novo.</p>
 <h2>8 · Contato</h2>
 <p>A página do projeto, <a href="https://radioterapia.ai">radioterapia.ai</a>;
 uma vulnerabilidade, pelo relato privado do repositório do projeto no GitHub
-(<a href="https://github.com/radioterapia-ai/local-suite/security">radioterapia-ai/local-suite</a>,
+(<a href="https://github.com/drhenriquebraga/local-suite/security">drhenriquebraga/local-suite</a>,
 aba Security), nunca numa issue pública e nunca com dado de paciente.</p>
 </div></body></html>"""
 

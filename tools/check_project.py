@@ -4123,6 +4123,32 @@ def checar_pacote_leve_completo():
     return True
 
 
+def _marca_canonica_da_capa(fonte):
+    import xml.etree.ElementTree as ET
+    try:
+        arv = ast.parse(fonte)
+        funcao = next(n for n in arv.body
+                      if isinstance(n, ast.FunctionDef) and n.name == "marca")
+        retornos = [n for n in ast.walk(funcao) if isinstance(n, ast.Return)]
+        if len(retornos) != 1:
+            return None
+        html = ast.literal_eval(retornos[0].value)
+        marca = ET.fromstring(html)
+        nome = marca.find("./span[@class='rc-nome']")
+        gradiente = None if nome is None else nome.find("./span[@class='g']")
+        if (marca.tag != "a" or marca.get("class") != "rc-marca"
+                or marca.get("href") != "/" or marca.get("title") != "Local Suite"
+                or len(marca) != 1 or nome is None or len(nome) != 1
+                or (nome.text or "").strip() != "Local"
+                or gradiente is None or len(gradiente) != 0
+                or (gradiente.text or "") != "Suite"
+                or " ".join("".join(marca.itertext()).split()) != "Local Suite"):
+            return None
+        return html
+    except (SyntaxError, ValueError, TypeError, StopIteration, ET.ParseError):
+        return None
+
+
 def checar_marca_unica():
     import io as _io
     import re as _re
@@ -4135,14 +4161,11 @@ def checar_marca_unica():
         return True
 
     fonte = _io.open(capa, encoding="utf-8", errors="replace").read()
-    m = _re.search(r"return \(u'(<a class=\"rc-marca\".*?)'\s*\n?\s*"
-                   r"u'(.*?)'\s*\n?\s*u'(.*?)' % baixo\)", fonte, _re.S)
-    if not m:
-        print("  FALHA  nao achei o corpo de `marca()` em radai_cover.py")
-        print("         Se ela mudou de forma, ajuste esta checagem -- mas")
-        print("         nao a apague: foi o que deixou nove telas divergirem.")
+    canonica = _marca_canonica_da_capa(fonte)
+    if canonica is None:
+        print("  FALHA  marca() precisa devolver o link Local Suite, com rc-nome")
+        print("         e gradiente somente em Suite; o retorno deve ser literal.")
         return False
-    canonica = (m.group(1) + m.group(2)).replace("%s", "")
 
     gancho = 'class="rc-nome"'
     ok = True

@@ -691,7 +691,10 @@ function radaiPipePintar(d){
  var espera  = (r.manuais_esperando != null) ? r.manuais_esperando
                                              : (r.esperando || 0);
  var cards   = (r.total || 0);
- ini.disabled = rodando || espera === 0;
+ var turno = ((d && d.cards) || []).some(function(c){
+  return c.tipo === 'overnight' && c.estado === 'esperando' && !c.iniciar_pedido;
+ });
+ ini.disabled = (rodando || espera === 0) && !turno;
  pau.disabled = !(rodando || vigia) || !!(lote && lote.pausa_pedida);
  if(lim) lim.disabled = (cards - (r.rodando || 0) - (r.esperando || 0)
                          - (r.pulado || 0)) <= 0;
@@ -1044,16 +1047,26 @@ document.addEventListener('keydown', function(ev){
 });
 
 var RADAI_TF_LOG_PRIMEIRA = true;
-function radaiTfPontoLog(ligado){
+var RADAI_TF_LOG_AVISOS = {erro:false, ok:false};
+function radaiTfPontoLog(ligado, tipo){
+ if(!ligado) RADAI_TF_LOG_AVISOS = {erro:false, ok:false};
+ else if(tipo === 'ok') RADAI_TF_LOG_AVISOS.ok = true;
+ else RADAI_TF_LOG_AVISOS.erro = true;
  var a = document.getElementById('radai_tf_ab_log_rot');
  if(!a) return;
  var ab = document.getElementById('radai_tf_ab_log');
  if(ab){
-  if(ligado) ab.setAttribute('aria-label', 'Log — erro novo');
+  if(ligado) ab.setAttribute('aria-label', RADAI_TF_LOG_AVISOS.erro
+   ? (RADAI_TF_LOG_AVISOS.ok ? 'Log — erros e conclusões novos' : 'Log — erro novo')
+   : 'Log — conclusão nova');
   else ab.removeAttribute('aria-label');
   try{ if(ligado && window.radaiRetraduzir) window.radaiRetraduzir() }catch(e){}
  }
- if(window.uiPonto){ window.uiPonto(a, !!ligado); return }
+ if(a.style && a.style.setProperty) a.style.setProperty('--ui-ponto-cor', RADAI_TF_LOG_AVISOS.erro
+  ? (RADAI_TF_LOG_AVISOS.ok ? 'var(--warn,#E8A33D)' : 'var(--perigo,#E96A5C)')
+  : 'var(--success,#5BC57F)');
+ if(window.uiPonto){ var ponto = window.uiPonto(a, !!ligado);
+  if(ponto) ponto.style.background = 'var(--ui-ponto-cor)'; return }
  a.classList.toggle('ui-ponto-alvo', !!ligado);
 }
 
@@ -1073,7 +1086,10 @@ function radaiTfLogRecebeu(d){
   if(pn && RADAI_TF_LOG_FIM) pn.scrollTop = pn.scrollHeight;
  }
  var erro = L.some(function(x){ return x.nivel === 'erro' });
- if(erro && !RADAI_TF_LOG_PRIMEIRA && RADAI_TF_ABA !== 'log') radaiTfPontoLog(true);
+ if(!RADAI_TF_LOG_PRIMEIRA && RADAI_TF_ABA !== 'log'){
+  if(erro) radaiTfPontoLog(true, 'erro');
+  if(L.some(function(x){ return x.nivel === 'ok' })) radaiTfPontoLog(true, 'ok');
+ }
  RADAI_TF_LOG_PRIMEIRA = false;
  if(d && typeof d.proximo === 'number') RADAI_TF_LOG_N = d.proximo;
  var pt = document.getElementById('radai_tf_pt');
@@ -1178,7 +1194,7 @@ function radaiAvisar(tipo, uid){
   localStorage.setItem(k, String(Date.now()));
  }catch(e){}
  radaiSom(tipo);
- if(tipo === 'erro' && RADAI_TF_ABA !== 'log') radaiTfPontoLog(true);
+ if((tipo === 'erro' || tipo === 'ok') && RADAI_TF_ABA !== 'log') radaiTfPontoLog(true, tipo);
  try{
   if(!window.Notification || Notification.permission !== 'granted') return;
   var frase = (tipo === 'ok')

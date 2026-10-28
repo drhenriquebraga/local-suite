@@ -2112,7 +2112,7 @@ def montar(app, ler_vigia=None, config=None):
             try:
                 registrar("configuracao alterada pela tela: %s (o processo em "
                           "execucao segue com os valores antigos ate reiniciar)"
-                          % ", ".join("%s=%s" % (k, mudou[k]) for k in sorted(mudou)))
+                          % ", ".join(sorted(mudou)))
             except Exception:
                 pass
         return {"ok": ok, "erro": erro, "salvos": sorted(mudou.keys()), "reiniciar": ok}

@@ -653,6 +653,7 @@ _PONTO_DUBLES_JS = u"""
 var EVT = {ponto: [], notif: [], som: 0};
 function _el(){ return {hidden: false, tabIndex: 0, className: '', scrollTop: 0,
   scrollHeight: 100, clientHeight: 50, _a: {}, html: '',
+  style: {setProperty:function(k,v){this[k]=v}},
   setAttribute: function(k, v){ this._a[k] = String(v) },
   getAttribute: function(k){ return (k in this._a) ? this._a[k] : null },
   removeAttribute: function(k){ delete this._a[k] },
@@ -714,6 +715,10 @@ R.falha = EVT.notif.slice(R.pronta.length);
 radaiAvisosDaFila({cards: [C('11111111', 'pronto', 'ISCA BELTRANO')]});
 R.total = EVT.notif.length;
 R.som = EVT.som;
+radaiTfAba('log'); radaiTfAba('fila'); radaiTfPontoLog(true,'ok');
+R.apenas_ok = [EL.radai_tf_ab_log.getAttribute('aria-label'), EL.radai_tf_ab_log_rot.style['--ui-ponto-cor']];
+radaiTfPontoLog(true,'erro');
+R.mistos = [EL.radai_tf_ab_log.getAttribute('aria-label'), EL.radai_tf_ab_log_rot.style['--ui-ponto-cor']];
 console.log('JSON:' + JSON.stringify(R));
 """
 
@@ -752,7 +757,7 @@ def teste_o_ponto_vermelho_e_os_avisos():
         return
     import re as _re
     vars_js = u"\n".join(_re.findall(
-        r"(?ms)^var RADAI_(?:TF_ABA|TF_ABAS|TF_LOG_PRIMEIRA|TF_FORA|AVISO_[A-Z]+)\b.*?;[ \t]*$",
+        r"(?ms)^var RADAI_(?:TF_ABA|TF_ABAS|TF_LOG_(?:PRIMEIRA|AVISOS)|TF_FORA|AVISO_[A-Z]+)\b.*?;[ \t]*$",
         TF.HTML)) + u"\n"
     js = _PONTO_DUBLES_JS + vars_js + u"\n".join(fontes) + _PONTO_RODA_JS
     res, erro = _rodar_ponto(js)
@@ -799,13 +804,17 @@ def teste_o_ponto_vermelho_e_os_avisos():
            str(res["total"]))
     checar(u"  e cada aviso tocou o som", res["som"] == 2, str(res["som"]))
 
+    checar(u"so conclusao acende verde, com nome proprio para o leitor de tela",
+           res["apenas_ok"][0] == u"Log — conclusão nova" and u"success" in res["apenas_ok"][1])
+    checar(u"erro e conclusao juntos acendem amarelo",
+           res["mistos"][0] == u"Log — erros e conclusões novos" and u"warn" in res["mistos"][1])
     guarda = u"!RADAI_TF_LOG_PRIMEIRA && "
     r1, e1 = _rodar_ponto(js.replace(guarda, u""))
     checar(u"  (isca) sem a guarda da primeira volta, a historia acende -- "
            u"a checagem discrimina",
            guarda in js and r1 is not None and r1["primeira"] == [u"acende"],
            e1 or str((r1 or {}).get("primeira")))
-    nomeia = u"ab.setAttribute('aria-label', 'Log — erro novo');"
+    nomeia = _re.search(r"ab\.setAttribute\('aria-label', RADAI_TF_LOG_AVISOS\.erro.*?;", TF.HTML, _re.S).group(0)
     r3, e3 = _rodar_ponto(js.replace(nomeia, u"void 0;"))
     checar(u"  (isca) sem dar nome a aba, o ponto aceso fica mudo para o leitor "
            u"de tela -- a checagem discrimina",
@@ -1032,6 +1041,30 @@ def teste_as_tags_do_card_tem_traducao():
            any(x.startswith(u"feito ") for x in _tags_sem_traducao(res, sem)))
 
 
+
+def teste_o_iniciar_aceita_turno_sozinho():
+    secao(u"INICIAR arma o turno sozinho e o que chegou durante o lote")
+    fonte = _funcao_js(TF.HTML, u"radaiPipePintar")
+    js = u"""var B={radai_pipe_ini:{},radai_pipe_pau:{},radai_pipe_est:{}};
+var document={getElementById:function(id){return B[id]||null}};
+var RADAI_PIPE_FRASE='';
+""" + fonte + u"""
+function medir(rodando,armado,manuais){
+ radaiPipePintar({resumo:{total:1,esperando:1,manuais_esperando:manuais},
+  lote:{rodando:rodando},cards:[{tipo:'overnight',estado:'esperando',iniciar_pedido:armado}]});
+ return B.radai_pipe_ini.disabled;
+}
+console.log('JSON:'+JSON.stringify([medir(false,false,0),medir(true,false,0),medir(false,true,0),medir(false,true,1),medir(true,true,1)]));
+"""
+    res, erro = _rodar_ponto(js)
+    checar(u"as cinco combinacoes do turno e da fila manual executam",res is not None,erro)
+    if res is not None:
+        checar(u"turno desarmado habilita Iniciar, inclusive com lote em curso",
+               res[:2] == [False,False],repr(res))
+        checar(u"turno ja armado e fila vazia nao duplicam o executor",
+               res[2] is True and res[4] is True,repr(res))
+        checar(u"a fila manual parada continua iniciando normalmente",res[3] is False,repr(res))
+
 def main():
     print("test_todo | barra da direita")
     for t in (teste_vazio_diz_que_esta_vazio, teste_a_fila_de_validacao_saiu,
@@ -1049,7 +1082,8 @@ def main():
               teste_o_ponto_vermelho_e_os_avisos,
               teste_o_ponto_da_fila_com_a_barra_fechando,
               teste_a_serie_ja_concluida_nao_diz_feito,
-              teste_as_tags_do_card_tem_traducao):
+              teste_as_tags_do_card_tem_traducao,
+              teste_o_iniciar_aceita_turno_sozinho):
         try:
             t()
         except Exception as e:

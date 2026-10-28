@@ -81,8 +81,13 @@ def teste_o_zip_abre_e_tem_forma():
     checar(u"a verificacao profunda saiu da instalacao: nao ha verify.cmd no "
            u"instalador leve", "verify.cmd" not in cmds, sorted(cmds))
 
+    arquivos_raiz = {n for n in os.listdir(alvo) if os.path.isfile(os.path.join(alvo, n))}
+    checar(u"a raiz contem apenas README.txt e START_HERE.cmd",
+           arquivos_raiz == {"README.txt", "START_HERE.cmd"}, arquivos_raiz)
+    alvo = os.path.join(alvo, "programa")
+    checar(u"o conteudo do instalador fica em programa/", os.path.isdir(alvo))
+
     CLICAVEIS = {
-        u"START_HERE.cmd",
         u"app/RADIOTERAPIA_AI_LOCAL_SUITE.cmd",
         u"app/launchers/open_browser.cmd",
         u"app/launchers/start_watcher.cmd",
@@ -116,7 +121,7 @@ def teste_o_zip_abre_e_tem_forma():
            in _ent_zip, _ent_zip.strip().splitlines()[-2:])
 
     tam = os.path.join(alvo, "PACKAGE_SIZE.txt")
-    checar(u"o PACKAGE_SIZE.txt viajou na raiz", os.path.isfile(tam))
+    checar(u"o PACKAGE_SIZE.txt viajou em programa/", os.path.isfile(tam))
     checar(u"o preparer_log.ps1 viajou ao lado do prepare.ps1",
            os.path.isfile(os.path.join(alvo, "packager", "preparer_log.ps1")))
     if os.path.isfile(tam):
@@ -134,7 +139,7 @@ def teste_o_zip_abre_e_tem_forma():
         lido = cru.decode("ascii", "replace").strip()
         checar(u"  e ele e' o numero do catalogo (%s GB)" % esperado,
                lido == esperado, u"PACKAGE_SIZE.txt diz %r" % lido)
-        leia = io.open(os.path.join(alvo, "README.txt"),
+        leia = io.open(os.path.join(os.path.dirname(alvo), "README.txt"),
                        encoding="utf-8", errors="replace").read()
         checar(u"  e o README.txt da raiz diz o mesmo",
                (u"ABOUT %s GB" % lido) in u" ".join(leia.split()),
@@ -283,8 +288,6 @@ def teste_a_etapa_5_roda_de_verdade(alvo):
 
 
 NAO_VAO_PELO_ATUALIZAR = {
-    u"START_HERE.cmd": u"a porta do pacote leve; nao e' do programa",
-    u"README.txt": u"o LEIA-ME do pacote leve, para quem o abre",
     u"VERSION.txt": u"o carimbo para quem le; o `entrega.txt` e' o de codigo",
     u"PACKAGE_SIZE.txt": u"o tamanho do pacote completo, lido pelo START_HERE",
     u"entrega.txt": u"o ATUALIZAR o copia a parte, junto com o "
@@ -522,7 +525,7 @@ def teste_o_lancador_alcanca_o_preparador(alvo):
     secao(u"o START_HERE alcanca o preparador")
     if not alvo:
         return
-    com = io.open(os.path.join(alvo, "START_HERE.cmd"),
+    com = io.open(os.path.join(os.path.dirname(alvo), "START_HERE.cmd"),
                   encoding="utf-8", errors="replace").read()
     checar(u"ele chama o prepare.ps1", u"prepare.ps1" in com)
     checar(u"e o prepare.ps1 esta no extraido",

@@ -112,11 +112,8 @@ a.rc-voltar:hover{border-color:var(--accent,var(--accent,#4DA3FF));color:var(--a
 
 
 def marca(compacta=False):
-    baixo = (u"" if compacta
-             else u'<span class="rc-sub" data-radai-frase>Local Suite</span>')
-    return (u'<a class="rc-marca" href="/" title="Radioterapia.AI Local">'
-            u'<span class="rc-nome">radioterapia<span class="g">.ai</span></span>'
-            u'%s</a>' % baixo)
+    return (u'<a class="rc-marca" href="/" title="Local Suite">'
+            u'<span class="rc-nome">Local <span class="g">Suite</span></span></a>')
 
 
 def cabecalho(tela=u"", com_idioma=False, chave=u"", com_seletor=False):

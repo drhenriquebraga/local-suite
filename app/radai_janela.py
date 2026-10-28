@@ -7,6 +7,7 @@ import time
 CLASSE_DA_JANELA = u"Chrome_WidgetWin_1"
 PASTA_DO_PERFIL = u"radai_janela"
 SW_MINIMIZE = 6
+SW_MAXIMIZE = 3
 SW_RESTORE = 9
 WM_KEYDOWN = 0x0100
 WM_KEYUP = 0x0101
@@ -315,22 +316,6 @@ def ja_cobre_o_monitor(h, pf):
         return False
 
 
-def garantir_tela_cheia(h, pf):
-    # GUARDA: a segunda janela de um perfil ja aberto ignora o
-    # --start-fullscreen; o F11 vai uma vez por janela, e quem saiu da tela
-    # cheia pelo F11 nao volta a ser posto nela. O F11 liga e desliga: a
-    # janela que ja cobre o monitor inteiro esta em tela cheia e nao o recebe.
-    if pf.minimizada(h) or not pf.tem_barra(h) or ja_cobre_o_monitor(h, pf):
-        return False
-    # GUARDA: o Edge ignora o F11 postado em janela que nao esta na frente.
-    try:
-        pf.trazer_para_frente(h)
-    except Exception:
-        pass
-    pf.tecla_f11(h)
-    return True
-
-
 def registrar(ficha, pf=None, **kw):
     pf = pf if pf is not None else plataforma()
     if pf is None:
@@ -342,8 +327,13 @@ def registrar(ficha, pf=None, **kw):
         nova = h not in _JANELAS
         if nova:
             _JANELAS[h] = {"desde": time.time(), "pid": pf.pid(h)}
-    f11 = garantir_tela_cheia(h, pf) if nova else False
-    return {"ok": True, "nova": nova, "tela_cheia_pedida": f11}
+    if nova and not pf.minimizada(h):
+        if not pf.tem_barra(h):
+            pf.trazer_para_frente(h)
+            pf.tecla_f11(h)
+        pf.mostrar(h, SW_MAXIMIZE)
+    return {"ok": True, "nova": nova, "tela_cheia_pedida": False,
+            "tela_cheia": not pf.tem_barra(h)}
 
 
 def _alvos(ficha, pf, **kw):
@@ -387,6 +377,24 @@ def restaurar(ficha=None, pf=None, **kw):
     return {"ok": True, "janelas": len(alvos)}
 
 
+def tela_cheia(ficha, alternar=False, pf=None, **kw):
+    pf = pf if pf is not None else plataforma()
+    if pf is None:
+        return {"ok": False, "motivo": FRASE_SO_WINDOWS}
+    alvos = _alvos(ficha, pf, **kw) if ficha_valida(ficha) else []
+    if len(alvos) != 1:
+        return {"ok": False, "motivo": FRASE_SEM_JANELA}
+    h = alvos[0]
+    cheia = not pf.tem_barra(h)
+    if alternar:
+        if pf.minimizada(h):
+            pf.mostrar(h, SW_RESTORE)
+        pf.trazer_para_frente(h)
+        pf.tecla_f11(h)
+        cheia = not cheia
+    return {"ok": True, "tela_cheia": cheia}
+
+
 def _ficha_do_corpo(corpo):
     f = (corpo or {}).get("ficha") if isinstance(corpo, dict) else None
     return f if ficha_valida(f) else None
@@ -421,6 +429,16 @@ def montar(app, log=None):
         f = _ficha_do_corpo(await _corpo(request))
         return await run_in_threadpool(minimizar, f)
 
+    @app.post("/api/janela/tela-cheia")
+    async def _tela_cheia(request: Request):
+        f = _ficha_do_corpo(await _corpo(request))
+        return await run_in_threadpool(tela_cheia, f, True)
+
+    @app.post("/api/janela/tela-cheia/estado")
+    async def _estado_tela_cheia(request: Request):
+        f = _ficha_do_corpo(await _corpo(request))
+        return await run_in_threadpool(tela_cheia, f)
+
     @app.post("/api/janela/restaurar")
     async def _restaurar(request: Request):
         f = _ficha_do_corpo(await _corpo(request))
@@ -435,7 +453,8 @@ JS = u"""<script id="radai-janela-js">
 (function(){
  if(window.radaiJanelaMinimizar) return;
  var ROT = {registrar:'/api/janela/registrar', minimizar:'/api/janela/minimizar',
-            restaurar:'/api/janela/restaurar', estado:'/api/janela/estado'};
+             restaurar:'/api/janela/restaurar', estado:'/api/janela/estado',
+             cheia:'/api/janela/tela-cheia', estadoCheia:'/api/janela/tela-cheia/estado'};
  function ficha(){
   var c = 'abcdefghijklmnopqrstuvwxyz0123456789', s = 'rj';
   for(var i = 0; i < 18; i++) s += c.charAt(Math.floor(Math.random() * c.length));
@@ -460,6 +479,40 @@ JS = u"""<script id="radai-janela-js">
  }
  window.radaiJanelaMinimizar = function(){ return comFicha(ROT.minimizar) };
  window.radaiJanelaRestaurar = function(){ return comFicha(ROT.restaurar) };
+ function avisarCheia(d){
+  if(d && d.ok) document.dispatchEvent(new CustomEvent('radai-janela-tela-cheia', {detail:d}));
+  return d;
+ }
+ window.radaiJanelaTelaCheia = function(){ return comFicha(ROT.cheia).then(avisarCheia) };
+ var estadoTimer = null;
+ function conferirCheia(){
+  if(!window.radaiJanelaDoApp) return;
+  if(estadoTimer) clearTimeout(estadoTimer);
+  estadoTimer=setTimeout(function(){comFicha(ROT.estadoCheia).then(avisarCheia)},300);
+ }
+ window.addEventListener('resize',conferirCheia);
+ window.addEventListener('focus',conferirCheia);
+ function ligarTelaCheia(){
+ var max = document.querySelector('[data-radai-maximizar]');
+var maxBt = document.querySelector('[data-radai-maximizar-acao]');
+  document.addEventListener('radai-janela-tela-cheia',function(e){
+   var cheia = !!(e.detail && e.detail.tela_cheia), texto = cheia ? 'Restaurar' : 'Maximizar';
+   if(max){
+    max.setAttribute('data-tela-cheia',cheia?'true':'false');
+    var path=max.querySelector('.ls-max-icone path');
+    if(path) path.setAttribute('d',cheia?'M9 3v6H3M15 3v6h6M3 15h6v6M21 15h-6v6M3 3l6 6M21 3l-6 6M3 21l6-6M21 21l-6-6':'M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M3 3l6 6M21 3l-6 6M3 21l6-6M21 21l-6-6');
+    Array.prototype.forEach.call(max.querySelectorAll('[data-radai-maximizar-rot]'),function(no){no.textContent=texto});
+    if(window.radaiRetraduzir) window.radaiRetraduzir();
+   }
+  });
+  if(maxBt) maxBt.addEventListener('click',function(){
+   if(!window.radaiJanelaTelaCheia) return;
+   maxBt.disabled=true;
+   window.radaiJanelaTelaCheia().then(function(){maxBt.disabled=false;Array.prototype.forEach.call(document.querySelectorAll('details.ls-ctl[open]'),function(d){d.removeAttribute('open')})},function(){maxBt.disabled=false});
+  });
+   }
+ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',ligarTelaCheia);
+ else ligarTelaCheia();
  function avisar(ok){
   window.radaiJanelaDoApp = !!ok;
   try{ document.dispatchEvent(new CustomEvent('radai-janela', {detail: {ok: !!ok}})) }catch(e){}

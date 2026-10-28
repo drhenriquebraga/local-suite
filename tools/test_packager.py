@@ -1840,7 +1840,8 @@ def teste_dois_layouts():
     import time
     for rotulo, dias_raiz, dias_prog, espera in (
             (u"raiz mais nova vence o `programa\\` velho", 0, 5, u"RAIZNOVA"),
-            (u"`programa\\` mais novo vence a raiz velha", 5, 0, u"PROGNOVO")):
+            (u"`programa\\` mais novo vence a raiz velha", 5, 0, u"PROGNOVO"),
+            (u"a versao nova em programa vence com a data do preparador igual", 0, 0, u"PROGNOVO")):
         raiz = os.path.join(base, "empate_" + espera.lower())
         agora = time.time()
         for sub, marca, dias in (("", u"RAIZNOVA" if espera == u"RAIZNOVA"
@@ -1855,6 +1856,9 @@ def teste_dois_layouts():
                 u"Write-Host 'MARCA:%s'" % marca + CRLF + u"exit 0" + CRLF)
             quando = agora - dias * 86400
             os.utime(alvo, (quando, quando))
+            if dias_raiz == dias_prog:
+                io.open(os.path.join(peq, "entrega.txt"), "w", encoding="ascii").write(
+                    "VERSAO=" + ("8.8" if sub else "8.7.1") + "\n")
             io.open(os.path.join(peq, "build", "configurar_ambiente.py"),
                     "w").write("# fantoma" + chr(10))
         casa = os.path.join(base, "casa_empate_" + espera.lower())
@@ -1867,6 +1871,25 @@ def teste_dois_layouts():
         saida = saida + u"\n" + u"\n".join(t for _n, t in _logs)
         checar(rotulo, ("MARCA:" + espera) in saida,
                u"esperava MARCA:%s -- %s" % (espera, saida[-300:]))
+
+    raiz = os.path.join(base, "fallback_programa")
+    peq = os.path.join(raiz, "programa")
+    os.makedirs(os.path.join(peq, "packager"))
+    os.makedirs(os.path.join(peq, "build"))
+    io.open(os.path.join(peq, "packager", "prepare.ps1"), "w",
+            encoding="utf-8-sig", newline="").write(
+                u"Write-Host 'MARCA:FALLBACK_PROGRAMA'" + CRLF + u"exit 0" + CRLF)
+    io.open(os.path.join(peq, "build", "configurar_ambiente.py"), "w").write("x")
+    bloqueio = os.path.join(base, "pai_bloqueado.txt")
+    io.open(bloqueio, "w").write("arquivo, nao uma pasta")
+    casa = os.path.join(bloqueio, "casa")
+    bat = os.path.join(raiz, "START_HERE.cmd")
+    io.open(bat, "w", encoding="ascii", newline="\r\n").write(
+        texto.replace(CASA_REAL, 'set "CASA=' + casa + '"'))
+    saida, rc, logs = _rodar_start_here(bat, os.path.join(base, "lad_fallback"))
+    tudo = saida + u"\n" + u"\n".join(t for _n, t in logs)
+    checar(u"sem poder criar a CASA, o layout programa abre da pasta extraida",
+           rc == 0 and u"MARCA:FALLBACK_PROGRAMA" in tudo, tudo[-500:])
 
     intrusos = []
     for r, _d, fs in os.walk(CASA_REAL):

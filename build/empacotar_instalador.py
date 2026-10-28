@@ -324,13 +324,13 @@ def main():
     tmp = str(saida) + ".parcial"
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for nome, caminho in itens:
-            z.write(caminho, nome)
+            z.write(caminho, "programa/" + nome)
         sys.path.insert(0, str(RAIZ / "build"))
         import carimbo
         _entrega_txt = (carimbo.texto(projeto, versao, produto, RAIZ) +
                         u"BUNDLE_MINIMO=%s\n" % bundle_minimo)
-        z.writestr("entrega.txt", _entrega_txt)
-        z.writestr("VERSION.txt",
+        z.writestr("programa/entrega.txt", _entrega_txt)
+        z.writestr("programa/VERSION.txt",
                    carimbo.version_txt(projeto, versao, produto, RAIZ))
         _aviso = carimbo.aviso_de_arvore_suja(_entrega_txt)
         if _aviso:
@@ -339,7 +339,7 @@ def main():
         if not de.exists():
             raise SystemExit("falta packager/START_HERE.cmd")
         z.write(str(de), "START_HERE.cmd")
-        z.writestr("PACKAGE_SIZE.txt", (tam_txt + u"\r\n").encode("ascii"))
+        z.writestr("programa/PACKAGE_SIZE.txt", (tam_txt + u"\r\n").encode("ascii"))
         z.writestr("README.txt", LEIA_ME % {"projeto": projeto,
                                     "versao": versao,
                                     "tamanho": tam_txt,
@@ -378,8 +378,13 @@ def conferir_montado(caminho, bundle_minimo):
     try:
         with zipfile.ZipFile(caminho) as _z:
             _ruim = _z.testzip()
-            _n = set(_z.namelist())
-            _ent = (_z.read("entrega.txt").decode("utf-8", "replace")
+            _originais = set(_z.namelist())
+            _n = {n[len("programa/"):] if n.startswith("programa/") else n
+                  for n in _originais}
+            _raiz = {n for n in _originais if "/" not in n.rstrip("/")}
+            if _raiz != {"README.txt", "START_HERE.cmd"}:
+                raise ValueError("a raiz deve conter apenas README.txt e START_HERE.cmd")
+            _ent = (_z.read("programa/entrega.txt").decode("utf-8", "replace")
                     if "entrega.txt" in _n else u"")
     except Exception as e:
         raise SystemExit(u"PAREI: nao consegui montar o pacote do "
@@ -532,7 +537,7 @@ THE PACKAGE IS ABOUT %(tamanho)s GB, always the complete one, and preparing it
 needs about %(disco)s GB free on disk. It is not inside this .zip on purpose:
 that way you build the package with the versions of the day, on your own
 machine, and you know exactly what is in it. The same number is in
-PACKAGE_SIZE.txt, next to START_HERE.cmd.
+programa/PACKAGE_SIZE.txt.
 
 The component licences are shown before any download, and none of them starts
 without acceptance. None of them is non-commercial: every model allows

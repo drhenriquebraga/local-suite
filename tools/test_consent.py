@@ -4972,7 +4972,8 @@ def _turno_divergente(src_batch, src_queue, termos):
     fora = []
     par = _trecho(termos, u"O Overnight Run", u"</ul>")
     folha = _fonte_da_funcao_js(src_batch, u"folhaOvernight")
-    for rotulo in (u"Salvar e iniciar", u"Iniciar sem salvar", u"Cancelar"):
+    for rotulo in (u"Salvar e incluir na fila", u"Salvar e iniciar",
+                   u"Iniciar sem salvar", u"Cancelar"):
         tem = (u"'%s'" % rotulo) in folha
         diz = (u"«%s»" % rotulo) in par
         if tem is not diz:
@@ -5436,8 +5437,8 @@ def teste_o_que_a_v83_mudou_nos_documentos():
 
     div = _turno_divergente(src["radai_batch.py"], src["radai_queue_state.py"],
                             termos)
-    checar(u"o Overnight Run: «Salvar e iniciar» e «Iniciar sem salvar» sao "
-           u"os do codigo", not div, u" | ".join(div))
+    checar(u"o Overnight Run: os botoes de incluir e cancelar, sem os antigos "
+           u"atalhos de iniciar, sao os do codigo", not div, u" | ".join(div))
     checar(u"  isca: a folha volta a ter «Iniciar sem salvar»: reprova",
            bool(_turno_divergente(src["radai_batch.py"].replace(
                u"  cancelar: 'Cancelar',",
@@ -6146,8 +6147,7 @@ _MARCA_SUBST_DONE = (u"O marcador de conclusão anterior da série sai do lugar 
                      u"logo antes da gravação nova")
 _MARCA_SUBST_QUEDA = (u"a próxima varredura do vigia, ou o próximo «Rodar "
                       u"agora» da série, o devolve ao lugar")
-_MARCA_OV_INICIA = (u"Com a fila parada ou pausada, «Salvar e iniciar» a "
-                    u"inicia")
+_MARCA_OV_INICIA = u"mas não inicia o turno nem a fila"
 _MARCA_MAQ_CASO = (u"O nome da máquina também entra por pseudônimo, inclusive "
                    u"em cada etapa")
 _MARCA_MAQ_PACOTE = (u"com o nome da máquina cru nas etapas, entra no pacote "
@@ -6253,13 +6253,19 @@ def _substituir_done_divergente(src_batch, src_watcher, politica):
 
 def _overnight_inicia_divergente(src_batch, termos):
     t = u" ".join((termos or u"").split())
-    inicia = (u"function _ovIniciarAFila(" in (src_batch or u"")
-              and u"return _ovIniciarAFila(d)" in (src_batch or u""))
-    if inicia is not (_MARCA_OV_INICIA in t):
-        return [u"o modal %s a fila parada, e os Termos %s" % (
-            u"inicia" if inicia else u"NAO inicia",
-            u"dizem" if _MARCA_OV_INICIA in t else u"calam")]
-    return []
+    incluir = _fonte_da_funcao_js(src_batch, "_ovPorNaFila")
+    aguarda = (u"return filaOvernight(true)" in incluir
+               and u"Na fila, aguardando INICIAR." in incluir
+               and u"/api/pipeline/iniciar" not in incluir
+               and u"_ovIniciarAFila(" not in (src_batch or u""))
+    fora = []
+    if aguarda is not (_MARCA_OV_INICIA in t):
+        fora.append(u"o modal %s sem iniciar, e os Termos %s" % (
+            u"inclui" if aguarda else u"NAO inclui",
+            u"dizem" if _MARCA_OV_INICIA in t else u"calam"))
+    if u"«Salvar e iniciar»" in t:
+        fora.append(u"os Termos ainda prometem iniciar ao salvar")
+    return fora
 
 
 def _maquina_do_caso_divergente(src_records, politica):
@@ -6350,12 +6356,12 @@ def teste_o_que_a_onda_4b_mudou_na_16():
                politica.replace(_MARCA_SUBST_DONE, u"X"))))
 
     div = _overnight_inicia_divergente(src["radai_batch.py"], termos)
-    checar(u"o Overnight Run inicia a fila parada ou pausada: o codigo e os "
+    checar(u"o Overnight Run entra na fila e aguarda INICIAR: o codigo e os "
            u"Termos (secao 4.3)", not div, u" | ".join(div))
-    checar(u"  isca: o modal sem iniciar a fila, com os Termos de hoje: "
-           u"reprova", bool(_overnight_inicia_divergente(
-               src["radai_batch.py"].replace(u"return _ovIniciarAFila(d)",
-                                             u"return null"), termos)))
+    checar(u"  isca: o modal volta a iniciar a fila ao salvar: reprova",
+           bool(_overnight_inicia_divergente(
+               src["radai_batch.py"].replace(u"return filaOvernight(true)",
+                   u"return _ovIniciarAFila(d)"), termos)))
     checar(u"  isca: os Termos de antes: reprova",
            bool(_overnight_inicia_divergente(
                src["radai_batch.py"], termos.replace(_MARCA_OV_INICIA,
@@ -7253,7 +7259,8 @@ def _bag_oar_divergente(v_cons, v_sets, termos):
     return fora
 
 
-_MARCA_CAROTIDA = u"As carótidas ( A_Carotid_ai ) ficam só no completo"
+_MARCA_CAROTIDA = (u"carótidas ( A_Carotid_ai ) ficam como estrutura própria "
+                   u"só no completo")
 _MARCA_TRAVA_PESCOCO = u"só roda com o pescoço confirmado pela anatomia"
 _MARCA_CRANIO_NAO_CONFIRMA = u"o crânio não confirma o pescoço"
 _MARCA_VIGIA_PELO_CRANIO = (u"pela mandíbula na faixa do C1 ao C4, ou pelo "
@@ -7344,10 +7351,11 @@ _MARCAS_DA_DEMO_NOS_DOCUMENTOS = (u"demonstração", u"DEMO", u"LCTSC",
                                   u"LIDC-IDRI", u"RIRE")
 
 
-_MARCA_OV_SO_LE = u"ao abrir a folha, ele só lê, sem gravar nada nela"
-_MARCA_OV_ESCRITA_AO_SALVAR = (u"ao clicar em «Salvar e iniciar», antes de "
-                               u"gravar a configuração")
-_MARCA_OV_ROOT_NO_SEGUINTE = (u"Trocar a pasta com o turno aberto vale a "
+_MARCA_OV_SO_LE = (u"Ao abrir a folha, o programa só confere que as pastas "
+                    u"existem e leem, sem gravar nelas")
+_MARCA_OV_ESCRITA_AO_SALVAR = (u"Ao salvar, o programa confere a leitura e a "
+                               u"escrita de todas as pastas")
+_MARCA_OV_ROOT_NO_SEGUINTE = (u"Trocar ROOT ou ROOTS com o turno aberto vale a "
                               u"partir do turno seguinte")
 
 
@@ -8631,10 +8639,10 @@ _MARCAS_DA_20 = {
         (u"termos", u"«Ver o guia de novo»"),
         (u"politica", u"foi visto nesta estação ( GUIA_VISTO )")),
     "tela_cheia": (
-        (u"termos", u"em modo de aplicativo e em tela cheia"),
-        (u"termos", u"confere pela linha de comando do processo do "
-                    u"navegador"),
-        (u"termos", u"manda o F11 uma vez por janela")),
+        (u"termos", u"em modo de aplicativo, maximizado com as barras do "
+                    u"Windows visíveis"),
+        (u"termos", u"confere a linha de comando do processo do navegador"),
+        (u"termos", u"O F11 só é enviado por pedido explícito")),
     "atualizar_um_clique": (
         (u"termos", u"A atualização com um clique."),
         (u"politica", u"Sozinha, ela não baixa nada"),
@@ -8658,11 +8666,10 @@ _MARCAS_DA_20 = {
         (u"politica", u"«Importar imagem», que abre o explorador de arquivos "
                       u"do navegador")),
     "cava_separada": (
-        (u"termos", u"só onde está separada dele"),
-        (u"termos", u"nenhum pixel desses três sai")),
+        (u"termos", u"A regra que retira a cava quando separada do coração "
+                    u"continua"),),
     "esofago_fora": (
-        (u"termos", u"saem dele o esôfago e os outros vizinhos de fora do "
-                    u"pericárdio"),),
+        (u"termos", u"recorte do esôfago e dos vizinhos de fora do pericárdio"),),
     "bag_furos": (
         (u"termos", u"depois de todas as subtrações, o furo de cada corte "
                     u"axial é preenchido"),),
@@ -8712,8 +8719,8 @@ _MARCAS_DA_20 = {
         (u"termos", u"o melhor canal — o de menos trajeto sem pele"),
         (u"termos", u"a borda do volume parcial dos voxels do cruzamento")),
     "turno_acordado": (
-        (u"termos", u"pede ao Windows para não suspender a estação, mesmo "
-                    u"com a fila vazia"),),
+        (u"termos", u"Com o turno aberto, o programa pede ao Windows para não "
+                    u"suspender a estação"),),
     "rm_sugerida": (
         (u"termos", u"num exame sem TC, a RM do exame"),),
     "instalador_fecha_janelas": (
@@ -8863,7 +8870,7 @@ def _fatos_da_20():
         "guia": (_valores_do_modulo(ler(u"app/radai_roteiro.py")).get("CHAVE")
                  == u"GUIA_VISTO" and u"Ver o guia de novo" in src_est),
         "tela_cheia": (u'"--app=" + alvo' in src_lanc
-                       and u'"--start-fullscreen"' in src_lanc
+                       and u'"--start-maximized"' in src_lanc
                        and u"VK_F11" in src_jan
                        and u"PROCESS_COMMAND_LINE_INFORMATION" in src_jan),
         "atualizar_um_clique": (
@@ -9005,7 +9012,7 @@ def _medidas_da_20(f):
     exige("_fechamento_laringe", u"termos",
           lambda v: u"com um fechamento de %s mm" % _num_pt(v))
     exige("_margem_atm", u"termos",
-          lambda v: u"com %s mm de margem em 3D" % _num_pt(v))
+          lambda v: u"com margem total de %s mm em 3D além do côndilo" % _num_pt(v))
     exige("_limiar_hu", u"termos",
           lambda v: u"cruzamento de −%d HU" % abs(int(v)) if v < 0 else None)
     exige("_log_atualizar_mb", u"politica",
@@ -9045,8 +9052,8 @@ def teste_o_que_a_v87_muda_na_20():
           u"Otimizar que saiu, o primeiro acesso, a janela, a atualizacao "
           u"com um clique, a varredura, o motor, o Nidus RT e o pacote)")
     import radai_consent as CS
-    checar(u"a versao dos documentos e a 2.0, de 25/10/2026",
-           CS.VERSAO_DOCS == u"2.0" and CS.DATA_DOCS == u"2026-10-25",
+    checar(u"a versao dos documentos e a 2.1, de 28/10/2026",
+           CS.VERSAO_DOCS == u"2.1" and CS.DATA_DOCS == u"2026-10-28",
            u"%s %s" % (CS.VERSAO_DOCS, CS.DATA_DOCS))
     checar(u"  e a 1.9 continua em IMPRESSOES_PUBLICADAS como foi publicada",
            CS.IMPRESSOES_PUBLICADAS.get(u"1.9", u"").startswith(u"087a47ba")
@@ -9095,18 +9102,17 @@ def teste_o_que_a_v87_muda_na_20():
 
 _MARCAS_DA_20_RESSELADA = {
     "janela_pelo_titulo": (
-        (u"termos", u"o motor acha a janela do programa pelo título"),
-        (u"termos", u"é aceita sem ler processo nenhum"),
-        (u"termos", u"só quando o título não basta ele confere pela linha de "
-                    u"comando"),
-        (u"termos", u"Uma linha no log do vigia diz por qual dos dois "
-                    u"caminhos a janela foi achada")),
+        (u"termos", u"motor a acha pelo título que termina na ficha da tela"),
+        (u"termos", u"se isso não basta, confere a linha de comando do "
+                    u"processo do navegador"),
+        (u"termos", u"O log informa o método de identificação sem título "
+                    u"nem ficha")),
     "janela_reconferida": (
-        (u"termos", u"a janela guardada se reconfere pelo processo dono e pela "
-                    u"classe dela"),),
-    "f11_so_sem_cobrir": (
-        (u"termos", u"só se ela ainda não cobre o monitor inteiro"),
-        (u"termos", u"antes, a traz para a frente")),
+        (u"termos", u"a janela guardada é reconferida pelo processo e classe"),),
+    "f11_por_pedido": (
+        (u"termos", u"«Maximizar» da porta pede explicitamente a tela cheia "
+                    u"pelo F11"),
+        (u"termos", u"«Restaurar»; o F11 também permite sair dela")),
     "enxugar_no_registro": (
         (u"termos", u"o preparador tira o estado do otimizador também dos "
                     u"checkpoints dos níveis cervicais, do modelo do encéfalo "
@@ -9195,12 +9201,38 @@ def _toda_chamada_sob_teste(src, chamada, teste):
     return achou
 
 
+def _f11_por_ato_explicito(src):
+    def chamadas_guardadas(nome, teste):
+        trecho = _fonte_da_funcao(src, nome)
+        try:
+            arv = ast.parse(trecho)
+        except SyntaxError:
+            return False
+        pais = {f: n for n in ast.walk(arv) for f in ast.iter_child_nodes(n)}
+        chamadas = [n for n in ast.walk(arv) if isinstance(n, ast.Call)
+                    and isinstance(n.func, ast.Attribute)
+                    and n.func.attr == "tecla_f11"]
+        for n in chamadas:
+            n = pais.get(n)
+            while n is not None:
+                if isinstance(n, ast.If) and ast.unparse(n.test) == teste:
+                    break
+                n = pais.get(n)
+            if n is None:
+                return False
+        return bool(chamadas)
+    return (chamadas_guardadas("tela_cheia", "alternar")
+            and chamadas_guardadas("registrar", "not pf.tem_barra(h)")
+            and '"tela_cheia_pedida": False' in _fonte_da_funcao(src, "registrar")
+            and "SW_MAXIMIZE" in _fonte_da_funcao(src, "registrar"))
+
+
 def _fatos_da_20_resselada():
     import radai_models as RM
     src_jan = ler(u"app/radai_janela.py")
     v_jan = _valores_do_modulo(src_jan)
     volta = _fonte_da_funcao(src_jan, "_uma_volta")
-    tela_cheia = _fonte_da_funcao(src_jan, "garantir_tela_cheia")
+    tela_cheia = _fonte_da_funcao(src_jan, "tela_cheia")
     src_prep = ler(u"build/configurar_ambiente.py")
     src_mod = ler(u"app/radai_models.py")
     v_hnl = _valores_do_modulo(ler(u"app/radai_hnlnl.py"))
@@ -9225,8 +9257,8 @@ def _fatos_da_20_resselada():
         "janela_reconferida": (
             u"def ainda_e_a_mesma(" in src_jan
             and u"ainda_e_a_mesma(h, d, pf)" in src_jan),
-        "f11_so_sem_cobrir": (
-            u"ja_cobre_o_monitor(h, pf)" in tela_cheia
+        "f11_por_pedido": (
+            _f11_por_ato_explicito(src_jan)
             and u"trazer_para_frente(h)" in tela_cheia
             and tela_cheia.find(u"trazer_para_frente(h)")
             < tela_cheia.find(u"tecla_f11(h)")),
@@ -9529,6 +9561,181 @@ def teste_o_que_a_segunda_resselagem_muda_na_20():
                "enxugar_pasta_de_peso"))
 
 
+_MARCAS_DA_21 = {
+    "rgb_study": (("termos", u"RGB de cada estrutura do STUDY, mesmo sem trocar seu nome"),
+                  ("termos", u"São três inteiros de 0 a 255"),
+                  ("termos", u"modo «Tags próprias»; em «Padrão» fica guardada sem valer"),
+                  ("termos", u"O FULL mantém as cores padrão"),
+                  ("politica", u"o nome e a cor RGB que a estação escolheu")),
+    "roots": (("politica", u"lista de pastas do turno ( ROOTS )"),
+              ("termos", u"O botão «Adicionar pasta» permite escolher mais de uma origem"),
+              ("termos", _MARCA_OV_ROOT_NO_SEGUINTE)),
+    "aguarda_iniciar": (("termos", _MARCA_OV_INICIA),
+                        ("termos", u"clicar em INICIAR"),
+                        ("termos", u"um cartão novo ou recuperado sem essa autorização espera")),
+    "janela": (("termos", u"maximizado com as barras do Windows visíveis"),
+               ("termos", u"O F11 só é enviado por pedido explícito")),
+    "tmj": (("termos", u"com margem total de 3 mm em 3D além do côndilo"),),
+    "heart": (("termos", u"somente nos cortes em que existe máscara da veia cava inferior"),
+              ("termos", u"Nos outros cortes essa restrição não é aplicada"),
+              ("termos", u"A cartilagem costal sai do coração, inclusive após o preenchimento"),
+              ("termos", u"a do parênquima mais 3 mm fixos — 5,5 mm com o padrão")),
+    "bag": (("termos", u"cartilagem costal é retirada também depois desse preenchimento"),),
+    "lnl": (("termos", u"a união perde as intersecções com os esternocleidomastoideos"),
+            ("termos", u"os platismais, a mandíbula, os escalenos anteriores, médios e posteriores"),
+            ("termos", u"as clavículas e o hioide")),
+    "vasos_sem_pa": (("termos", u"As tarefas atuais não fornecem máscaras separadas das artérias pulmonares e do tronco pulmonar"),
+                     ("termos", u"essas estruturas não são acrescentadas ao composto")),
+    "moose_opcional": (("termos", u"programa não inventa essas partes nem aciona o MOOSE para desmembrá-la"),
+                       ("termos", u"O MOOSE continua como comparação opcional, fora do FAST e do AUTO")),
+}
+_FRASES_REVOGADAS_NA_21 = (
+    ("termos", u"«Salvar e iniciar»"),
+    ("termos", u"em modo de aplicativo e em tela cheia"),
+    ("termos", u"manda o F11 uma vez por janela"),
+    ("termos", u"nenhum pixel desses três sai"),
+    ("termos", u"com 1 mm de margem em 3D"),
+    ("termos", u"com margem total de 1 mm em 3D"),
+    ("termos", u"As artérias pulmonares e o tronco pulmonar entram nesse composto apenas quando as tarefas já pedidas fornecerem máscaras com esses nomes"),
+)
+
+
+def _fontes_da_21():
+    return {n: ler(u"app/" + n + u".py") for n in (
+        "radai_config", "radai_watcher", "radai_batch", "radai_queue_state",
+        "radai_todo", "radai_janela", "radai_lancador", "radai_constructs",
+        "radai_hnlnl", "radai_moose", "engine")}
+
+
+def _fatos_da_21(src=None):
+    src = _fontes_da_21() if src is None else src
+    cfg, vig, batch, fila = (src[n] for n in (
+        "radai_config", "radai_watcher", "radai_batch", "radai_queue_state"))
+    cons, eng = src["radai_constructs"], src["engine"]
+    antes = _fonte_da_funcao(cons, "coracao_antes_da_suavizacao")
+    modelos = _valores_do_modulo(src["radai_moose"]).get("MODELOS") or {}
+    tabelas = _valores_do_modulo(eng)
+    arterias = set((tabelas.get("COMPOSTOS") or {}).get("great_arteries") or ())
+    pulmonares = {"pulmonary_artery", "pulmonary_artery_left",
+                  "pulmonary_artery_right", "pulmonary_trunk"}
+    return {
+        "rgb_study": ('"cores": _limpar_cores' in cfg
+                      and 'd.get("modo") != "proprios"' in _fonte_da_funcao(cfg, "cor_propria")
+                      and "_cfg.cor_propria(nome_final" in _fonte_da_funcao(eng, "_nomes_do_entregue")),
+        "roots": ('ROOTS' in _valores_do_modulo(cfg).get("CHAVES_DE_PASTA", ())
+                  and "def _normalizar_raizes(" in vig
+                  and "ROOTS" in _fonte_da_funcao(vig, "root_para_o_proximo_turno")),
+        "aguarda_iniciar": ('"iniciar_pedido": False' in _fonte_da_funcao(fila, "overnight")
+                            and 'not turno[0].get("iniciar_pedido")' in _fonte_da_funcao(fila, "turno_na_vez")
+                            and 'c["iniciar_pedido"] = True' in _fonte_da_funcao(fila, "autorizar_turno")
+                            and "_fila.autorizar_turno()" in batch
+                            and "iniciar_pedido" in src["radai_todo"]
+                            and not _overnight_inicia_divergente(batch, _MARCA_OV_INICIA)),
+        "janela": ('"--start-maximized"' in src["radai_lancador"]
+                   and _f11_por_ato_explicito(src["radai_janela"])),
+        "tmj": _valores_do_modulo(cons).get("ATM_ALEM_DO_CONDILO_MM") == 3.0,
+        "heart": ("novo & (~fatias | peri)" in antes
+                  and "cava.any(axis=outros)" in antes
+                  and "sem_cartilagem_costal(m, masks, cru)" in antes
+                  and "sem_cartilagem_costal(" in _fonte_da_funcao(eng, "_acabamento_do_coracao")
+                  and _valores_do_modulo(eng).get("SUAVIZACAO_A_MAIS_DO_CORACAO_MM") == 3.0),
+        "bag": ("sem_cartilagem_costal(novo, masks)" in _fonte_da_funcao(cons, "acabamento_da_bag_oar")
+                and _fonte_da_funcao(cons, "acabamento_da_bag_oar").find("_sem_furo_nos_cortes(")
+                < _fonte_da_funcao(cons, "acabamento_da_bag_oar").find("sem_cartilagem_costal(")),
+        "lnl": {"sternocleidomastoid_left", "sternocleidomastoid_right", "mandible",
+                "platysma_left", "platysma_right", "anterior_scalene_left", "anterior_scalene_right",
+                "middle_scalene_left", "middle_scalene_right", "posterior_scalene_left", "posterior_scalene_right",
+                "clavicula_left", "clavicula_right", "hyoid"} <= set(
+                    _valores_do_modulo(src["radai_hnlnl"]).get("FORA_DA_UNIAO") or ()),
+        "vasos_sem_pa": ({"common_carotid_artery_left", "common_carotid_artery_right",
+                           "internal_carotid_artery_left", "internal_carotid_artery_right"} <= arterias
+                         and not (pulmonares & arterias)
+                         and not (pulmonares & set(tabelas.get("_ARTERIAS_COM_MARGEM") or ()))),
+        "moose_opcional": (_comparacao_so_no_perso(batch, vig)
+                           and "moose" not in _fonte_da_funcao(eng, "_construir_coracao").lower()
+                           and {k: v.get("id_moose") for k, v in modelos.items()} == {
+                               "cardiac": "clin_ct_cardiac", "body_composition": "clin_ct_body_composition"}),
+    }
+
+
+def _divergencias_da_21(f, docs):
+    fora = []
+    d = {k: _compacto(v) for k, v in docs.items()}
+    for chave, marcas in sorted(_MARCAS_DA_21.items()):
+        for doc, marca in marcas:
+            if bool(f.get(chave)) is not (_compacto(marca) in d[doc]):
+                fora.append(u"%s: %s diverge de «%s»" % (chave, doc, marca))
+    for doc, marca in _FRASES_REVOGADAS_NA_21:
+        if _compacto(marca) in d[doc]:
+            fora.append(u"%s ainda promete «%s»" % (doc, marca))
+    return fora
+
+
+def teste_o_que_o_retorno_de_campo_muda_na_21():
+    secao(u"documentos 2.1: RGB no STUDY, ROOTS, INICIAR, janela, TMJ 3 mm, recortes e MOOSE opcional")
+    import radai_consent as CS
+    import radai_config as CFG
+    docs, src = _docs_da_20(), _fontes_da_21()
+    f = _fatos_da_21(src)
+    checar(u"a 2.1 e de 28/10/2026; a 2.0 publicada permanece intacta",
+           CS.VERSAO_DOCS == "2.1" and CS.DATA_DOCS == "2026-10-28"
+           and CS.IMPRESSOES_PUBLICADAS.get("2.0") ==
+               "c6b3c126af07cd56a14230008af944a09824c7d7f9ed51b834dcfdca4728aa97"
+           and CS.RESSELAGENS_ANTES_DA_PUBLICACAO.get("2.0") == 2)
+    trocas = CS.IMPRESSOES_TROCADAS_ANTES_DA_PUBLICACAO.get("2.1") or ()
+    checar(u"a segunda resselagem da 2.1 registra o selo substituido e o motivo",
+           CS.RESSELAGENS_ANTES_DA_PUBLICACAO.get("2.1") == 2
+           and [h for h, _ in trocas] == ["fedb3e1174c9", "6c55fafa4fb4"]
+           and not _trocas_divergentes(CS.IMPRESSOES_TROCADAS_ANTES_DA_PUBLICACAO,
+                                      CS.RESSELAGENS_ANTES_DA_PUBLICACAO,
+                                      CS.IMPRESSOES_PUBLICADAS))
+    checar(u"li os fatos correntes do codigo", all(f.values()) and set(f) == set(_MARCAS_DA_21), repr(f))
+    div = _divergencias_da_21(f, docs)
+    checar(u"as novas regras do codigo concordam com os documentos 2.1", not div, u" | ".join(div))
+    for chave in sorted(f):
+        checar(u"  isca 2.1: o codigo deixa de fazer %s: reprova" % chave,
+               bool(_divergencias_da_21(dict(f, **{chave: False}), docs)))
+    for chave, marcas in sorted(_MARCAS_DA_21.items()):
+        for doc, marca in marcas:
+            d = dict(docs)
+            d[doc] = _compacto(d[doc]).replace(_compacto(marca), "X")
+            checar(u"  isca 2.1: %s cala %s: reprova" % (doc, marca[:48]),
+                   bool(_divergencias_da_21(f, d)))
+    for doc, marca in _FRASES_REVOGADAS_NA_21:
+        d = dict(docs, **{doc: docs[doc] + " " + marca})
+        checar(u"  isca 2.1: volta a promessa revogada %s: reprova" % marca,
+               bool(_divergencias_da_21(f, d)))
+    rgb = {"Heart_ai": [0, 128, 255]}
+    checar(u"RGB exato so vale em proprios; padrao conserva e ignora a escolha",
+           CFG.cor_propria("Heart_ai", cfg={"modo": "proprios", "cores": rgb}) == (0, 128, 255)
+           and CFG.cor_propria("Heart_ai", cfg={"modo": "padrao", "cores": rgb}) is None
+           and rgb == {"Heart_ai": [0, 128, 255]})
+    for valor in ([256, 0, 0], [-1, 0, 0], [1.0, 2, 3], [True, 2, 3], [1, 2]):
+        checar(u"  isca 2.1: RGB invalido %r nao vale" % (valor,),
+               CFG.cor_propria("Heart_ai", cfg={"modo": "proprios", "cores": {"Heart_ai": valor}}) is None)
+    janela = src["radai_janela"]
+    checar(u"  isca 2.1: F11 automatico fora do pedido explicito reprova",
+           not _f11_por_ato_explicito(janela.replace("if alternar:", "if True:")))
+    for nome, chave, antes, depois in (
+            ("MOOSE conserva os modelos de comparacao", "radai_moose", "clin_ct_cardiac", "clin_ct_outro"),
+            ("TMJ nao volta a 1 mm", "radai_constructs", "ATM_ALEM_DO_CONDILO_MM = 3.0", "ATM_ALEM_DO_CONDILO_MM = 1.0"),
+            ("composto nao promete rotulo pulmonar sem produtor", "engine", "'great_arteries': ['aorta'", "'great_arteries': ['pulmonary_trunk', 'aorta'"),
+            ("cartao nao nasce autorizado", "radai_queue_state", '"iniciar_pedido": False', '"iniciar_pedido": True')):
+        alteradas = dict(src, **{chave: src[chave].replace(antes, depois)})
+        checar(u"  isca 2.1 no codigo: %s: reprova" % nome,
+               alteradas != src and not all(_fatos_da_21(alteradas).values()))
+    links = [("termos", CS.TERMOS), ("politica", CS.POLITICA)]
+    div_links = _contato_divergente(links,
+        "https://github.com/drhenriquebraga/local-suite/releases", "2.1")
+    checar(u"os links atuais usam o repositorio sucessor; a excecao antiga so vale na 2.0",
+           not div_links, u" | ".join(div_links))
+    velhos = [(k, v.replace(_DONO_RENOMEADO["depois"], _DONO_RENOMEADO["antes"]))
+              for k, v in links]
+    checar(u"  isca 2.1: links do dono antigo reprovam a nova versao",
+           bool(_contato_divergente(velhos,
+                "https://github.com/drhenriquebraga/local-suite/releases", "2.1")))
+
+
 def main():
     print(u"=" * 68)
     print(u"test_consent | o portao, os documentos e a trava do modelo")
@@ -9566,6 +9773,7 @@ def main():
     teste_o_que_a_v87_muda_na_20()
     teste_o_que_a_resselagem_muda_na_20()
     teste_o_que_a_segunda_resselagem_muda_na_20()
+    teste_o_que_o_retorno_de_campo_muda_na_21()
     teste_os_registros_citam_a_impressao_publicada()
     print(u"\n" + u"=" * 68)
     if _falhou:

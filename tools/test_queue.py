@@ -1069,12 +1069,20 @@ def teste_o_card_do_turno_leva_os_valores_e_a_vez():
            u"servidor" not in bruto and u"temporarios" not in bruto,
            bruto[:160])
     F.overnight(True, temporarios={"TASKS": "lung_nodules",
-                                   "ROOT": u"y" * 5000})
+                                   "ROOT": u"y"})
     t = (F.config_do_turno() or {}).get("temporarios") or {}
     checar(u"a chave que o turno nao aceita NAO some na fila (o vigia a "
            u"recusa)", t.get("TASKS") == "lung_nodules", str(t)[:120])
-    checar(u"  e o valor tem teto de tamanho", len(t.get("ROOT") or "") == 1024,
-           str(len(t.get("ROOT") or "")))
+    roots = json.dumps([u"Pasta_%d_" % i + u"x" * 80 for i in range(20)])
+    F.overnight(True, temporarios={"ROOTS": roots})
+    checar(u"lista de raízes maior que 1024 caracteres permanece JSON íntegro",
+           (F.config_do_turno() or {}).get("temporarios", {}).get("ROOTS") == roots)
+    try:
+        F.overnight(True, temporarios={"ROOTS": u"x" * 65537})
+        recusou = False
+    except ValueError:
+        recusou = True
+    checar(u"lista acima do teto é recusada, sem truncagem silenciosa", recusou)
     F.overnight(True)
     checar(u"sem valores do turno, a chave nem aparece",
            F.config_do_turno() == {}, str(F.config_do_turno()))
@@ -1084,7 +1092,9 @@ def teste_o_card_do_turno_leva_os_valores_e_a_vez():
     F.assumir(u"1.2.99.7.1", u"x")
     checar(u"  nem com ela RODANDO", F.turno_na_vez() is False)
     F.marcar(u"1.2.99.7.1", Q.PRONTO, u"x")
-    checar(u"a serie terminou: E a vez do turno", F.turno_na_vez() is True)
+    checar(u"a série terminou mas o turno ainda espera INICIAR", F.turno_na_vez() is False)
+    F.autorizar_turno()
+    checar(u"depois de INICIAR, é a vez do turno", F.turno_na_vez() is True)
     F.pedir([{"rotulo": u"B", "uid": u"1.2.99.7.2", "pasta": u"x"}],
             com_speed=False)
     F.skipped(u"1.2.99.7.2", dono=u"PC2", motivo=u"outra estacao")

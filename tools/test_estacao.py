@@ -556,11 +556,15 @@ _JS_TABELA = u"""async () => {
   for (let k = 0; k < 40 && !document.querySelector('#est_corpo input[data-n]'); k++) await espera(100);
   const linhas = document.querySelectorAll('#est_corpo tr').length;
   const desligado = document.querySelector('#est_corpo input[data-n="Liver_ai"]').disabled;
+  const corDesligada = document.querySelector('#est_corpo input[data-cor="Liver_ai"]').disabled;
   const anat = document.querySelector('#est_corpo tr td:nth-child(2) span').textContent;
   const seg = document.getElementById('est_modo').previousElementSibling;
   seg.querySelector('button[data-v="proprios"]').click();
   await espera(600);
   const ligado = !document.querySelector('#est_corpo input[data-n="Liver_ai"]').disabled;
+  const cor = document.querySelector('#est_corpo input[data-cor="Liver_ai"]');
+  const corLigada = !cor.disabled;
+  cor.value='#123456'; cor.dispatchEvent(new Event('input',{bubbles:true}));
   const a = document.querySelector('#est_corpo input[data-n="Liver_ai"]');
   const b = document.querySelector('#est_corpo input[data-n="Spleen_ai"]');
   a.value = 'Baco'; a.dispatchEvent(new Event('input', {bubbles: true}));
@@ -595,7 +599,7 @@ _JS_TABELA = u"""async () => {
   const lista = document.querySelectorAll('#prot_lista .prot-item').length;
   const fav = document.getElementById('fav_procurar');
   const favAoLado = !!fav && fav.previousElementSibling === document.getElementById('f_PASTA_FAVORITA');
-  return {fav: favAoLado, linhas: linhas, desligado: desligado, ligado: ligado, anat: anat, erro: erro,
+  return {corDesligada:corDesligada,corLigada:corLigada,fav: favAoLado, linhas: linhas, desligado: desligado, ligado: ligado, anat: anat, erro: erro,
           invalido: invalido, msg: msg, achado: achado, unioes: unioes, lista: lista,
           editor_fechou: document.getElementById('prot_editor').hidden,
           erros_js: window.__erros || []};
@@ -685,6 +689,10 @@ def teste_a_tela_no_navegador():
            (m.get("nomes") or {}).get("modo") == u"proprios"
            and (m.get("nomes") or {}).get("nomes") == {u"Liver_ai": u"Baco", u"Spleen_ai": u"Baco2"}
            and m.get("msg") == u"Gravado: vale para a próxima série.", repr(m))
+    checar(u"a cor so fica editavel em Tags proprias, no STUDY",
+           m.get("corDesligada") is True and m.get("corLigada") is True)
+    checar(u"a cor escolhida sobrevive ao salvar, exportar e importar",
+           (m.get("nomes") or {}).get("cores", {}).get("Liver_ai") == [18,52,86], repr(m))
     checar(u"o editor avisa que o protocolo procura achado ao marcar o achado",
            m.get("achado") is True, repr(m))
     checar(u"a uniao entra no editor e o protocolo se grava com ela",

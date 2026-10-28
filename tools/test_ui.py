@@ -2749,7 +2749,8 @@ def teste_onda_4b_a_casca():
            u"var rot = 'Voltar para ' + (ant.t || ant.u);" not in js)
     tj = io.open(_componentes.fonte("app/radai_todo.py"), encoding=u"utf-8").read()
     checar(u"a aba Log com o ponto aceso se chama «Log — erro novo»",
-           u"ab.setAttribute('aria-label', 'Log — erro novo')" in tj)
+           all(t in tj for t in (u"ab.setAttribute('aria-label'", u"Log — erro novo",
+                                  u"Log — conclusão nova", u"Log — erros e conclusões novos")))
     checar(u"e o ponto de vida do vigia tem nome (não é só cor)",
            u"pt.setAttribute('role', 'img')" in tj
            and u"o vigia parou com erro" in tj)
@@ -3806,6 +3807,15 @@ def _tabela_no_navegador(lista, detalhes):
             pg.wait_for_function(
                 u"(document.querySelector('#tab [data-c=\"nome\"]')||{}).textContent"
                 u" === 'FANTOMA TABELA'", timeout=6000)
+            checar(u"a pesquisa do acervo tem lupa e filtra sem novo pedido de rede",
+                   pg.locator('.ui-acervo-busca svg').count() == 1)
+            pg.locator('[data-ua-busca]').fill('nao-existe-no-fantoma')
+            checar(u"pesquisa sem correspondencia esconde a linha",
+                   pg.locator('#tab tbody tr[data-i]:visible').count() == 0)
+            pg.locator('[data-ua-busca]').fill('fantoma')
+            checar(u"pesquisa por nome retorna a linha ja carregada",
+                   pg.locator('#tab tbody tr[data-i]:visible').count() == 1)
+            pg.locator('[data-ua-busca]').fill('')
             m = pg.evaluate(u"""(function(){
               var ths = Array.prototype.map.call(document.querySelectorAll('#tab thead th'),
                 function(t){ return t.textContent.trim() });
@@ -3841,6 +3851,58 @@ def _tabela_no_navegador(lista, detalhes):
         finally:
             nav.close()
 
+
+
+def teste_retorno_ui_series_parciais_e_popups():
+    secao(u"series parciais nao abrem; popup fixo, ajuda e fechar alinhados")
+    from playwright.sync_api import sync_playwright
+    import radai_ui as U
+    base = u"http://interface-sintetica.radai.test"
+    pagina = U.aplicar(u'<html><head><meta charset="utf-8"></head><body>'
+                       u'<div id="lista"></div><div id="estado"></div>'
+                       u'<button id="origem">Abrir</button></body></html>')
+    with sync_playwright() as pw:
+        nav = pw.chromium.launch(channel="msedge", headless=True)
+        try:
+            pg = nav.new_page(viewport={"width": 1280, "height": 800})
+            def atender(route):
+                if route.request.url.rstrip("/") == base:
+                    route.fulfill(status=200, content_type="text/html; charset=utf-8", body=pagina)
+                else:
+                    route.fulfill(status=200, content_type="application/json", body="{}")
+            pg.route(base + u"/**", atender)
+            pg.goto(base)
+            pg.evaluate("""window.abertos=0; window.uiVarrer=function(o){window.varredura=o;return {parar:function(){}}};
+             uiVarrerLista({alvo:'lista',estado:'estado',pasta:'fantoma',linha:function(){return '<button onclick="window.abertos++">Abrir</button>'}});
+             varredura.aoParcial([{uid:'a',cortes:2,carregando:true,bilhete:null}],{});
+             document.querySelector('#lista button').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));""")
+            checar(u"serie de dois cortes e mostrada, mas nao pode abrir",
+                   pg.evaluate("[document.querySelectorAll('#lista button').length,document.querySelector('#lista button').disabled,abertos]") == [1,True,0])
+            pg.evaluate("varredura.aoParcial([{uid:'a',cortes:12,carregando:false,bilhete:'completa'}],{});document.querySelector('#lista button').click()")
+            checar(u"o bilhete final restaura a acao mesmo com HTML identico",
+                   pg.evaluate("[document.querySelector('#lista button').disabled,abertos]") == [False,1])
+            pg.evaluate("varredura.aoParcial([{uid:'a',bilhete:'completa'},{uid:'b',carregando:true}],{});document.querySelector('#lista button').classList.add('selecionada');varredura.aoParcial([{uid:'a',bilhete:'completa'}],{})")
+            checar(u"parcial abaixo do piso desaparece sem perder selecao completa",
+                   pg.evaluate("[document.querySelectorAll('#lista button').length,document.querySelector('#lista button').classList.contains('selecionada')]") == [1,True])
+            pg.evaluate("uiPainel({titulo:'Teste',html:'<input id=campo>',fecharFora:false})")
+            pg.wait_for_timeout(350)
+            dentro=pg.locator('#campo').bounding_box()
+            pg.mouse.move(dentro['x']+10,dentro['y']+10);pg.mouse.down();pg.mouse.move(2,2);pg.mouse.up()
+            checar(u"arrastar de dentro para fora nao fecha o popup fixo",
+                   pg.locator('#ui-pnl-veu').evaluate("e=>e.classList.contains('on')"))
+            pg.locator('#ui-pnl-nao').click();pg.wait_for_timeout(250)
+            pg.evaluate("uiModal({titulo:'Teste',html:'<div class=ui-acervo><span class=ui-ajuda tabindex=0>?<span class=ui-balao><p>Ajuda sintetica</p></span></span><div style=height:180px></div></div>'})")
+            pg.wait_for_timeout(350)
+            pg.locator('.ui-modal .ui-ajuda').hover()
+            checar(u"ajuda sai da area rolavel e aparece acima do cabecalho",
+                   pg.locator('body > .ui-balao-flutuante').is_visible()
+                   and pg.locator('body > .ui-balao-flutuante').evaluate("e=>+getComputedStyle(e).zIndex") > 5000)
+            bt=pg.locator('.ui-modal-x').bounding_box();ic=pg.locator('.ui-modal-x svg').bounding_box()
+            checar(u"o X fica centralizado no botao do popup",
+                   abs((bt['x']+bt['width']/2)-(ic['x']+ic['width']/2)) < 1
+                   and abs((bt['y']+bt['height']/2)-(ic['y']+ic['height']/2)) < 1)
+        finally:
+            nav.close()
 
 def main():
     print(u"test_ui | o sistema de design e a casca que ele monta")
@@ -3889,7 +3951,8 @@ def main():
               teste_o_tema_tem_tres_escolhas,
               teste_o_seletor_segmentado,
               teste_o_popup_de_serie,
-              teste_o_esc_fecha_so_o_modal_de_cima]
+              teste_o_esc_fecha_so_o_modal_de_cima,
+              teste_retorno_ui_series_parciais_e_popups]
     todos = set(k for k, v in globals().items()
                 if k.startswith(u"teste_") and callable(v))
     fora = sorted(todos - set(f.__name__ for f in testes))

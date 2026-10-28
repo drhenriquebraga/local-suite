@@ -68,8 +68,8 @@ SECAO = u"""
   <p class="est-frase" id="est_nota"></p>
   <div class="est-tabela-cx" id="est_cx" aria-busy="true">
    <table class="est-tabela">
-    <thead><tr><th scope="col" data-radai-frase>Task</th><th scope="col" data-radai-frase>Nome anatômico</th><th scope="col" data-radai-frase>Nome no STUDY</th><th scope="col" id="est_h_proprio" data-radai-frase>Nome próprio</th></tr></thead>
-    <tbody id="est_corpo"><tr><td colspan="4" class="est-vazio"><span data-radai-frase>Abrindo a lista de estruturas…</span></td></tr></tbody>
+    <thead><tr><th scope="col" data-radai-frase>Task</th><th scope="col" data-radai-frase>Nome anatômico</th><th scope="col" data-radai-frase>Nome no STUDY</th><th scope="col" id="est_h_proprio" data-radai-frase>Nome próprio</th><th scope="col" id="est_h_cor" data-radai-frase>Cor no STUDY</th></tr></thead>
+    <tbody id="est_corpo"><tr><td colspan="5" class="est-vazio"><span data-radai-frase>Abrindo a lista de estruturas…</span></td></tr></tbody>
    </table>
   </div>
   <div class="linha est-acoes">
@@ -173,6 +173,7 @@ label.est-todas input{width:16px;height:16px;margin:0;flex:0 0 auto}
  border:1px solid var(--line-strong);font:500 10px/1.6 var(--font-display);letter-spacing:.3px;
  color:var(--text-dim);white-space:nowrap;vertical-align:1px}
 .est-chip.achado{border-color:var(--borda-aviso);color:var(--aviso)}
+.est-cor{width:74px;text-align:center}.est-cor input[type=color]{width:42px;height:32px;padding:2px;border:1px solid var(--line);background:var(--panel-2);border-radius:var(--r-md);cursor:pointer}.est-cor input:disabled{opacity:.45;cursor:not-allowed}
 .est-proprio{min-width:170px;width:30%}
 .est-proprio input{margin:0;padding:6px 8px;font-size:12.5px;background:var(--panel-2);
  border-color:var(--line-strong)}
@@ -320,8 +321,8 @@ JS = r"""
   });
  });
 
- var EST = {mod: 'CT', cache: {}, modo: 'padrao', salvo: {modo: 'padrao', nomes: {}},
-            nomes: {}, erros: {}, todas: false, carregado: false};
+ var EST = {mod: 'CT', cache: {}, modo: 'padrao', salvo: {modo: 'padrao', nomes: {}, cores: {}},
+            nomes: {}, cores: {}, erros: {}, todas: false, carregado: false};
  var PROT = {lista: [], ed: null, unindo: false, marcadas: {}, armado: ''};
 
  function resumo(){
@@ -344,6 +345,7 @@ JS = r"""
   }).catch(function(){});
  }
 
+ function corHex(c){ return '#' + (c || [160,160,160]).map(function(v){ return ('0' + Math.max(0,Math.min(255,+v || 0)).toString(16)).slice(-2) }).join('') }
  function estCarregar(mod, depois){
   if(EST.cache[mod]){ if(depois) depois(EST.cache[mod]); return }
   pedir('/api/config/estruturas?modalidade=' + encodeURIComponent(mod)
@@ -352,8 +354,8 @@ JS = r"""
    if(!EST.carregado){
     EST.carregado = true;
     EST.modo = d.modo || 'padrao';
-    EST.salvo = {modo: EST.modo, nomes: copia(d.nomes)};
-    EST.nomes = copia(d.nomes);
+    EST.salvo = {modo: EST.modo, nomes: copia(d.nomes), cores: copia(d.cores)};
+    EST.nomes = copia(d.nomes); EST.cores = copia(d.cores);
     segDefinir($('est_modo'), EST.modo);
    }
    if(depois) depois(EST.cache[mod]);
@@ -408,7 +410,7 @@ JS = r"""
   var corpo = $('est_corpo'), propria = (EST.modo === 'proprios');
   $('est_cx').setAttribute('aria-busy', 'false');
   if(!ls.length){
-   corpo.innerHTML = '<tr><td colspan="4" class="est-vazio">' + frase(d.erro || 'Nenhuma estrutura nesta modalidade.') + '</td></tr>';
+   corpo.innerHTML = '<tr><td colspan="5" class="est-vazio">' + frase(d.erro || 'Nenhuma estrutura nesta modalidade.') + '</td></tr>';
    $('est_salvar').disabled = true;
    texto($('est_nota'), '');
    retraduzir();
@@ -429,9 +431,12 @@ JS = r"""
      + '<td class="est-proprio"><input type="text" maxlength="16" spellcheck="false" autocomplete="off" data-n="'
      + esc(l.nome_padrao) + '" value="' + esc(v) + '" aria-labelledby="est_h_proprio est_n_' + i + '"'
      + (propria ? '' : ' disabled') + (err ? ' aria-invalid="true"' : '') + '><div class="est-erro">'
-     + (err ? frase(err) : '') + '</div></td></tr>';
+     + (err ? frase(err) : '') + '</div></td>'
+     + '<td class="est-cor"><input type="color" data-cor="' + esc(l.nome_padrao)
+     + '" value="' + corHex(EST.cores[l.nome_padrao] || l.cor_padrao)
+     + '" aria-labelledby="est_h_cor est_n_' + i + '"' + (propria && l.no_study ? '' : ' disabled') + '></td></tr>';
   });
-  if(!n) h = '<tr><td colspan="4" class="est-vazio">' + frase('Nenhuma estrutura com este filtro.') + '</td></tr>';
+  if(!n) h = '<tr><td colspan="5" class="est-vazio">' + frase('Nenhuma estrutura com este filtro.') + '</td></tr>';
   corpo.innerHTML = h;
   texto($('est_nota'), propria
    ? 'Com tags próprias, o STUDY sai com o nome que você escreveu; a linha em branco fica com o nome padrão.'
@@ -452,15 +457,21 @@ JS = r"""
  });
  var tConf = null;
  $('est_corpo').addEventListener('input', function(ev){
-  var i = ev.target, n = i && i.getAttribute ? i.getAttribute('data-n') : '';
-  if(!n) return;
+   var i = ev.target, cor = i && i.getAttribute ? i.getAttribute('data-cor') : '';
+   if(cor){
+    var hex = i.value.replace('#', '');
+    EST.cores[cor] = [0,2,4].map(function(k){ return parseInt(hex.slice(k,k+2),16) });
+    return;
+   }
+   var n = i && i.getAttribute ? i.getAttribute('data-n') : '';
+   if(!n) return;
   if(i.value) EST.nomes[n] = i.value; else delete EST.nomes[n];
   if(tConf) clearTimeout(tConf);
   tConf = setTimeout(estConferir, 140);
  });
  $('est_modo').addEventListener('change', function(){
   var v = this.value;
-  pedir('/api/config/nomes', {modo: v, nomes: EST.salvo.nomes}).then(function(d){
+  pedir('/api/config/nomes', {modo: v, nomes: EST.salvo.nomes, cores: EST.salvo.cores}).then(function(d){
    if(d && d.ok){
     EST.modo = d.modo; EST.salvo.modo = d.modo;
     estPintar(); resumo();
@@ -476,10 +487,10 @@ JS = r"""
   var b = this, erros = estConferir();
   if(Object.keys(erros).length){ texto($('est_msg'), 'Nada foi gravado: confira as linhas marcadas.', 'ruim'); return }
   b.disabled = true;
-  pedir('/api/config/nomes', {modo: EST.modo, nomes: EST.nomes}).then(function(d){
+  pedir('/api/config/nomes', {modo: EST.modo, nomes: EST.nomes, cores: EST.cores}).then(function(d){
    b.disabled = false;
    if(d && d.ok){
-    EST.salvo = {modo: d.modo, nomes: copia(d.nomes)}; EST.erros = {};
+    EST.salvo = {modo: d.modo, nomes: copia(d.nomes), cores: copia(d.cores)}; EST.erros = {};
     estPintar(); resumo();
     texto($('est_msg'), 'Gravado: vale para a próxima série.', 'ok');
     return;
@@ -911,9 +922,12 @@ def montar(app, caminho, chaves=(), modelo=u"", registrar=None, versao=None):
             l["anatomico"] = radai_config.nome_anatomico(l["chave_anatomica"],
                                                          idioma)
             l["achado"] = bool(l.get("achado")) or l["task"] in achados
+        import engine
+        for l in linhas:
+            l["cor_padrao"] = list(engine._color(l["nome_padrao"]))
         n = radai_config.ler_nomes(caminho)
         return {"modalidade": mod, "linhas": linhas, "erro": erro,
-                "modo": n["modo"], "nomes": n["nomes"]}
+                "modo": n["modo"], "nomes": n["nomes"], "cores": n["cores"]}
 
     @app.post("/api/config/nomes")
     async def _nomes(request: Request):
@@ -922,7 +936,7 @@ def montar(app, caminho, chaves=(), modelo=u"", registrar=None, versao=None):
             return _grande()
         ok, r = radai_config.gravar_nomes(
             c.get("modo"), c.get("nomes") or {},
-            radai_config.estruturas_por_modalidade(), caminho_cfg=caminho)
+            radai_config.estruturas_por_modalidade(), caminho_cfg=caminho, cores=c.get("cores"))
         if ok:
             _log(u"nomes das estruturas: modo=%s, %d nome(s) proprio(s), "
                  u"gravado pela tela de configuracoes" % (r["modo"], len(r["nomes"])))
