@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import json
 import re
 import threading
 import time
@@ -11,6 +12,7 @@ SW_MAXIMIZE = 3
 SW_RESTORE = 9
 WM_KEYDOWN = 0x0100
 WM_KEYUP = 0x0101
+WM_CLOSE = 0x0010
 VK_F11 = 0x7A
 WS_CAPTION = 0x00C00000
 GWL_STYLE = -16
@@ -32,6 +34,23 @@ LOG_PELA_LINHA = (u"[janela] achada pela linha de comando do navegador: o "
 _TRAVA = threading.Lock()
 _JANELAS = {}
 _CTX = {"log": None}
+
+
+def _versao_da_tela():
+    pasta = os.path.dirname(os.path.abspath(__file__))
+    for base in (pasta, os.path.dirname(pasta)):
+        try:
+            with open(os.path.join(base, "entrega.txt"), encoding="utf-8-sig", errors="replace") as f:
+                for linha in f:
+                    k, sep, v = linha.partition("=")
+                    if sep and k.strip() == "VERSAO":
+                        return v.strip()
+        except OSError:
+            pass
+    return ""
+
+
+VERSAO_DA_TELA = _versao_da_tela()
 
 
 def _log(m):
@@ -142,6 +161,9 @@ class Plataforma(object):
 
     def trazer_para_frente(self, h):
         return bool(self.u.SetForegroundWindow(h))
+
+    def fechar(self, h):
+        return bool(self.u.PostMessageW(h, WM_CLOSE, 0, 0))
 
     def tecla_f11(self, h):
         self.u.PostMessageW(h, WM_KEYDOWN, VK_F11, 0x00570001)
@@ -316,7 +338,7 @@ def ja_cobre_o_monitor(h, pf):
         return False
 
 
-def registrar(ficha, pf=None, **kw):
+def registrar(ficha, pf=None, versao=None, **kw):
     pf = pf if pf is not None else plataforma()
     if pf is None:
         return {"ok": False, "motivo": FRASE_SO_WINDOWS}
@@ -327,6 +349,8 @@ def registrar(ficha, pf=None, **kw):
         nova = h not in _JANELAS
         if nova:
             _JANELAS[h] = {"desde": time.time(), "pid": pf.pid(h)}
+        if versao and str(versao) == VERSAO_DA_TELA:
+            _JANELAS[h]["versao"] = str(versao)
     if nova and not pf.minimizada(h):
         if not pf.tem_barra(h):
             pf.trazer_para_frente(h)
@@ -377,6 +401,108 @@ def restaurar(ficha=None, pf=None, **kw):
     return {"ok": True, "janelas": len(alvos)}
 
 
+def argumentos_windows(linha):
+    if not linha or os.name != "nt":
+        return ()
+    import ctypes
+    from ctypes import wintypes
+    shell = ctypes.WinDLL("shell32", use_last_error=True)
+    shell.CommandLineToArgvW.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int)]
+    shell.CommandLineToArgvW.restype = ctypes.POINTER(wintypes.LPWSTR)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel.LocalFree.restype = ctypes.c_void_p
+    n = ctypes.c_int()
+    args = shell.CommandLineToArgvW(str(linha), ctypes.byref(n))
+    if not args:
+        return ()
+    try:
+        return tuple(args[i] for i in range(n.value))
+    finally:
+        kernel.LocalFree(ctypes.cast(args, ctypes.c_void_p))
+
+
+def perfil_comprovado_para_fechar(linha):
+    args = argumentos_windows(linha)
+    if not args or os.path.basename(args[0]).lower() not in ("msedge.exe", "chrome.exe"):
+        return ""
+    valores = []
+    for i, arg in enumerate(args[1:], 1):
+        if arg == "--type" or arg.startswith("--type="):
+            return ""
+        if arg.startswith("--user-data-dir="):
+            valores.append(arg.split("=", 1)[1])
+        elif arg == "--user-data-dir" and i + 1 < len(args):
+            valores.append(args[i + 1])
+    if len(valores) != 1 or not valores[0] or not os.path.isabs(valores[0]):
+        return ""
+    return valores[0]
+
+
+def perfil_esperado_do_app():
+    import tempfile
+    return os.path.join(os.environ.get("RADAI_TEMP_DO_USUARIO")
+                        or os.environ.get("TEMP") or tempfile.gettempdir(), PASTA_DO_PERFIL)
+
+
+def pronta_para_atualizacao(pf=None):
+    pf = pf if pf is not None else plataforma()
+    if pf is None or not VERSAO_DA_TELA:
+        return False
+    for h in guardadas(pf):
+        try:
+            with _TRAVA:
+                nova = _JANELAS.get(h, {}).get("versao") == VERSAO_DA_TELA
+            perfil = perfil_comprovado_para_fechar(pf.linha_de_comando(pf.pid(h)))
+            esperado = perfil_esperado_do_app()
+            if (nova and perfil and os.path.normcase(os.path.abspath(perfil)) == os.path.normcase(os.path.abspath(esperado))
+                    and pf.visivel(h) and not pf.minimizada(h)):
+                return True
+        except Exception:
+            pass
+    return False
+
+
+def fechar_para_atualizar(pf=None, perfil=None, teto_s=5.0,
+                          relogio=time.monotonic, dormir=time.sleep):
+    pf = pf if pf is not None else plataforma()
+    if pf is None:
+        return {"ok": False, "janelas": 0}
+    perfil = perfil or perfil_esperado_do_app()
+    normal = lambda p: os.path.normcase(os.path.abspath(p)).rstrip("\\/")
+    if not perfil or not os.path.isabs(perfil) or os.path.basename(normal(perfil)).lower() != PASTA_DO_PERFIL:
+        return {"ok": False, "janelas": 0}
+    fechadas, pendentes = 0, 0
+    for h in pf.janelas():
+        try:
+            pid = pf.pid(h)
+            linha = pf.linha_de_comando(pid)
+            perfil_achado = perfil_comprovado_para_fechar(linha)
+            # GUARDA: fechar exige PID, classe e caminho COMPLETO do perfil;
+            # o atalho pelo titulo nunca autoriza fechar navegador.
+            if (not pf.existe(h) or pf.classe(h) != CLASSE_DA_JANELA or not pid
+                    or not perfil_achado or normal(perfil_achado) != normal(perfil)):
+                continue
+            perfil_reconferido = perfil_comprovado_para_fechar(pf.linha_de_comando(pid))
+            if (pf.pid(h) != pid or not pf.existe(h)
+                    or pf.classe(h) != CLASSE_DA_JANELA
+                    or not perfil_reconferido or normal(perfil_reconferido) != normal(perfil)):
+                continue
+            enviou = pf.fechar(h)
+            fim = relogio() + float(teto_s)
+            while enviou and pf.existe(h) and pf.pid(h) == pid and relogio() < fim:
+                dormir(0.1)
+            if pf.existe(h) and pf.pid(h) == pid:
+                pendentes += 1
+            else:
+                fechadas += 1
+        except Exception:
+            continue
+    if pendentes:
+        return {"ok": False, "janelas": fechadas, "pendentes": pendentes}
+    return {"ok": True, "janelas": fechadas}
+
+
 def tela_cheia(ficha, alternar=False, pf=None, **kw):
     pf = pf if pf is not None else plataforma()
     if pf is None:
@@ -419,10 +545,11 @@ def montar(app, log=None):
 
     @app.post("/api/janela/registrar")
     async def _registrar(request: Request):
-        f = _ficha_do_corpo(await _corpo(request))
+        corpo = await _corpo(request)
+        f = _ficha_do_corpo(corpo)
         if not f:
             return {"ok": False, "motivo": u"ficha invalida"}
-        return await run_in_threadpool(registrar, f)
+        return await run_in_threadpool(registrar, f, versao=corpo.get("versao"))
 
     @app.post("/api/janela/minimizar")
     async def _minimizar(request: Request):
@@ -452,6 +579,7 @@ MARCA = u"radai-janela-js"
 JS = u"""<script id="radai-janela-js">
 (function(){
  if(window.radaiJanelaMinimizar) return;
+ var VERSAO_TELA = '';
  var ROT = {registrar:'/api/janela/registrar', minimizar:'/api/janela/minimizar',
              restaurar:'/api/janela/restaurar', estado:'/api/janela/estado',
              cheia:'/api/janela/tela-cheia', estadoCheia:'/api/janela/tela-cheia/estado'};
@@ -473,7 +601,7 @@ JS = u"""<script id="radai-janela-js">
    return d || {ok:false};
   }
   return fetch(rota, {method:'POST', headers:{'Content-Type':'application/json'},
-                      body: JSON.stringify({ficha: f})})
+                      body: JSON.stringify({ficha: f, versao: VERSAO_TELA})})
    .then(function(r){ return r.ok ? r.json() : {ok:false} })
    .then(fim, function(){ return fim({ok:false}) });
  }
@@ -537,4 +665,13 @@ var maxBt = document.querySelector('[data-radai-maximizar-acao]');
 })();
 </script>"""
 
-PARA_A_CASCA = JS
+PARA_A_CASCA = JS.replace("var VERSAO_TELA = '';", "var VERSAO_TELA = " + json.dumps(VERSAO_DA_TELA) + ";")
+
+
+if __name__ == "__main__":
+    import json
+    import sys
+    if sys.argv[1:] == ["--fechar-para-atualizar"]:
+        print(json.dumps(fechar_para_atualizar()))
+    else:
+        sys.exit(2)

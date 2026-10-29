@@ -1,6 +1,6 @@
 ﻿param([string]$Destino = "", [string]$Python = "", [switch]$SemPerguntar,
       [switch]$SoEncerrar, [switch]$SoDecidir, [int]$EsperarPid = 0,
-      [switch]$Reabrir)
+      [switch]$Reabrir, [string]$SinalPronto = "", [string]$ChavePronto = "", [int]$TetoReabrirS = 300)
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
@@ -10,7 +10,54 @@ if (-not $AQUI) { $AQUI = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $PACOTE = Split-Path -Parent $AQUI
 if (-not (Test-Path -LiteralPath (Join-Path $PACOTE "app"))) { $PACOTE = $AQUI }
 
-function Diga($t) { Write-Host $t }
+$script:ConsoleExtra = $false
+$script:ConsoleDisponivel = $false
+try {
+    if (-not ('RadaiConsoleAtualizacao' -as [type])) {
+        Add-Type -TypeDefinition 'using System; using System.Text; using System.Runtime.InteropServices;
+public static class RadaiConsoleAtualizacao {
+ [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern IntPtr CreateFile(string n,uint a,uint s,IntPtr x,uint c,uint f,IntPtr t);
+ [DllImport("kernel32.dll")] static extern IntPtr GetStdHandle(int n);
+ [DllImport("kernel32.dll")] static extern uint GetFileType(IntPtr h);
+ [DllImport("kernel32.dll", CharSet=CharSet.Unicode)] static extern bool WriteConsole(IntPtr h,string t,uint n,out uint w,IntPtr r);
+ [DllImport("kernel32.dll", CharSet=CharSet.Unicode)] static extern bool ReadConsole(IntPtr h,StringBuilder t,uint n,out uint w,IntPtr r);
+ [DllImport("shell32.dll", CharSet=CharSet.Unicode)] static extern IntPtr CommandLineToArgvW(string t,out int n);
+ [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr p);
+ public static string[] Argumentos(string t) { int n; IntPtr p=CommandLineToArgvW(t,out n); if(p==IntPtr.Zero) return new string[0]; try { var a=new string[n]; for(int i=0;i<n;i++) a[i]=Marshal.PtrToStringUni(Marshal.ReadIntPtr(p,i*IntPtr.Size)); return a; } finally { LocalFree(p); } }
+ static IntPtr saida=IntPtr.Zero;
+ public static bool Abrir() { saida=CreateFile("CONOUT$",0x40000000,3,IntPtr.Zero,3,0,IntPtr.Zero); return saida!=IntPtr.Zero && saida!=new IntPtr(-1); }
+ [DllImport("kernel32.dll")] static extern uint GetConsoleProcessList(uint[] p,uint n);
+ public static bool Propria() { return GetConsoleProcessList(new uint[2],2)==1; }
+ public static bool Redirecionada() { return GetFileType(GetStdHandle(-11))!=2; }
+ public static void Escrever(string t) { uint n; WriteConsole(saida,t,(uint)t.Length,out n,IntPtr.Zero); }
+ public static string Ler() { IntPtr h=CreateFile("CONIN$",0xC0000000,3,IntPtr.Zero,3,0,IntPtr.Zero); if(h==IntPtr.Zero || h==new IntPtr(-1)) return ""; uint n; var b=new StringBuilder(256); return ReadConsole(h,b,255,out n,IntPtr.Zero) ? b.ToString().Trim() : ""; }
+}' | Out-Null
+    }
+    $script:ConsoleDisponivel = [RadaiConsoleAtualizacao]::Abrir()
+    $script:ConsoleExtra = $script:ConsoleDisponivel -and [RadaiConsoleAtualizacao]::Propria() -and [RadaiConsoleAtualizacao]::Redirecionada()
+} catch { }
+$script:LogDoAtualizador = ""
+$script:LogManual = $script:ConsoleExtra
+$script:LogFalhou = $false
+function Anote($txt) {
+    if (-not $script:LogDoAtualizador) { return }
+    try { [IO.File]::AppendAllText($script:LogDoAtualizador, ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + " " + [string]$txt + "`r`n"), [Text.UTF8Encoding]::new($false)) }
+    catch { $script:LogFalhou = $true }
+}
+function Diga($t) {
+    # GUARDA: a console propria nunca escreve no stdout herdado do motor.
+    if ($script:ConsoleExtra) { [RadaiConsoleAtualizacao]::Escrever(([string]$t + "`r`n")) }
+    else { Write-Host $t }
+    if ($script:LogManual) { Anote $t }
+}
+$script:CodigoEmTroca = $false
+$script:CodigoCompleto = $false
+$script:JaReabriu = $false
+$script:ProcessoNovo = $null
+$script:MotivoReabrir = ""
+$script:ProcessosConferidos = @{}
+$script:FalhaConferirProcessos = $false
+
 function UnidadesLocais {
     # GUARDA: a mesma variavel do UNINSTALL.ps1; a bateria simula outro disco sem tocar nos discos de quem a roda.
     if ($env:RADAI_UNIDADES_LOCAIS) {
@@ -26,7 +73,18 @@ function UnidadesLocais {
     }
     return $r
 }
+function PublicarProntidao($pronto, $erro = "") {
+    if (-not $SinalPronto) { return $true }
+    try {
+        $caminhoPronto = [IO.Path]::GetFullPath($SinalPronto)
+        if (-not $caminhoPronto.StartsWith(([IO.Path]::GetFullPath($PACOTE).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) { return $false }
+        $dadoPronto = @{pronto=[bool]$pronto;pid=$PID;chave=$ChavePronto;erro=[string]$erro} | ConvertTo-Json -Compress
+        [IO.File]::WriteAllText($caminhoPronto, $dadoPronto, [Text.UTF8Encoding]::new($false))
+        return $true
+    } catch { return $false }
+}
 function PareCom($t, $codigo) {
+    [void](PublicarProntidao $false $t)
     Diga ""
     Diga "============================================================"
     Diga "  A ATUALIZACAO NAO ACONTECEU"
@@ -37,7 +95,6 @@ function PareCom($t, $codigo) {
     Sair $codigo
 }
 function Pare($t) { PareCom $t 1 }
-function Anote($txt) { }
 
 function CriarAtalhos($DESTINO, $RAIZ) {
     # GUARDA: a mesma no INSTALL.ps1 e no UPDATE.ps1, letra a letra; o
@@ -112,44 +169,110 @@ function CriarAtalhos($DESTINO, $RAIZ) {
 
 $script:PastaAlvo = $Destino
 $script:JaReabriu = $false
-function ReabrirOApp {
-    # GUARDA: so no modo do botao Atualizar agora; o app que pediu a
-    # atualizacao fechou e a janela dele espera o motor novo pelo PID.
-    if (-not $Reabrir -or $script:JaReabriu) { return }
-    $script:JaReabriu = $true
+function ReabrirOApp([switch]$Avulso) {
+    if (-not $Reabrir -or ($script:JaReabriu -and -not $Avulso)) { return $false }
     $pasta = $script:PastaAlvo
-    if (-not $pasta) { return }
+    if (-not $pasta) { return $false }
     $pyA = $Python
     if (-not $pyA) { $pyA = Join-Path $pasta "python\python.exe" }
     $lanc = Join-Path $pasta "radai_lancador.py"
     if (-not (Test-Path -LiteralPath $pyA) -or -not (Test-Path -LiteralPath $lanc)) {
-        Diga "  nao achei o lancador para reabrir o app: abra pelo atalho da area de trabalho"
-        return
+        $script:MotivoReabrir = "Nao achei o Python ou o lancador da instalacao."
+        return $false
     }
     $pR = PortaDaInstalacao $pasta
     $lista = @(('"' + $lanc + '"'), "--url", ("http://127.0.0.1:" + $pR + "/"),
                "--log", ('"' + (Join-Path $pasta "radai_lancador.log") + '"'))
-    if ($EsperarPid -gt 0) { $lista += @("--sucessor", [string]$EsperarPid) }
+    if (-not $Avulso -and $EsperarPid -gt 0) { $lista += @("--sucessor", [string]$EsperarPid, "--abrir-janela") }
     try {
-        Start-Process -FilePath $pyA -ArgumentList $lista -WorkingDirectory $pasta -WindowStyle Hidden | Out-Null
-        Diga "  reabrindo o app: a janela dele volta sozinha"
+        $script:ProcessoNovo = Start-Process -FilePath $pyA -ArgumentList $lista -WorkingDirectory $pasta -WindowStyle Hidden -PassThru
+        $script:JaReabriu = $true
+        Diga "  reabrindo o app em uma janela propria"
+        return $true
     } catch {
-        Diga ("  nao consegui reabrir o app (" + $_.Exception.Message + "): abra pelo atalho da area de trabalho")
+        $script:MotivoReabrir = $_.Exception.Message
+        return $false
     }
+}
+function PainelNovo($porta, $versao, $antigo) {
+    $req = [System.Net.WebRequest]::Create("http://127.0.0.1:" + $porta + "/api/atualizar")
+    $req.Proxy = $null
+    $req.Timeout = 2000
+    $req.Method = "POST"
+    $req.ContentType = "application/json"
+    $req.Headers.Add("Origin", ("http://127.0.0.1:" + $porta))
+    $corpo = [Text.Encoding]::UTF8.GetBytes('{"acao":"estado"}')
+    $req.ContentLength = $corpo.Length
+    $envio = $req.GetRequestStream()
+    try { $envio.Write($corpo, 0, $corpo.Length) } finally { $envio.Dispose() }
+    $resp = $req.GetResponse()
+    try {
+        $leitor = New-Object IO.StreamReader($resp.GetResponseStream())
+        try { $d = $leitor.ReadToEnd() | ConvertFrom-Json } finally { $leitor.Dispose() }
+    } finally { $resp.Dispose() }
+    if ($d.radai -ne $true -or [int]$d.pid -le 0 -or ([int]$antigo -gt 0 -and [int]$d.pid -eq [int]$antigo)) { return $false }
+    if (([string]$d.aqui).TrimStart('v') -ne ([string]$versao).TrimStart('v')) {
+        $script:MotivoReabrir = "O painel respondeu com outra versao: " + [string]$d.aqui
+        return $false
+    }
+    return ($d.janela_pronta -eq $true)
+}
+function AguardarPainelNovo($porta, $versao) {
+    $inicio = Get-Date
+    $fim = $inicio.AddSeconds([Math]::Max(1, $TetoReabrirS))
+    $proximaMensagem = $inicio
+    while ((Get-Date) -lt $fim) {
+        try { if (PainelNovo $porta $versao $EsperarPid) { return $true } } catch { }
+        if ($script:MotivoReabrir) { return $false }
+        if ($script:ProcessoNovo) {
+            try {
+                if ($script:ProcessoNovo.HasExited -and $script:ProcessoNovo.ExitCode -ne 0) {
+                    $script:MotivoReabrir = "O lancador terminou com codigo " + $script:ProcessoNovo.ExitCode
+                    return $false
+                }
+            } catch { }
+        }
+        if ((Get-Date) -ge $proximaMensagem) {
+            Diga ("  5/5  Esperando o painel da v" + $versao + " abrir... " + [int]((Get-Date)-$inicio).TotalSeconds + " s")
+            $proximaMensagem = (Get-Date).AddSeconds(5)
+        }
+        Start-Sleep -Milliseconds 500
+    }
+    $script:MotivoReabrir = "O painel da versao nova nao respondeu em " + $TetoReabrirS + " s."
+    return $false
 }
 function Sair($codigo) {
     if ($Reabrir) {
-        ReabrirOApp
         if ($codigo -eq 0) {
             Diga "  esta janela fecha sozinha em 5 s"
             Start-Sleep -Seconds 5
         } else {
-            try { [void](Read-Host "  Pressione Enter para fechar esta janela") } catch { }
+            if ($script:CodigoEmTroca -and -not $script:CodigoCompleto) {
+                Diga "  A copia nao terminou. Nao abra uma instalacao parcialmente atualizada."
+                Diga "  Corrija o motivo acima e execute este instalador novamente."
+            } else {
+                Diga "  O aplicativo pode ser reaberto pelo atalho da area de trabalho."
+            }
+            if ($script:LogFalhou -or -not $script:LogDoAtualizador) { Diga "  Nao consegui gravar o log; copie a mensagem desta janela." }
+            else { Diga "  O diagnostico esta em radai_atualizar.log na pasta do programa." }
+            $naoInterativo = [Environment]::GetCommandLineArgs() -contains '-NonInteractive'
+            if ($script:ConsoleDisponivel -and -not $naoInterativo) {
+                if (-not $script:CodigoEmTroca -or $script:CodigoCompleto) {
+                    Diga "  R + Enter: reabrir o aplicativo. Enter: fechar esta janela."
+                    $resposta = [RadaiConsoleAtualizacao]::Ler()
+                    if ($resposta -match '^[Rr]$') { [void](ReabrirOApp -Avulso) }
+                } else {
+                    Diga "  Pressione Enter para fechar esta janela."
+                    [void][RadaiConsoleAtualizacao]::Ler()
+                }
+            }
         }
     }
     exit $codigo
 }
+
 trap {
+    [void](PublicarProntidao $false $_.Exception.Message)
     Diga ""
     Diga ("  ERRO: " + $_.Exception.Message)
     Sair 1
@@ -217,20 +340,44 @@ function _Prefixo($pasta) {
     return ($c.TrimEnd('\') + '\')
 }
 
-function ProcessoDaPasta($id, $pasta) {
-    # GUARDA: so python.exe ou pythonw.exe cujo executavel mora na pasta
-    # instalada; outro Python da maquina nunca e encerrado.
-    $p = $null
-    try { $p = Get-CimInstance Win32_Process -Filter ("ProcessId=" + [int]$id) -ErrorAction Stop } catch { $p = $null }
+function PythonDaPasta($p, $pasta) {
     if (-not $p) { return $false }
     $nome = ([string]$p.Name).ToLower()
     if ($nome -ne "python.exe" -and $nome -ne "pythonw.exe") { return $false }
     $exe = [string]$p.ExecutablePath
-    if (-not $exe) {
-        try { $exe = [string](Get-Process -Id ([int]$id) -ErrorAction Stop).Path } catch { $exe = "" }
+    return ($exe -and $exe.StartsWith((_Prefixo $pasta), [StringComparison]::OrdinalIgnoreCase))
+}
+function SeloDoProcesso($p) {
+    if (-not $p -or -not $p.CreationDate) { return "" }
+    try { return ([datetime]$p.CreationDate).ToUniversalTime().Ticks.ToString() } catch { return "" }
+}
+function EntradaDoApp($p, $pasta) {
+    if (-not (PythonDaPasta $p $pasta)) { return $false }
+    try { $argumentos = [RadaiConsoleAtualizacao]::Argumentos([string]$p.CommandLine) } catch { return $false }
+    for ($i = 1; $i -lt $argumentos.Length; $i++) {
+        $a = [string]$argumentos[$i]
+        if ($a -eq '-c' -or $a -eq '-m' -or $a -eq '-') { return $false }
+        if ($a -eq '-X' -or $a -eq '-W' -or $a -eq '--check-hash-based-pycs') { $i++; continue }
+        if ($a.StartsWith('-')) { continue }
+        if (-not [IO.Path]::IsPathRooted($a)) { return $false }
+        try { $entrada = [IO.Path]::GetFullPath($a) } catch { return $false }
+        foreach ($nome in @('radai_watcher.py', 'radai_lancador.py')) {
+            if ($entrada.Equals([IO.Path]::GetFullPath((Join-Path $pasta $nome)), [StringComparison]::OrdinalIgnoreCase)) { return $true }
+        }
+        return $false
     }
-    if (-not $exe) { return $false }
-    return $exe.StartsWith((_Prefixo $pasta), [System.StringComparison]::OrdinalIgnoreCase)
+    return $false
+}
+function ProcessoDaPasta($id, $pasta) {
+    # GUARDA: runtime compartilhado nao prova propriedade. Exige entrada
+    # absoluta do app ou descendencia conferida, com PID e criacao iguais.
+    try { $p = Get-CimInstance Win32_Process -Filter ("ProcessId=" + [int]$id) -ErrorAction Stop } catch { return $false }
+    if (-not (PythonDaPasta $p $pasta)) { return $false }
+    $selo = SeloDoProcesso $p
+    if (-not $selo) { return $false }
+    if (EntradaDoApp $p $pasta) { return $true }
+    $d = $script:ProcessosConferidos[[int]$id]
+    return ($d -and $d.selo -eq $selo -and $d.pasta -eq (_Prefixo $pasta))
 }
 
 function EstadoDoMotor($porta) {
@@ -239,31 +386,35 @@ function EstadoDoMotor($porta) {
 }
 
 function ProcessosDoApp($pasta, $porta) {
-    $ids = @()
-    $est = EstadoDoMotor $porta
-    if ($est -and (Test-Path -LiteralPath $est -PathType Leaf)) {
-        try {
-            $j = [System.IO.File]::ReadAllText($est, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
-            $idj = 0
-            try { $idj = [int]$j.pid } catch { $idj = 0 }
-            if ([string]$j.estado -eq "rodando" -and $idj -gt 0) {
-                if (ProcessoDaPasta $idj $pasta) { $ids += $idj }
-                elseif (Get-Process -Id $idj -ErrorAction SilentlyContinue) {
-                    Diga ("  o PID " + $idj + " do estado do motor nao e o Python desta pasta: nao mexo nele")
-                }
-            }
-        } catch { }
+    $script:FalhaConferirProcessos = $false
+    try { $todos = @(Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='pythonw.exe'" -ErrorAction Stop) }
+    catch { $script:FalhaConferirProcessos = $true; return @() }
+    $nossos = @{}
+    foreach ($p in $todos) {
+        if (-not (PythonDaPasta $p $pasta)) { continue }
+        $idp = [int]$p.ProcessId
+        $selo = SeloDoProcesso $p
+        if (-not $selo) { continue }
+        $d = $script:ProcessosConferidos[$idp]
+        if (EntradaDoApp $p $pasta) { $nossos[$idp] = $p }
+        elseif ($d -and $d.selo -eq $selo -and $d.pasta -eq (_Prefixo $pasta)) { $nossos[$idp] = $p }
+        elseif ($d) { $script:ProcessosConferidos.Remove($idp) }
     }
-    $pfx = _Prefixo $pasta
-    try {
-        foreach ($p in @(Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='pythonw.exe'" -ErrorAction Stop)) {
-            $exe = [string]$p.ExecutablePath
-            if ($exe -and $exe.StartsWith($pfx, [System.StringComparison]::OrdinalIgnoreCase)) {
-                if ($ids -notcontains [int]$p.ProcessId) { $ids += [int]$p.ProcessId }
+    do {
+        $mudou = $false
+        foreach ($p in $todos) {
+            $idp = [int]$p.ProcessId
+            if ($nossos.ContainsKey($idp) -or -not (PythonDaPasta $p $pasta)) { continue }
+            if ($nossos.ContainsKey([int]$p.ParentProcessId) -and (SeloDoProcesso $p)) {
+                $pai = $nossos[[int]$p.ParentProcessId]
+                if ([datetime]$p.CreationDate -ge [datetime]$pai.CreationDate) { $nossos[$idp] = $p; $mudou = $true }
             }
         }
-    } catch { }
-    return $ids
+    } while ($mudou)
+    foreach ($idp in $nossos.Keys) {
+        $script:ProcessosConferidos[$idp] = @{selo=(SeloDoProcesso $nossos[$idp]);pasta=(_Prefixo $pasta)}
+    }
+    return @($nossos.Keys | Sort-Object)
 }
 
 function EsperarSumir($ids, $pasta, $segundos) {
@@ -291,6 +442,7 @@ function MarcarMotorEncerrado($porta, $ids) {
 function EncerrarOApp($pasta) {
     $porta = PortaDaInstalacao $pasta
     $ids = @(ProcessosDoApp $pasta $porta)
+    if ($script:FalhaConferirProcessos) { $script:PidsQueFicaram = @("identidade nao conferida"); return "resistiu" }
     if ($ids.Count -eq 0) { return "nada" }
     Diga ("  o app esta aberto nesta pasta (PID " + ($ids -join ", ") + "): encerrando")
     if ((PortaViva $porta) -and (EONossoPainel $porta)) {
@@ -302,11 +454,17 @@ function EncerrarOApp($pasta) {
     $aForca = @()
     for ($rodada = 0; $rodada -lt 3; $rodada++) {
         $agora = @(ProcessosDoApp $pasta $porta)
+        if ($script:FalhaConferirProcessos) { $script:PidsQueFicaram = @("identidade nao conferida"); return "resistiu" }
         if ($agora.Count -eq 0) { break }
         foreach ($i in $agora) {
             if (-not (ProcessoDaPasta $i $pasta)) { continue }
             try {
-                Stop-Process -Id $i -Force -ErrorAction Stop
+                $processoAlvo = Get-Process -Id $i -ErrorAction Stop
+                $null = $processoAlvo.Handle
+                if (-not (ProcessoDaPasta $i $pasta)) { continue }
+                $conferido = $script:ProcessosConferidos[[int]$i]
+                if (-not $conferido -or [Math]::Abs($processoAlvo.StartTime.ToUniversalTime().Ticks - [long]$conferido.selo) -ge 10000) { continue }
+                Stop-Process -InputObject $processoAlvo -Force -ErrorAction Stop
                 $aForca += $i
                 Diga ("  encerrado a forca: PID " + $i)
             } catch {
@@ -317,6 +475,7 @@ function EncerrarOApp($pasta) {
     }
     if ($aForca.Count -gt 0) { MarcarMotorEncerrado $porta $aForca }
     $resto = @(ProcessosDoApp $pasta $porta)
+    if ($script:FalhaConferirProcessos) { $script:PidsQueFicaram = @("identidade nao conferida"); return "resistiu" }
     if ($resto.Count -gt 0) {
         $script:PidsQueFicaram = $resto
         Diga ("  continua aberto: PID " + ($resto -join ", "))
@@ -350,12 +509,13 @@ if ($Reabrir) {
     try { $Host.UI.RawUI.WindowTitle = "Radioterapia.ai Local Suite - atualizando" } catch { }
     if ($Destino -and (Test-Path -LiteralPath $Destino -PathType Container)) {
         $logA = Join-Path $Destino "radai_atualizar.log"
+        $script:LogDoAtualizador = $logA
         try {
             if ((Test-Path -LiteralPath $logA) -and ((Get-Item -LiteralPath $logA).Length -gt 1MB)) {
                 Remove-Item -LiteralPath $logA -Force
             }
-            Start-Transcript -Path $logA -Append | Out-Null
-        } catch { }
+            if (-not $script:ConsoleExtra) { Start-Transcript -Path $logA -Append | Out-Null }
+        } catch { $script:LogManual = $true }
     }
 }
 
@@ -377,6 +537,7 @@ foreach ($l in (Get-Content -LiteralPath (Join-Path $PACOTE "entrega.txt") -Enco
     if ($l -match "^\s*VERSAO\s*=\s*(.+?)\s*$") { $VERSAO_NOVA = $Matches[1] }
     if ($l -match "^\s*PROJETO\s*=\s*(.+?)\s*$") { $PROJETO_NOVO = $Matches[1] }
 }
+Diga "  1/5  Conferindo o pacote e a instalacao..."
 Diga ("  pacote:  versao " + $VERSAO_NOVA)
 
 $achados = @()
@@ -590,15 +751,64 @@ if (-not $SemPerguntar) {
 }
 
 $porta = PortaDaInstalacao $INST
+Diga "  2/5  Conferindo gravacao antes de fechar o app..."
+$fontesDaCopia = @(_Relativos (Join-Path $PACOTE "app") $EXT_APP) + @(_Relativos (Join-Path $PACOTE "tools") $EXT_TOOLS)
+foreach ($grupo in @(@((Join-Path $PACOTE "app"), $INST, $EXT_APP), @((Join-Path $PACOTE "tools"), (Join-Path $INST "tools"), $EXT_TOOLS))) {
+    foreach ($item in (_Relativos $grupo[0] $grupo[2])) {
+        $alvoTeste = Join-Path $grupo[1] $item.rel
+        if (Test-Path -LiteralPath $alvoTeste -PathType Leaf) {
+            $testeAcesso = [IO.File]::Open($alvoTeste, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::ReadWrite)
+            $testeAcesso.Dispose()
+        }
+    }
+}
+$provaEscrita = Join-Path $INST ("._radai_atualizar_" + [Guid]::NewGuid().ToString('N') + ".tmp")
+try { $testeAcesso = [IO.File]::Open($provaEscrita, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write); $testeAcesso.Dispose() }
+finally { if (Test-Path -LiteralPath $provaEscrita) { Remove-Item -LiteralPath $provaEscrita -Force } }
+foreach ($nomeAvulso in (@('entrega.txt', '_requisitos.json') + $DOCUMENTOS)) {
+    $alvoAvulso = Join-Path $INST $nomeAvulso
+    if (Test-Path -LiteralPath $alvoAvulso -PathType Leaf) {
+        $testeAcesso = [IO.File]::Open($alvoAvulso, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::ReadWrite)
+        $testeAcesso.Dispose()
+    }
+}
+[void](ProcessosDoApp $INST (PortaDaInstalacao $INST))
+if ($script:FalhaConferirProcessos) { Pare "Nao consegui conferir os processos do app. Nenhum processo sera encerrado nem arquivo trocado." }
+if ($SinalPronto -and -not (PublicarProntidao $false)) { Pare "Nao consegui gravar a prontidao do atualizador; o app nao sera encerrado e nenhum arquivo sera trocado." }
+if ($Reabrir) {
+    $janelaNova = Join-Path $PACOTE "app\radai_janela.py"
+    if (Test-Path -LiteralPath $janelaNova -PathType Leaf) {
+        try {
+            Diga "  Fechando somente as janelas do perfil proprio do Local Suite..."
+            $resultadoJanela = & $py $janelaNova --fechar-para-atualizar 2>&1 | Out-String
+            Diga ("  " + $resultadoJanela.Trim())
+            $fechamentoJanela = $resultadoJanela.Trim() | ConvertFrom-Json
+            if ($fechamentoJanela.ok -ne $true) { Pare "A janela propria do app nao fechou. Resolva o aviso nela e tente novamente; nenhum arquivo foi trocado." }
+        } catch { Pare "Nao consegui conferir o fechamento da janela propria. Nenhum arquivo foi trocado." }
+    }
+}
+if ($SinalPronto) {
+    $prontoNormal = [IO.Path]::GetFullPath($SinalPronto)
+    if (-not $prontoNormal.StartsWith(([IO.Path]::GetFullPath($PACOTE).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) { Pare "Sinal de prontidao fora do pacote." }
+    if (-not (PublicarProntidao $true)) { Pare "Nao consegui confirmar a prontidao; nenhum arquivo sera trocado." }
+}
+Diga "  2/5  Encerrando o motor antigo..."
 if ($EsperarPid -gt 0) {
     # GUARDA: o app que pediu a atualizacao fecha sozinho, sem o Fechar tudo;
     # so se ele nao fechar em 2 min o encerramento abaixo entra.
     Diga ("  esperando o app fechar (PID " + $EsperarPid + ")...")
-    $fimEspera = (Get-Date).AddSeconds(120)
+    $inicioEspera = Get-Date
+    $proximoAviso = $inicioEspera.AddSeconds(5)
+    $fimEspera = $inicioEspera.AddSeconds(120)
     while ((Get-Process -Id $EsperarPid -ErrorAction SilentlyContinue) -and ((Get-Date) -lt $fimEspera)) {
+        if ((Get-Date) -ge $proximoAviso) {
+            Diga ("  Ainda encerrando o motor antigo... " + [int]((Get-Date)-$inicioEspera).TotalSeconds + " s")
+            $proximoAviso = (Get-Date).AddSeconds(5)
+        }
         Start-Sleep -Milliseconds 300
     }
     if (Get-Process -Id $EsperarPid -ErrorAction SilentlyContinue) {
+        if ($SinalPronto) { PareCom "O app ainda esta aberto. Nenhum arquivo foi trocado; tente novamente depois de concluir o encerramento." 4 }
         Diga "  o app nao fechou sozinho em 2 min: sigo pelo encerramento"
     } else {
         Diga "  o app fechou"
@@ -644,7 +854,11 @@ if ($viva) {
 }
 
 Diga ""
-Diga "  Copiando..."
+Diga "  3/5  Copiando..."
+$script:ArquivosCopiados = 0
+$script:TotalArquivos = $fontesDaCopia.Count
+$script:CachesDoCodigo = @{}
+$script:CodigoEmTroca = $true
 function Aplicar($de, $para, $so) {
     if (-not (Test-Path -LiteralPath $para)) {
         New-Item -ItemType Directory -Path $para -Force | Out-Null
@@ -656,14 +870,21 @@ function Aplicar($de, $para, $so) {
             New-Item -ItemType Directory -Path $pasta -Force | Out-Null
         }
         Copy-Item -LiteralPath $it.f.FullName -Destination $alvo -Force
+        $script:ArquivosCopiados++
+        if ($script:ArquivosCopiados -eq 1 -or $script:ArquivosCopiados % 20 -eq 0 -or $script:ArquivosCopiados -eq $script:TotalArquivos) {
+            Diga ("  Arquivos atualizados: " + $script:ArquivosCopiados + "/" + $script:TotalArquivos)
+        }
+        if ($it.f.Extension -eq '.py') { $script:CachesDoCodigo[(Join-Path (Split-Path -Parent $alvo) '__pycache__')] = $true }
     }
 }
 Aplicar (Join-Path $PACOTE "app") $INST $EXT_APP
 Aplicar (Join-Path $PACOTE "tools") (Join-Path $INST "tools") $EXT_TOOLS
 
-foreach ($pc in (Get-ChildItem -LiteralPath $INST -Recurse -Directory `
-                 -Filter "__pycache__" -ErrorAction SilentlyContinue)) {
-    Remove-Item -LiteralPath $pc.FullName -Recurse -Force -ErrorAction SilentlyContinue
+Diga "  Limpando somente os caches dos arquivos de codigo atualizados..."
+foreach ($cacheCodigo in $script:CachesDoCodigo.Keys) {
+    $cacheNormal = [IO.Path]::GetFullPath($cacheCodigo)
+    if (-not $cacheNormal.StartsWith(([IO.Path]::GetFullPath($INST).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) { Pare "Cache fora da instalacao." }
+    if (Test-Path -LiteralPath $cacheNormal -PathType Container) { Remove-Item -LiteralPath $cacheNormal -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
 $ORFAOS = @(
@@ -812,7 +1033,7 @@ try {
 } catch { Diga ("  AVISO: nao consegui atualizar o " + $REG + " (" + $_.Exception.Message + ")") }
 
 Diga ""
-Diga "  Atalhos: area de trabalho e menu Iniciar"
+Diga "  4/5  Atalhos: area de trabalho e menu Iniciar"
 [void](CriarAtalhos $INST $RAIZ)
 $icoNovo = Join-Path $INST "favicon.ico"
 if (Test-Path -LiteralPath $icoNovo) {
@@ -854,6 +1075,15 @@ if (Test-Path -LiteralPath $icoNovo) {
 }
 
 Diga ""
+$script:CodigoCompleto = $true
+if ($Reabrir) {
+    Diga "  5/5  Iniciando a versao nova do Local Suite..."
+    if (-not (ReabrirOApp)) { Pare ("O codigo foi atualizado, mas nao consegui iniciar o app: " + $script:MotivoReabrir) }
+    if (-not (AguardarPainelNovo (PortaDaInstalacao $INST) $VERSAO_NOVA)) {
+        Pare ("O codigo foi atualizado, mas a reabertura nao foi confirmada: " + $script:MotivoReabrir)
+    }
+    Diga ("  Painel da v" + $VERSAO_NOVA + " confirmado em um processo novo.")
+}
 Diga "============================================================"
 Diga ("  ATUALIZADO. versao " + $VERSAO_VELHA + " -> " + $VERSAO_NOVA)
 Diga "============================================================"

@@ -7,7 +7,7 @@ import radai_archive
 import radai_menu
 import radai_web
 
-VERSAO_DOCS = "2.1"
+VERSAO_DOCS = "2.2"
 DATA_DOCS = "2026-10-28"
 ARQUIVO_ACEITE = "aceite.json"
 
@@ -20,6 +20,7 @@ IMPRESSOES_PUBLICADAS = {
     "1.9": "087a47baff075f36e14b23ddac71396fc206f7ab9b611a0c88936b2f47948e1d",
     "2.0": "c6b3c126af07cd56a14230008af944a09824c7d7f9ed51b834dcfdca4728aa97",
     "2.1": "5ec308c786f4495cd965ec6a5b6acda89853731f5415eacf9556cf2ea6f28013",
+    "2.2": "1e1647d8af01d4fc904b17fe3386a4ca2016eb23a47392ab0499c5c37f288ab1",
 }
 
 # GUARDA: versao publicada nao se retoca (mudou o texto, versao nova); so a
@@ -27,7 +28,7 @@ IMPRESSOES_PUBLICADAS = {
 # abaixo, com o que entrou no texto.
 RESSELAGENS_ANTES_DA_PUBLICACAO = {"1.4": 2, "1.5": 3, "1.6": 4, "1.7": 3,
                                    "1.8": 6, "1.9": 2,
-                                   "2.0": 2, "2.1": 2}
+                                   "2.0": 2, "2.1": 2, "2.2": 0}
 
 IMPRESSOES_TROCADAS_ANTES_DA_PUBLICACAO = {
     "2.1": (("fedb3e1174c9",
@@ -873,9 +874,17 @@ sobe.</p>
  a soma antes de usar o arquivo, e recusa o pacote que grava fora da pasta da
  extração, que é de outro projeto ou que diz outra versão. Com a série do
  vigia, o lote do «Rodar agora» ou o turno da noite em andamento, ele espera
- ou pergunta antes. Se só o código muda, o programa fecha, o atualizador roda
- numa janela do Windows e o programa reabre sozinho, com a sua
- configuração; se a versão nova precisa de um pacote novo de modelos, a tela
+ ou pergunta antes. Se só o código muda, uma janela de console mostra cinco
+ etapas: conferir o pacote e o destino; testar a escrita e encerrar as janelas
+ do perfil próprio do programa e seu motor; copiar o código e limpar seus
+ caches; refazer os atalhos; reabrir o painel. O atualizador só anuncia
+ «ATUALIZADO» depois de confirmar a versão esperada num processo novo e numa
+ janela própria visível, e então a console fecha após 5 segundos. A sua
+ configuração é preservada. Uma falha mantém o diagnóstico na console; se a
+ cópia ficou incompleta, não reabre o código parcial e orienta executar o
+ instalador novamente depois de corrigir o motivo. Antes da troca ou com o
+ código já completo, oferece «R» para reabrir o programa. Se a versão nova
+ precisa de um pacote novo de modelos, a tela
  diz o tamanho e o tempo estimado do download e pede uma segunda confirmação
  antes de abrir o preparador da versão nova, que segue com os pedidos do
  preparador (acima).</li>
@@ -1250,7 +1259,10 @@ obrigatória (seção 1.4).</p>
  para TC, ou a de RM) e, com o tórax identificado pela anatomia, as três
  tarefas que o entregue exige ali: a cavidade do tronco, a glândula mamária
  e o derrame pleural e pericárdico; sem tórax, com o coração do modelo de 100 cm³ ou mais,
- só a cavidade do tronco, para o pericárdio. Na RM, só a base. Nenhum nível
+ só a cavidade do tronco, para o pericárdio. Na TC com crânio ou cabeça e
+ pescoço identificados, roda também a tarefa das glândulas e cavidades da cabeça
+ e o modelo do encéfalo em TC: entrega olhos, cristalinos e nervos ópticos
+ bilaterais, tronco encefálico e quiasma. Na RM, só a base. Nenhum nível
  cervical, nenhum motor de comparação. Grava um arquivo só, o entregue do FAST (seção
  1.2).</li>
  <li><b data-radai-t="1">AUTO</b> — a base e, depois dela, as tarefas de
@@ -1331,9 +1343,16 @@ obrigatória (seção 1.4).</p>
  no completo; e, sem o tórax identificado, os grandes vasos também. As
  carótidas (<code>A_Carotid_ai</code>) ficam como estrutura própria só no
  completo; suas máscaras também compõem <code>GreatArteries_ai</code>, fora do
- <code>Heart_ai</code>. As tarefas atuais não fornecem máscaras separadas das
- artérias pulmonares e do tronco pulmonar; essas estruturas não são acrescentadas
- ao composto. <code>GreatVeins_ai</code> conserva a sobreposição
+ <code>Heart_ai</code>. Ao final, o composto atual recebe a união com
+ <code>Heart_Model_ai</code> menos o <code>Heart_ai</code> final, somente com
+ as duas máscaras válidas na mesma grade, sem mudar o coração. A regra vale
+ para o completo, o entregue e o FAST, preservando os filtros regionais de
+ entrega; não acrescenta uma exigência de tórax ao completo. Sem uma das duas
+ máscaras, o composto anterior é preservado e o motivo fica no log; o coração
+ ausente não é tratado como vazio para somar o modelo inteiro. As tarefas atuais
+ não fornecem máscaras separadas das artérias pulmonares e do tronco pulmonar.
+ Essa diferença é uma operação geométrica, não uma identificação exclusiva
+ dessas artérias nem a execução de outro modelo. <code>GreatVeins_ai</code> conserva a sobreposição
  com o coração de radioterapia.
  A laringe (<code>Larynx_ai</code>), as articulações temporomandibulares
  (<code>TMJ_L_ai</code> e <code>TMJ_R_ai</code>) e a mandíbula
@@ -1376,10 +1395,20 @@ obrigatória (seção 1.4).</p>
  <code>RS_RadAI_FAST_*</code>) leva as estruturas do entregue menos a
  cavidade intestinal (<code>Bag_Bowel_OAR_ai</code>) e o ânus
  (<code>Anus_ai</code>), que é recortado da outra cavidade — nenhuma das duas
- cavidades sai nele; as cristas ilíacas saem, só com a pelve identificada,
+ cavidades sai nele —, a pele (<code>Skin_ai</code>), as paredes torácicas
+ (<code>ChestWall_L_ai</code> e <code>ChestWall_R_ai</code>), as costelas
+ individuais e unidas (<code>Ribs_L_ai</code> e <code>Ribs_R_ai</code>) e a
+ cartilagem costal (<code>Cartilage_Costal_ai</code>). Não constrói pele nem
+ parede torácica e dispensa o pós-processamento voltado apenas à entrega
+ dessas ROIs. Os insumos ósseos compartilhados, incluindo costelas e cartilagem
+ costal, permanecem internamente até o acabamento do coração de radioterapia,
+ com o processamento necessário para preservar seu limite. O esterno continua
+ no entregue. Costelas, esterno e cartilagem
+ pertencem ao mesmo bloco de inferência da base de TC: retirar essas ROIs não
+ elimina a inferência desse bloco. As cristas ilíacas saem, só com a pelve identificada,
  como no entregue; e ele sai sem parótida, porque ela vem dos níveis
- cervicais, que o FAST não roda —, montadas pelo mesmo
- pós-processamento do completo, com duas diferenças que o nome declara: os
+ cervicais, que o FAST não roda. As estruturas preservadas passam pelo mesmo
+ pós-processamento do completo, com as diferenças que o nome declara: os
  compostos são suavizados inteiros, e não parte a parte; e os pontos de cada
  contorno são reduzidos (Douglas–Peucker, com tolerância de 0,2 mm e pelo
  menos 3 pontos por contorno), menos nas estruturas finas — os nervos
@@ -1387,12 +1416,14 @@ obrigatória (seção 1.4).</p>
  redução. O contorno com menos de 1 cm² de área fica
  como está, e o que mudaria de área em mais de 1% volta ao de antes. Essas
  duas guardas comparam cada contorno com ele mesmo antes da redução, e não
- são o teto da diferença entre os dois entregues. Medido em duas TC de tórax
- de teste, de 5 mm, o entregue do FAST saiu, contra o do AUTO da mesma série,
+ são o teto da diferença entre os dois entregues. Em medição de uma versão
+ anterior, em duas TC de tórax de teste, de 5 mm, o entregue do FAST saiu,
+ contra o do AUTO da mesma série,
  com DSC de 0,9697 ou mais por estrutura, e a maior diferença de volume foi de
  4,09%, nas grandes veias (<code>GreatVeins_ai</code>): os compostos
  vasculares podem diferir alguns por cento do AUTO, e quem usa o arquivo para
- um histograma dose-volume conta com isso. Não há conjunto completo ao lado
+ um histograma dose-volume conta com isso. Essa medição usou a seleção
+ anterior do FAST e não comprova equivalência da seleção atual. Não há conjunto completo ao lado
  dele.</li>
  <li><b>O TotalSegmentator cru</b> (rótulo <code>RadAI_TS</code>) é a saída do
  modelo sem pós-processamento nenhum — a referência contra a qual o resto se
@@ -1432,10 +1463,13 @@ nível marca o estudo e manda conferir a extensão caudal antes de usar
 qualquer nível dela. Com pesos de outra versão que não a do mapa dos nomes
 (seção 4), a união sai com o nome neutro e não vai ao entregue. Antes da
 união, o nível IVb de cada lado perde a clavícula do mesmo lado. No
-acabamento final, a união perde as intersecções com os esternocleidomastoideos,
-os platismais, a mandíbula, os escalenos anteriores, médios e posteriores,
-as clavículas e o hioide, conforme as máscaras anatômicas disponíveis. Esse
-recorte pode reduzir o volume; a revisão médica continua obrigatória e a
+acabamento final, a união perde as intersecções com a mandíbula, os escalenos
+anteriores, médios e posteriores, as clavículas e o hioide, conforme as máscaras
+anatômicas disponíveis. A união não desconta mais os esternocleidomastoideos
+nem os platismas bilaterais; as intersecções com esses músculos são mantidas.
+A regra própria das parótidas do VIII menos o esternocleidomastoideo continua.
+Preservar essas intersecções pode aumentar a união em relação à versão 8.8.
+Os demais recortes continuam; a revisão médica continua obrigatória e a
 união não se torna um alvo aprovado.</p>
 </div>
 <p><b>O índice 26 entra no sacro.</b> O TotalSegmentator dá um rótulo
@@ -1532,13 +1566,27 @@ corte com a cricoide; sem o hioide ou sem a cricoide na série, ela não sai.
 Cada articulação temporomandibular (<code>TMJ_L_ai</code> e
 <code>TMJ_R_ai</code>) é o côndilo da mandíbula do lado, do corte em que o
 ramo se divide em dois contornos — o processo coronoide à frente, o côndilo
-atrás — ao topo do côndilo, com margem total de 3 mm em 3D além do côndilo. O lado sai de um
+atrás — ao topo do côndilo, com margem total de 3 mm no plano axial e para
+cranial, sem expansão caudal. O limite inferior fica antes do primeiro corte
+caudal com contorno único por hemimandíbula e é reaplicado após o acabamento;
+a margem não é acrescentada à mandíbula. O lado sai de um
 plano médio que passa pelo centro do crânio sem a mandíbula — na falta dele,
 do encéfalo, da vértebra C1 ou da C2 —, e só sem nenhum deles pelo meio da
 largura da mandíbula; numa mandíbula parcial sem essas estruturas na série, o lado pode
 sair trocado, e o log da série diz qual referência valeu. A soma dos pulmões
 (<code>Lungs_ai</code>) é o pulmão esquerdo e o direito do completo, como
 saíram, sem o derrame pleural.</p>
+<p><b>A medula e a cauda equina são uma partição por marco.</b> A
+<code>SpinalCord_ai</code> fica cranial ao primeiro corte de L2 encontrado
+a partir da extremidade cranial. Desse corte
+para caudal, incluindo o próprio corte de L2, a porção existente é entregue
+como <code>CaudaEquina_ai</code>, no completo, no entregue e no FAST. A divisão
+usa a medula já finalizada, não acrescenta voxels nem chama outro modelo, e
+sua procedência diz que é derivada por marco anatômico. O limite é reaplicado
+no acabamento para não misturar as duas porções. Sem L2 válida na mesma grade,
+a medula permanece inteira e não se cria uma cauda equina por aproximação; se
+não houver medula caudal ao marco, essa porção pode sair vazia. O nome não
+substitui a revisão médica do marco e da extensão.</p>
 <p><b>O encéfalo contém os ventrículos e a linha média.</b> No conjunto
 completo, os ventrículos e a linha média (a foice) do modelo do encéfalo em
 TC são
@@ -2296,8 +2344,14 @@ Windows.</p>
  <li><b>A atualização com um clique.</b> O «Atualizar agora» — no aviso de
  versão nova da porta e no cartão «Atualizar o programa» de Configurações —
  baixa o instalador da release, confere a soma SHA-256 que a release publica
- e, se só o código muda, fecha o programa, roda o atualizador numa janela do
- Windows, refaz os atalhos e reabre o programa, com a sua configuração. Com
+ e, se só o código muda, abre uma console com cinco etapas: pacote e destino,
+ teste de escrita e encerramento das janelas próprias e do motor, cópia e
+ limpeza dos caches do código, atalhos e reabertura. Só anuncia «ATUALIZADO»
+ depois de confirmar o painel da versão esperada em um processo novo e numa
+ janela própria visível, com a sua configuração preservada; a console fecha
+ após 5 segundos. Se falhar, o diagnóstico fica na console. Uma cópia
+ incompleta não é reaberta automaticamente: é preciso corrigir o motivo e
+ executar o instalador novamente. Com
  a série do vigia, o lote do «Rodar agora» ou o turno da noite em andamento,
  ele espera ou pergunta antes; e, quando a versão nova precisa de um pacote
  novo de modelos, a tela diz o tamanho e o tempo estimado e pede uma segunda

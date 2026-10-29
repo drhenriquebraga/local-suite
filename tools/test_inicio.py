@@ -841,6 +841,8 @@ def teste_o_download_confere_a_soma():
 
 def _com_atualizar(**trocas):
     import radai_atualizar as A
+    if "lancar_atualizador" in trocas:
+        trocas.setdefault("esperar_atualizador_pronto", lambda *a, **k: True)
     guardado = {}
     for k, v in trocas.items():
         alvo, nome = k.split(u".", 1) if u"." in k else (u"A", k)
@@ -944,8 +946,8 @@ def teste_a_atualizacao_pelo_app():
                u"atualizador, que espera este PID e reabre",
                e == A.FECHANDO and lancados and lancados[-1][2] == os.getpid()
                and lancados[-1][1] == prog, repr((e, lancados, A._E)))
-        checar(u"  e o app minimiza a janela e pede o proprio encerramento",
-               minimizou and encerrou == [8777], repr((minimizou, encerrou)))
+        checar(u"  e so pede o encerramento apos o atualizador estar pronto",
+               not minimizou and encerrou == [8777], repr((minimizou, encerrou)))
         A._mudar(etapa=A.LIVRE)
         lancados[:] = []
         encerrou[:] = []
@@ -1059,9 +1061,7 @@ def _pacote_leve(base, versao, projeto=u"LOCAL_SUITE"):
     io.open(os.path.join(p, "app", "RADIOTERAPIA_AI_LOCAL_SUITE.cmd"), "w").write(
         u"@echo off\r\n")
     io.open(os.path.join(p, "app", "radai_lancador.py"), "w").write(
-        u"import sys, os\n"
-        u"open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "
-        u"'reaberto.txt'), 'w').write(' '.join(sys.argv[1:]))\n")
+        "import sys, os, json\nfrom http.server import HTTPServer, BaseHTTPRequestHandler\nfrom urllib.parse import urlparse\npasta = os.path.dirname(os.path.abspath(__file__))\nopen(os.path.join(pasta, 'reaberto.txt'), 'w').write(' '.join(sys.argv[1:]))\nporta = urlparse(sys.argv[sys.argv.index('--url')+1]).port\nversao = dict(l.strip().split('=',1) for l in open(os.path.join(pasta,'entrega.txt')) if '=' in l).get('VERSAO','')\nclass H(BaseHTTPRequestHandler):\n def log_message(self,*a): pass\n def do_POST(self):\n  self.rfile.read(int(self.headers.get('Content-Length','0')))\n  b=json.dumps({'radai':True,'pid':os.getpid(),'aqui':versao,'janela_pronta':True}).encode()\n  self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b)\nsrv=HTTPServer(('127.0.0.1',porta),H);srv.timeout=12;srv.handle_request();srv.server_close()\n")
     for f_ in ("requisitos.py", "requirements-demo.txt",
                "configurar_ambiente.py", "artefatos.py"):
         shutil.copy2(os.path.join(RAIZ, "build", f_), os.path.join(p, "build", f_))
@@ -1183,9 +1183,9 @@ def teste_o_atualizador_decide_espera_e_reabre():
                      os.path.join(inst2, "radai_lancador.py"))
         rc, t = _rodar_ps(upd, ["-Destino", inst2, "-Python", sys.executable,
                                 "-SemPerguntar", "-Reabrir"], amb)
-        checar(u"precisa de pacote: nao toca no codigo e ainda assim reabre o app",
+        checar(u"precisa de pacote: nao toca no codigo nem anuncia uma reabertura",
                rc == 3 and u"ANTIGO" in io.open(os.path.join(inst2, "engine.py")).read()
-               and u"reabrindo o app" in t, t[-300:])
+               and u"reabrindo o app" not in t, t[-300:])
         a = _funcoes_ps1(io.open(os.path.join(RAIZ, "installer", "INSTALL.ps1"),
                                  encoding="utf-8-sig").read())
         b = _funcoes_ps1(io.open(ATUALIZAR, encoding="utf-8-sig").read())

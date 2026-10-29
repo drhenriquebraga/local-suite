@@ -2,7 +2,7 @@
 
 **Part of the Radioterapia.AI local ecosystem. A study bench for AI segmentation in radiation oncology — teaching and research material, not a medical device.**
 
-`License: Apache-2.0` · `Version: 8.8` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
+`License: Apache-2.0` · `Version: 8.9` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
 
 > **Teaching and research material. This is not a medical device.**
 > It is **not** validated for clinical use, it has no ANVISA registration, no
@@ -78,7 +78,7 @@ wall, a bowel bag, a femur cut at the ischial tuberosity.
 
 | mode | where | what runs | what it writes |
 |---|---|---|---|
-| **FAST** | *Run now* | the anatomy base — plus, on a chest, the tasks the heart, breast and effusion structures need | only `RadAI_STUDY_Fast`: the delivered structures without the bowel bag and the anus (built from it), each composite smoothed whole, and fewer points per contour |
+| **FAST** | *Run now* | the anatomy base; chest tasks for heart, breast and effusions; head-gland and CT-brain sources for eyes, lenses, optic nerves, brainstem and chiasm when the head is in the field | only `RadAI_STUDY_Fast`: no bowel bag, anus, skin, chest walls, ribs or costal-cartilage ROIs; necessary heart-cropping inputs remain internal; fewer points per contour |
 | **AUTO** | *Run now*, and always the night watcher | the base, then the tasks of each region it found (the head‑and‑neck tasks only when the neck is confirmed, vertebrae and mandible), the CT brain model when the brain is in the field, and the cervical nodal levels when the head and neck are in the field | `RadAI_FULL` + `RadAI_STUDY` |
 | **CUSTOM** | *Run now* | protocols switch their tasks on, and any task can be switched off; or a *custom protocol* of the workstation chooses the delivered structures; model comparison on request; any structure can be dropped from the delivered set, for that series only | `RadAI_FULL` + `RadAI_STUDY` + the sets you asked for |
 
@@ -136,7 +136,7 @@ of each axial slice filled at the end —, the chest wall, the femur cut at the
 ischial tuberosity, the rectum split from the colon, the eye globe with its
 lens, the larynx (from just below the hyoid to the last slice of the cricoid,
 joining the cartilages, the laryngeal air and the hypopharynx), the two
-temporomandibular joints (the condyle, with a 1 mm margin), the two lungs
+temporomandibular joints (the condyle, with a total 3 mm axial and cranial margin, no caudal expansion and a final inferior limit), the two lungs
 summed, and the mandible filled (with the lower teeth, when they ran). The
 thyroid, the optic nerves and chiasm and the pharyngeal constrictors keep
 their thin shape (no mask smoothing), and the ventricles and the midline
@@ -151,7 +151,11 @@ anatomy of the series takes out (on a head and neck series, a list of
 head and neck structures stays in the complete set only, and on one without
 the chest the summed lungs stand for the two lungs; the brain drawn on an MR
 stays in the complete set only). In FAST the delivered set is
-`RadAI_STUDY_Fast`, with no complete set beside it, no bowel bag and no anus.
+`RadAI_STUDY_Fast`, with no complete set beside it, no bowel bag, anus, skin,
+chest walls, ribs or costal-cartilage ROIs. Necessary skeletal inputs still
+protect the existing radiotherapy Heart boundary. SpinalCord is split at the first
+superior slice of L2: that slice and the caudal remainder become
+`CaudaEquina_ai`; without an identified L2, the original cord is retained.
 A workstation can give the delivered structures its own names (*Settings →
 Structures and Protocols*: custom tags of up to 16 ASCII characters, checked
 again when written; each structure keeps its standard name and the words
@@ -181,8 +185,8 @@ it.
 night watcher always runs AUTO. The anatomy base (`total_v3` on CT, or
 `total_mr` on MR) always runs first; in AUTO the program then reads what the
 base drew (head, head and neck, chest, abdomen, pelvis) and adds that
-region's anatomy tasks — the text of the exam adds nothing —; FAST adds only
-what the chest structures of its file need; and CUSTOM opens a panel under
+region's anatomy tasks — the text of the exam adds nothing —; FAST adds the
+chest sources and, for a head CT, head glands and the CT-brain model; CUSTOM opens a panel under
 the series with protocols, a switch per task, model comparison and, computed
 by the server, the list of what each file will contain. Each protocol switches
 on its own tasks only; touching a task by hand turns the protocol off and
@@ -503,7 +507,8 @@ comparison engines run only when asked for, series by series. The CT brain
 model draws the brainstem and the optic chiasm (which go to the delivered
 set) and the cerebellum, the ventricles and the midline (complete set only),
 on CT and only with the brain in the field; the brain itself and the optic
-nerves stay those of the TotalSegmentator.
+nerves stay those of the TotalSegmentator. On FAST head CT, brainstem and
+chiasm are included without writing the full set.
 
 `LICENSE` and `NOTICE` are a condition of the Apache‑2.0 licence; the
 packagers abort without them. `NOTICE` carries the name and address of the

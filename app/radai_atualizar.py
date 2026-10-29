@@ -2,6 +2,7 @@
 import io
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import tempfile
@@ -18,6 +19,7 @@ TETO_DA_DECISAO_S = 240
 INTERVALO_DA_ESPERA_S = 2.0
 ATRASO_DO_FECHAR_S = 1.5
 TETO_DA_REABERTURA_MS = 600000
+TETO_DO_PRONTO_S = 240.0
 
 LIVRE = u"livre"
 OCUPADO = u"ocupado"
@@ -254,17 +256,53 @@ def tempo_estimado_min(download_gib, bps):
 def lancar_atualizador(raiz, programa, pid, popen=None):
     popen = popen or subprocess.Popen
     upd = os.path.join(raiz, "packager", "UPDATE.ps1")
+    fd, pronto = tempfile.mkstemp(prefix="_atualizador_pronto_", suffix=".json", dir=raiz)
+    os.close(fd)
+    os.remove(pronto)
+    chave = secrets.token_hex(16)
     cmd = [powershell(), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
            upd, "-Destino", programa, "-SemPerguntar", "-EsperarPid",
-           str(int(pid)), "-Reabrir"]
-    kw = dict(stdin=subprocess.DEVNULL, close_fds=True,
-              cwd=os.path.dirname(upd), env=ambiente_do_atualizador())
+           str(int(pid)), "-Reabrir", "-SinalPronto",
+           pronto, "-ChavePronto", chave]
+    kw = dict(close_fds=True, cwd=os.path.dirname(upd),
+              env=ambiente_do_atualizador())
     base = CREATE_NEW_CONSOLE if os.name == "nt" else 0
     try:
-        return popen(cmd, creationflags=base | (
+        processo = popen(cmd, creationflags=base | (
             CREATE_BREAKAWAY_FROM_JOB if os.name == "nt" else 0), **kw)
     except OSError:
-        return popen(cmd, creationflags=base, **kw)
+        processo = popen(cmd, creationflags=base, **kw)
+    processo.radai_sinal_pronto = pronto
+    processo.radai_chave_pronto = chave
+    return processo
+
+
+def esperar_atualizador_pronto(raiz, processo, teto_s=TETO_DO_PRONTO_S,
+                               relogio=time.monotonic, dormir=time.sleep):
+    pronto = getattr(processo, "radai_sinal_pronto", "")
+    chave = getattr(processo, "radai_chave_pronto", "")
+    if not pronto or not chave:
+        return False
+    processo.radai_resultado_pronto = "tempo"
+    fim = relogio() + float(teto_s)
+    while relogio() < fim:
+        if processo.poll() is not None:
+            processo.radai_resultado_pronto = "saiu"
+            return False
+        try:
+            with io.open(pronto, encoding="utf-8-sig") as f:
+                dado = json.load(f)
+            if int(dado.get("pid", 0)) == processo.pid and dado.get("chave") == chave:
+                if dado.get("pronto") is True:
+                    processo.radai_resultado_pronto = "pronto"
+                    return True
+                if dado.get("erro"):
+                    processo.radai_resultado_pronto = "erro"
+                    return False
+        except (OSError, ValueError, TypeError):
+            pass
+        dormir(0.1)
+    return False
 
 
 def lancar_preparador(raiz, programa, versao_aqui, popen=None):
@@ -401,10 +439,18 @@ def _fluxo(interromper):
         radai_pulso.poupar(p.pid)
     except Exception:
         pass
+    if not esperar_atualizador_pronto(raiz, p):
+        if getattr(p, "radai_resultado_pronto", "tempo") == "tempo":
+            try:
+                if p.poll() is None:
+                    p.terminate()
+                    p.wait(timeout=5)
+            except Exception as e:
+                _log(u"nao consegui cancelar o atualizador sem prontidao (%s)" % type(e).__name__)
+        return _falhar(M_ABRIR, u"O atualizador não confirmou que está pronto; o app continua aberto.")
     _log(u"so o codigo muda: o atualizador abriu (PID %s), o app fecha e "
          u"reabre sozinho" % getattr(p, "pid", u"?"))
     _mudar(etapa=FECHANDO)
-    _minimizar_as_janelas()
     porta = _CTX.get("porta")
     if porta:
         _encerrar_o_motor(porta)
@@ -506,6 +552,12 @@ def estado_publico():
     with _TRAVA:
         d = dict(_E)
     d["pid"] = os.getpid()
+    d["radai"] = True
+    try:
+        import radai_janela
+        d["janela_pronta"] = radai_janela.pronta_para_atualizacao()
+    except Exception:
+        d["janela_pronta"] = False
     try:
         import radai_version as V
         t = V.para_a_tela()
@@ -619,7 +671,7 @@ JS = u"""<script id="radai-atualizar-js">
  if(window.radaiAtualizarAgora) return;
  var ATIVAS = ['esperando', 'baixando', 'preparando', 'bundle', 'fechando'];
  var MARCA = 'radai_atualizar_pedido';
- var M = null, laco = null, pid0 = null, reabrindo = false;
+ var M = null, laco = null, pid0 = null, reabrindo = false, atualizando = false;
  function T(pt){ try{ return window.radaiFrase ? window.radaiFrase(pt) : pt }catch(e){ return pt } }
  function escrever(no, texto){
   if(!no) return;
@@ -695,7 +747,10 @@ JS = u"""<script id="radai-atualizar-js">
   if(min < 90) return T('Tempo estimado nesta rede: cerca de %s minutos.').replace('%s', String(min));
   return T('Tempo estimado nesta rede: cerca de %s horas.').replace('%s', String(Math.round(min / 60)));
  }
- function seguir(){ parar(); laco = setTimeout(function(){ ler().then(pintar) }, 600) }
+ function seguir(){ parar(); laco = setTimeout(function(){ ler().then(function(d){
+   if(!d && atualizando){ esperarOMotorNovo(); return }
+   pintar(d);
+  }) }, 600) }
  function confirmarInterromper(d){
   quadro(T(d.motivo_chave || ''), T('A série em curso para e volta para a fila, sem contar como falha; o turno da noite, se estiver aberto, é encerrado.'), '', false);
   barra(null);
@@ -721,7 +776,7 @@ JS = u"""<script id="radai-atualizar-js">
   function depois(){
    if(new Date().getTime() > fim){
     if(!M) caixa();
-    quadro(T('O app não reabriu em 10 minutos. Abra pelo atalho da área de trabalho.'), '', '', false);
+    quadro(T('O app não reabriu em 10 minutos. Abra pelo atalho da área de trabalho.'), T('A janela de atualização mostra o resultado e permite tentar novamente.'), '', false);
     botoes([{rot:'Fechar', fn:fechar}]);
     return;
    }
@@ -730,6 +785,8 @@ JS = u"""<script id="radai-atualizar-js">
   setTimeout(sondar, 1500);
  }
  function pintar(d){
+  if((!d || (d.etapa === 'erro' && !d.pid)) && atualizando){ esperarOMotorNovo(); return }
+  if(d && pid0 && d.pid && d.pid !== pid0 && atualizando){ location.replace('/'); return }
   d = d || {etapa:'erro', motivo_chave:'O app não respondeu.'};
   if(d.pid && !pid0) pid0 = d.pid;
   if(!M) caixa();
@@ -770,6 +827,7 @@ JS = u"""<script id="radai-atualizar-js">
    barra(null);
    botoes([{rot:'Fechar', fn:fechar}]);
   } else if(e === 'fechando'){
+   atualizando = true;
    parar();
    quadro(T('Atualizando… o app reabre sozinho.'), T('O app fecha, o atualizador roda numa janela do Windows e o app reabre sozinho, com a sua configuração.'), '', true);
    barra(null);
@@ -788,7 +846,7 @@ JS = u"""<script id="radai-atualizar-js">
   }
  }
  window.radaiAtualizarAgora = function(){
-  reabrindo = false;
+  reabrindo = false; atualizando = true;
   try{ sessionStorage.setItem(MARCA, '1') }catch(e){}
   caixa();
   quadro(T('Preparando a atualização…'), '', '', true);

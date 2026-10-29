@@ -1,11 +1,11 @@
 {
   "_leia": "A versão de cada app que o empacotador baixa com --dos-repositorios. A tag é a do repositório do app; arvore_sha256 é o sha256 do manifesto da árvore extraída (uma linha «<sha256 do arquivo>  <caminho relativo, sem a pasta de topo do zip>» por arquivo, em ordem, com os bytes como o zip os entrega), e prova identidade com o que foi conferido (não autenticidade). Os bytes do zip não entram: o GitHub não os promete estáveis. Tag nula: o app ainda não publicou versão, e o download para. Escrever: python build/baixar_componentes.py --travar <tag>.",
   "componentes": [
-    {"nome": "CONTOURLAB", "repositorio": "drhenriquebraga/contourlab", "tag": "v8.8", "arvore_sha256": "c35317501ef20272fd25a705b94118cb0716218c176177e98722066e4e45929c"},
-    {"nome": "DICOM_BRIDGE", "repositorio": "drhenriquebraga/dicom-bridge", "tag": "v8.8", "arvore_sha256": "0b34b5029000ce6a22222dee47e2a47144bb1b82fe184f213c15fe7e6ba385e9"},
-    {"nome": "RECON_3D", "repositorio": "drhenriquebraga/recon-3d", "tag": "v8.8", "arvore_sha256": "cd6634e1f2870883ce6a68520b1aa4bc5cac83552c0a403d55ae988e43bb3475"},
-    {"nome": "NIDUS_RT", "repositorio": "drhenriquebraga/nidus-rt", "tag": "v8.8", "arvore_sha256": "38c8ab986da5f3b54427d1211ce08eb9097974032939710de4e4c8d4d3d9893c"},
-    {"nome": "ELASTIC_RT", "repositorio": "drhenriquebraga/elastic-rt", "tag": "v8.8", "arvore_sha256": "4880a76f7f9601e646774f5cee271ec20249134480486484b49a7b8806d61cd6"},
-    {"nome": "3D_PRINTED_BOLUS", "repositorio": "drhenriquebraga/3d-printed-bolus", "tag": "v8.8", "arvore_sha256": "74507366dd605896ef2960d767cf81313d97afeaf147370b376203d8fc2a2b95"}
+    {"nome": "CONTOURLAB", "repositorio": "drhenriquebraga/contourlab", "tag": "v8.9", "arvore_sha256": "98ce96ffa10368fe932543385df515cc10aa0f2731ab0f53071737566699f213"},
+    {"nome": "DICOM_BRIDGE", "repositorio": "drhenriquebraga/dicom-bridge", "tag": "v8.9", "arvore_sha256": "0b34b5029000ce6a22222dee47e2a47144bb1b82fe184f213c15fe7e6ba385e9"},
+    {"nome": "RECON_3D", "repositorio": "drhenriquebraga/recon-3d", "tag": "v8.9", "arvore_sha256": "cd6634e1f2870883ce6a68520b1aa4bc5cac83552c0a403d55ae988e43bb3475"},
+    {"nome": "NIDUS_RT", "repositorio": "drhenriquebraga/nidus-rt", "tag": "v8.9", "arvore_sha256": "38c8ab986da5f3b54427d1211ce08eb9097974032939710de4e4c8d4d3d9893c"},
+    {"nome": "ELASTIC_RT", "repositorio": "drhenriquebraga/elastic-rt", "tag": "v8.9", "arvore_sha256": "4880a76f7f9601e646774f5cee271ec20249134480486484b49a7b8806d61cd6"},
+    {"nome": "3D_PRINTED_BOLUS", "repositorio": "drhenriquebraga/3d-printed-bolus", "tag": "v8.9", "arvore_sha256": "74507366dd605896ef2960d767cf81313d97afeaf147370b376203d8fc2a2b95"}
   ]
 }

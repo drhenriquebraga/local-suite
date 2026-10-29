@@ -25613,6 +25613,18 @@ TABELA = [
      u'অবৈধ রং: পরিচিত গঠনের জন্য ০ থেকে ২৫৫-এর তিনটি পূর্ণসংখ্যা ব্যবহার করুন।'),
 
 
+    (u'A janela de atualização mostra o resultado e permite tentar novamente.',
+     u'The update window shows the result and lets you try again.',
+     u'La ventana de actualización muestra el resultado y permite intentarlo de nuevo.',
+     u'Das Aktualisierungsfenster zeigt das Ergebnis und ermöglicht einen erneuten Versuch.',
+     u'La fenêtre de mise à jour affiche le résultat et permet de réessayer.',
+     u'La finestra di aggiornamento mostra il risultato e permette di riprovare.',
+     u'Okno aktualizacji pokazuje wynik i umożliwia ponowną próbę.',
+     u'更新ウィンドウに結果が表示され、再試行できます。',
+     u'更新窗口会显示结果，并允许您重试。',
+     u'تعرض نافذة التحديث النتيجة وتتيح لك المحاولة مرة أخرى.',
+     u'업데이트 창에 결과가 표시되며 다시 시도할 수 있습니다.',
+     u'আপডেট উইন্ডো ফলাফল দেখায় এবং আবার চেষ্টা করার সুযোগ দেয়।'),
 ]
 
 

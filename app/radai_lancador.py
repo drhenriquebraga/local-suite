@@ -44,6 +44,7 @@ ROTA_REABRIR = "/api/reabrir"
 NOMES_DO_PYTHON = ("python.exe", "pythonw.exe")
 RC_ABRIR_PELO_LOTE = 90
 RC_NAO_ENCERROU = 2
+RC_REABERTURA_NAO_PRONTA = 91
 ROTA_TENTAR = "/tentar"
 TETO_DA_NOVA_TENTATIVA_S = 600.0
 GIF_DE_UM_PIXEL = (b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff"
@@ -762,7 +763,7 @@ def lancar(url, python=None, pasta=None, teto_s=TETO_DA_ESPERA_S,
            abrir=abrir_navegador, carregando=pagina_de_carregamento,
            informar=informar_a_pagina, travar=trava_do_lancador,
            sucessor=None, motor=None, aguardar=aguardar_a_saida_do_antigo,
-           tentar=None):
+           tentar=None, abrir_sucessor=False):
     escrever = escrever or _escrever_no_console
     porta = porta_da_url(url)
 
@@ -776,7 +777,7 @@ def lancar(url, python=None, pasta=None, teto_s=TETO_DA_ESPERA_S,
     if not travar(porta):
         escrever(u" Another launch is already starting the program; showing "
                  u"its loading page.")
-        if sucessor:
+        if sucessor and not abrir_sucessor:
             return EM_CURSO, 0
         return EM_CURSO, (0 if abrir_a_pagina() else RC_ABRIR_PELO_LOTE)
 
@@ -817,7 +818,7 @@ def lancar(url, python=None, pasta=None, teto_s=TETO_DA_ESPERA_S,
                  % ant.get("hora", u"?"))
         for linha in cauda(console, 15):
             escrever(u"   " + linha)
-    aberto = False if sucessor else abrir_a_pagina()
+    aberto = abrir_a_pagina() if (not sucessor or abrir_sucessor) else False
     while True:
         proc = subir(comando_do_motor(python, pasta, motor), console,
                      ambiente_do_motor(ambiente, console))
@@ -848,6 +849,8 @@ def lancar(url, python=None, pasta=None, teto_s=TETO_DA_ESPERA_S,
     elif estado_m == DEMOROU:
         escrever(u" The panel did not answer in %d s; opening the browser "
                  u"anyway." % int(teto_s))
+    if abrir_sucessor and (estado_m != NO_AR or not aberto):
+        return estado_m, RC_REABERTURA_NAO_PRONTA
     return estado_m, (0 if (aberto or sucessor) else RC_ABRIR_PELO_LOTE)
 
 
@@ -896,7 +899,8 @@ def main(argv=None):
         return encerrar_para_atualizar(url, escrever)
     estado, rc = lancar(url, escrever=escrever, sucessor=sucessor,
                         motor=_valor(args, "--motor"),
-                        tentar=esperar_nova_tentativa)
+                        tentar=esperar_nova_tentativa,
+                        abrir_sucessor="--abrir-janela" in args)
     if estado == SAIU:
         return int(rc) if rc else 1
     return int(rc or 0)

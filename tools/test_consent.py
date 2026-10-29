@@ -4314,7 +4314,10 @@ def _modos_divergentes(v_modes, v_vigia, termos, ponto):
 _NOMES_FORA_DO_FAST = {"pelvic_muscles": u"Muscles_ai",
                        "bag_bowel": u"Bag_Bowel_ai",
                        "bag_bowel_oar": u"Bag_Bowel_OAR_ai",
-                       "anus": u"Anus_ai"}
+                       "anus": u"Anus_ai", "Skin": u"Skin_ai",
+                       "ChestWall_L": u"ChestWall_L_ai", "ChestWall_R": u"ChestWall_R_ai",
+                       "ribs_left": u"Ribs_L_ai", "ribs_right": u"Ribs_R_ai",
+                       "costal_cartilages": u"Cartilage_Costal_ai"}
 
 
 def _cita_nome(nome, texto):
@@ -9012,7 +9015,7 @@ def _medidas_da_20(f):
     exige("_fechamento_laringe", u"termos",
           lambda v: u"com um fechamento de %s mm" % _num_pt(v))
     exige("_margem_atm", u"termos",
-          lambda v: u"com margem total de %s mm em 3D além do côndilo" % _num_pt(v))
+          lambda v: u"com margem total de %s mm no plano axial e para cranial" % _num_pt(v))
     exige("_limiar_hu", u"termos",
           lambda v: u"cruzamento de −%d HU" % abs(int(v)) if v < 0 else None)
     exige("_log_atualizar_mb", u"politica",
@@ -9052,8 +9055,8 @@ def teste_o_que_a_v87_muda_na_20():
           u"Otimizar que saiu, o primeiro acesso, a janela, a atualizacao "
           u"com um clique, a varredura, o motor, o Nidus RT e o pacote)")
     import radai_consent as CS
-    checar(u"a versao dos documentos e a 2.1, de 28/10/2026",
-           CS.VERSAO_DOCS == u"2.1" and CS.DATA_DOCS == u"2026-10-28",
+    checar(u"a versao dos documentos e a 2.2, de 28/10/2026",
+           CS.VERSAO_DOCS == u"2.2" and CS.DATA_DOCS == u"2026-10-28",
            u"%s %s" % (CS.VERSAO_DOCS, CS.DATA_DOCS))
     checar(u"  e a 1.9 continua em IMPRESSOES_PUBLICADAS como foi publicada",
            CS.IMPRESSOES_PUBLICADAS.get(u"1.9", u"").startswith(u"087a47ba")
@@ -9575,17 +9578,16 @@ _MARCAS_DA_21 = {
                         ("termos", u"um cartão novo ou recuperado sem essa autorização espera")),
     "janela": (("termos", u"maximizado com as barras do Windows visíveis"),
                ("termos", u"O F11 só é enviado por pedido explícito")),
-    "tmj": (("termos", u"com margem total de 3 mm em 3D além do côndilo"),),
+    "tmj": (("termos", u"com margem total de 3 mm no plano axial e para cranial"),),
     "heart": (("termos", u"somente nos cortes em que existe máscara da veia cava inferior"),
               ("termos", u"Nos outros cortes essa restrição não é aplicada"),
               ("termos", u"A cartilagem costal sai do coração, inclusive após o preenchimento"),
               ("termos", u"a do parênquima mais 3 mm fixos — 5,5 mm com o padrão")),
     "bag": (("termos", u"cartilagem costal é retirada também depois desse preenchimento"),),
-    "lnl": (("termos", u"a união perde as intersecções com os esternocleidomastoideos"),
-            ("termos", u"os platismais, a mandíbula, os escalenos anteriores, médios e posteriores"),
-            ("termos", u"as clavículas e o hioide")),
-    "vasos_sem_pa": (("termos", u"As tarefas atuais não fornecem máscaras separadas das artérias pulmonares e do tronco pulmonar"),
-                     ("termos", u"essas estruturas não são acrescentadas ao composto")),
+    "lnl": (("termos", u"a união perde as intersecções com a mandíbula, os escalenos anteriores, médios e posteriores"),
+            ("termos", u"as clavículas e o hioide"),
+            ("termos", u"A união não desconta mais os esternocleidomastoideos nem os platismas bilaterais")),
+    "vasos_sem_pa": (("termos", u"As tarefas atuais não fornecem máscaras separadas das artérias pulmonares e do tronco pulmonar"),),
     "moose_opcional": (("termos", u"programa não inventa essas partes nem aciona o MOOSE para desmembrá-la"),
                        ("termos", u"O MOOSE continua como comparação opcional, fora do FAST e do AUTO")),
 }
@@ -9642,10 +9644,9 @@ def _fatos_da_21(src=None):
         "bag": ("sem_cartilagem_costal(novo, masks)" in _fonte_da_funcao(cons, "acabamento_da_bag_oar")
                 and _fonte_da_funcao(cons, "acabamento_da_bag_oar").find("_sem_furo_nos_cortes(")
                 < _fonte_da_funcao(cons, "acabamento_da_bag_oar").find("sem_cartilagem_costal(")),
-        "lnl": {"sternocleidomastoid_left", "sternocleidomastoid_right", "mandible",
-                "platysma_left", "platysma_right", "anterior_scalene_left", "anterior_scalene_right",
+        "lnl": {"mandible", "anterior_scalene_left", "anterior_scalene_right",
                 "middle_scalene_left", "middle_scalene_right", "posterior_scalene_left", "posterior_scalene_right",
-                "clavicula_left", "clavicula_right", "hyoid"} <= set(
+                "clavicula_left", "clavicula_right", "hyoid"} == set(
                     _valores_do_modulo(src["radai_hnlnl"]).get("FORA_DA_UNIAO") or ()),
         "vasos_sem_pa": ({"common_carotid_artery_left", "common_carotid_artery_right",
                            "internal_carotid_artery_left", "internal_carotid_artery_right"} <= arterias
@@ -9672,13 +9673,13 @@ def _divergencias_da_21(f, docs):
 
 
 def teste_o_que_o_retorno_de_campo_muda_na_21():
-    secao(u"documentos 2.1: RGB no STUDY, ROOTS, INICIAR, janela, TMJ 3 mm, recortes e MOOSE opcional")
+    secao(u"documentos atuais: garantias herdadas da 2.1 e recortes atualizados na 2.2")
     import radai_consent as CS
     import radai_config as CFG
     docs, src = _docs_da_20(), _fontes_da_21()
     f = _fatos_da_21(src)
-    checar(u"a 2.1 e de 28/10/2026; a 2.0 publicada permanece intacta",
-           CS.VERSAO_DOCS == "2.1" and CS.DATA_DOCS == "2026-10-28"
+    checar(u"a 2.2 e de 28/10/2026; a 2.0 publicada permanece intacta",
+           CS.VERSAO_DOCS == "2.2" and CS.DATA_DOCS == "2026-10-28"
            and CS.IMPRESSOES_PUBLICADAS.get("2.0") ==
                "c6b3c126af07cd56a14230008af944a09824c7d7f9ed51b834dcfdca4728aa97"
            and CS.RESSELAGENS_ANTES_DA_PUBLICACAO.get("2.0") == 2)
@@ -9736,6 +9737,166 @@ def teste_o_que_o_retorno_de_campo_muda_na_21():
                 "https://github.com/drhenriquebraga/local-suite/releases", "2.1")))
 
 
+_HASHES_DAS_TABELAS_ATE_21 = {
+    "IMPRESSOES_PUBLICADAS": "cb56d48a93a987bad90e9b5e8876e9a7d7adacc592170bee98ef39b675a5116a",
+    "RESSELAGENS_ANTES_DA_PUBLICACAO": "453f0902cb5d33ca9eeddbd8eebd73b2ded2651ccf331532be78f6c89bc3e341",
+    "IMPRESSOES_TROCADAS_ANTES_DA_PUBLICACAO": "433d09c5a5310ffbe5df3c7ba925f56107bd2bc3593260cb5b851d09d21e8763",
+}
+
+
+def _hash_da_tabela_ate_21(tabela):
+    import hashlib
+    historico = {v: d for v, d in tabela.items()
+                 if tuple(int(x) for x in v.split(".")) <= (2, 1)}
+    return hashlib.sha256(json.dumps(historico, ensure_ascii=False,
+                                     sort_keys=True).encode("utf-8")).hexdigest()
+
+
+_MARCAS_DA_22 = {
+    "fast_enxuto": (u"Não constrói pele nem parede torácica",
+                    u"as costelas individuais e unidas",
+                    u"cartilagem costal ( Cartilage_Costal_ai )"),
+    "fast_cranio": (u"Na TC com crânio ou cabeça e pescoço identificados",
+                    u"olhos, cristalinos e nervos ópticos bilaterais, tronco encefálico e quiasma"),
+    "insumos_osseos": (u"Os insumos ósseos compartilhados, incluindo costelas e cartilagem costal, permanecem internamente até o acabamento do coração de radioterapia",
+                     u"retirar essas ROIs não elimina a inferência desse bloco"),
+    "tmj_semcaudal": (u"com margem total de 3 mm no plano axial e para cranial, sem expansão caudal",
+                      u"o limite inferior fica antes do primeiro corte caudal com contorno único por hemimandíbula e é reaplicado após o acabamento"),
+    "lnl": (u"A união não desconta mais os esternocleidomastoideos nem os platismas bilaterais",
+            u"A regra própria das parótidas do VIII menos o esternocleidomastoideo continua"),
+    "cauda": (u"incluindo o próprio corte de L2",
+              u"como CaudaEquina_ai , no completo, no entregue e no FAST",
+              u"Sem L2 válida na mesma grade, a medula permanece inteira"),
+    "atualizador_confirmado": (u"abre uma console com cinco etapas",
+                              u"Só anuncia «ATUALIZADO» depois de confirmar o painel da versão esperada em um processo novo e numa janela própria visível",
+                              u"Uma cópia incompleta não é reaberta automaticamente"),
+    "great_residuo": (u"o composto atual recebe a união com Heart_Model_ai menos o Heart_ai final",
+                      u"somente com as duas máscaras válidas na mesma grade, sem mudar o coração",
+                      u"Sem uma das duas máscaras, o composto anterior é preservado",
+                      u"Essa diferença é uma operação geométrica, não uma identificação exclusiva dessas artérias nem a execução de outro modelo"),
+    "medida_historica": (u"Essa medição usou a seleção anterior do FAST e não comprova equivalência da seleção atual",),
+}
+
+
+_MARCAS_POLITICA_DA_22 = {
+    "atualizador_confirmado": (u"uma janela de console mostra cinco etapas",
+                              u"O atualizador só anuncia «ATUALIZADO» depois de confirmar a versão esperada num processo novo e numa janela própria visível",
+                              u"se a cópia ficou incompleta, não reabre o código parcial",
+                              u"oferece «R» para reabrir o programa"),
+}
+
+
+def _fatos_da_22(src=None):
+    src = _fontes_da_21() if src is None else src
+    eng, cons = src["engine"], src["radai_constructs"]
+    modes = _valores_do_modulo(ler(u"app/radai_modes.py"))
+    sets = _valores_do_modulo(ler(u"app/radai_sets.py"))
+    v = _valores_do_modulo(eng)
+    alvo = set(sets.get("FORA_DO_OAR_FAST") or ())
+    exigidos = {"bag_bowel_oar", "anus", "Skin", "ChestWall_L", "ChestWall_R",
+                "ribs_left", "ribs_right", "costal_cartilages"}
+    cranio = modes.get("TASKS_DO_FAST") or {}
+    motores = modes.get("MOTORES_DO_FAST_POR_REGIAO") or {}
+    terminal = _fonte_da_funcao(eng, "acabamentos_terminais")
+    partir = _fonte_da_funcao(eng, "partir_medula_em_l2")
+    upd = ler(u"packager/UPDATE.ps1")
+    jan = src["radai_janela"]
+    pronto = _fonte_da_funcao(jan, "pronta_para_atualizacao")
+    return {
+        "atualizador_confirmado": (
+            all("%d/5" % n in upd for n in range(1, 6))
+            and 'if (-not (AguardarPainelNovo ' in upd
+            and upd.index('if (-not (AguardarPainelNovo ') < upd.index('Diga ("  ATUALIZADO.')
+            and '[int]$d.pid -eq [int]$antigo' in upd
+            and '$d.aqui' in upd and '$d.janela_pronta -eq $true' in upd
+            and 'pf.visivel(h) and not pf.minimizada(h)' in pronto
+            and 'get("versao") == VERSAO_DA_TELA' in pronto
+            and 'if ($script:CodigoEmTroca -and -not $script:CodigoCompleto)' in upd
+            and 'if (-not $script:CodigoEmTroca -or $script:CodigoCompleto)' in upd
+            and 'CreateFile("CONIN$"' in upd and 'CreateFile("CONOUT$"' in upd),
+        "fast_enxuto": alvo == exigidos,
+        "fast_cranio": all("head_glands_cavities" in cranio.get(k, ())
+                            and motores.get(k) == ("cranio_ct",)
+                            for k in ("cranio", "cabeca_pescoco")),
+        "insumos_osseos": (u'fora.add("costal_cartilages")' in _fonte_da_funcao(eng, "insumos_dos_terminais")
+                           and u"insumos_dos_terminais" in _fonte_da_funcao(eng, "_filtrar_para")
+                           and u"sem_cartilagem_costal" in _fonte_da_funcao(eng, "_acabamento_do_coracao")
+                           and all(c in _fonte_da_funcao(eng, "_suporte_esqueletico_do_heart_fast")
+                                   for c in ('"ribs_left"', '"ribs_right"'))
+                           and u"_suporte_esqueletico_do_heart_fast" in _fonte_da_funcao(eng, "build_rtstruct")),
+        "tmj_semcaudal": (_referencias_no_fonte(_fonte_da_funcao(cons, "atms"), "_expandir_atm_sem_caudal")
+                          and bool(_fonte_da_funcao(cons, "limitar_atm_caudal"))
+                          and u"limitar_atm_caudal" in terminal),
+        "lnl": _fatos_da_21(src)["lnl"],
+        "cauda": (v.get("CHAVE_CAUDA_EQUINA") == "cauda_equina"
+                  and u"cauda = m & caudal.reshape(forma)" in partir
+                  and u"cord = m & ~caudal.reshape(forma)" in partir
+                  and u"partir_medula_em_l2" in terminal
+                  and "cauda_equina" in set(sets.get("PERMITIDOS_NO_OAR") or ())),
+        "great_residuo": (u'if modelo is not None and modelo.any() and cor is not None and cor.any():' in terminal
+                          and u'masks["great_arteries"] = antes | (modelo & ~cor)' in terminal
+                          and u'residuo cardiaco nao acrescentado' in terminal
+                          and _fatos_da_21(src)["moose_opcional"]),
+        "medida_historica": bool(v.get("MEDIDA_DO_FAST_CONTRA_O_AUTO")),
+    }
+
+
+def _divergencias_da_22(fatos, termos, politica):
+    texto = _compacto(_plano(termos))
+    priv = _compacto(_plano(politica))
+    fora = []
+    for chave, marcas in sorted(_MARCAS_POLITICA_DA_22.items()):
+        for marca in marcas:
+            if bool(fatos.get(chave)) is not (_compacto(marca).lower() in priv.lower()):
+                fora.append(u"politica: %s diverge de «%s»" % (chave, marca))
+    for chave, marcas in sorted(_MARCAS_DA_22.items()):
+        for marca in marcas:
+            if bool(fatos.get(chave)) is not (_compacto(marca).lower() in texto.lower()):
+                fora.append(u"%s diverge de «%s»" % (chave, marca))
+    for velha in (u"com margem total de 3 mm em 3D além do côndilo",
+                  u"a união perde as intersecções com os esternocleidomastoideos",
+                  u"essas estruturas não são acrescentadas ao composto"):
+        if _compacto(velha).lower() in texto.lower():
+            fora.append(u"promessa revogada: %s" % velha)
+    return fora
+
+
+def teste_o_que_a_v89_muda_na_22():
+    secao(u"documentos 2.2: regras da 8.9 e tabelas publicadas ate 2.1 intactas")
+    import radai_consent as CS
+    checar(u"versao 2.2 pede novo aceite com data 28/10/2026",
+           CS.VERSAO_DOCS == "2.2" and CS.DATA_DOCS == "2026-10-28")
+    for nome, esperado in sorted(_HASHES_DAS_TABELAS_ATE_21.items()):
+        tabela = getattr(CS, nome)
+        checar(u"%s: todas as entradas publicadas ate 2.1 permanecem intactas" % nome,
+               _hash_da_tabela_ate_21(tabela) == esperado)
+        isca = dict(tabela, **{"2.1": "alterada"})
+        checar(u"  isca: alterar qualquer dado da 2.1 em %s reprova" % nome,
+               _hash_da_tabela_ate_21(isca) != esperado)
+    f = _fatos_da_22()
+    checar(u"fatos 8.9 lidos dos pontos de processamento e cadastro", all(f.values()), repr(f))
+    div = _divergencias_da_22(f, CS.TERMOS, CS.POLITICA)
+    checar(u"Termos 2.2 dizem o comportamento 8.9", not div, u" | ".join(div))
+    for chave in sorted(f):
+        checar(u"  isca: codigo sem %s diverge do documento" % chave,
+               bool(_divergencias_da_22(dict(f, **{chave: False}), CS.TERMOS, CS.POLITICA)))
+    for chave, marcas in sorted(_MARCAS_DA_22.items()):
+        for marca in marcas:
+            sem = _compacto(_plano(CS.TERMOS)).lower().replace(_compacto(marca).lower(), "X")
+            checar(u"  isca: documento cala %s: reprova" % marca[:65],
+                   bool(_divergencias_da_22(f, sem, CS.POLITICA)))
+    for chave, marcas in sorted(_MARCAS_POLITICA_DA_22.items()):
+        for marca in marcas:
+            sem = _compacto(_plano(CS.POLITICA)).lower().replace(_compacto(marca).lower(), "X")
+            checar(u"  isca: politica cala %s: reprova" % marca[:65],
+                   bool(_divergencias_da_22(f, CS.TERMOS, sem)))
+    for velha in (u"com margem total de 3 mm em 3D além do côndilo",
+                  u"a união perde as intersecções com os esternocleidomastoideos",
+                  u"essas estruturas não são acrescentadas ao composto"):
+        checar(u"  isca: volta regra revogada: reprova",
+               bool(_divergencias_da_22(f, CS.TERMOS + velha, CS.POLITICA)))
+
+
 def main():
     print(u"=" * 68)
     print(u"test_consent | o portao, os documentos e a trava do modelo")
@@ -9774,6 +9935,7 @@ def main():
     teste_o_que_a_resselagem_muda_na_20()
     teste_o_que_a_segunda_resselagem_muda_na_20()
     teste_o_que_o_retorno_de_campo_muda_na_21()
+    teste_o_que_a_v89_muda_na_22()
     teste_os_registros_citam_a_impressao_publicada()
     print(u"\n" + u"=" * 68)
     if _falhou:
