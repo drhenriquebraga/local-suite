@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import sys
 import threading
@@ -11,6 +12,19 @@ PLUGIN_ID = 'neuro-rt'
 HOST_CONTRACT = 'local-suite/plugins/1'
 _MOUNT_LOCK = threading.RLock()
 _UPDATE_PROVIDER = None
+
+
+def preparo_em_andamento():
+    provider = _UPDATE_PROVIDER
+    if provider is None:
+        return False
+    checking = getattr(provider, 'verification_in_progress', None)
+    if callable(checking) and checking():
+        return True
+    value = provider.status()
+    return (value.get('state') in ('waiting', 'downloading', 'preparing', 'verifying',
+                                  'activating', 'restarting') or
+            value.get('error_code') == 'ROLLBACK_INCOMPLETE')
 
 
 def check_plugin_release(plugin_id, installed_version):
@@ -58,7 +72,7 @@ def _json(path):
     return value
 
 
-def discover_plugin(suite_root, plugin_id=PLUGIN_ID, host_info=None, *, cancelled=None):
+def discover_plugin(suite_root, plugin_id=PLUGIN_ID, host_info=None, *, cancelled=None, progress=None):
     result = {'plugin_id': PLUGIN_ID, 'state': 'absent', 'reason': '', 'active_version': None}
     try:
         if plugin_id != PLUGIN_ID:
@@ -107,6 +121,19 @@ def discover_plugin(suite_root, plugin_id=PLUGIN_ID, host_info=None, *, cancelle
         files = inventory.get('files')
         if not isinstance(files, list) or not files:
             raise ValueError('Inventário de código ausente.')
+        completed, processed, published_at = 0, 0, 0.0
+        total_bytes = sum(e.get('size', 0) for e in files if isinstance(e, dict)
+                          and type(e.get('size')) is int and e['size'] >= 0)
+        def report(force=False):
+            nonlocal published_at
+            now = time.monotonic()
+            if callable(progress) and (force or now - published_at >= .25):
+                progress({'stage': 'validating', 'transaction_id': 'host-verification-' + str(os.getpid()),
+                          'completed_files': completed,
+                          'total_files': len(files), 'processed_bytes': processed,
+                          'total_unpacked_bytes': total_bytes})
+                published_at = now
+        report(True)
         covered = set()
         for entry in files:
             if cancelled and cancelled():
@@ -137,8 +164,13 @@ def discover_plugin(suite_root, plugin_id=PLUGIN_ID, host_info=None, *, cancelle
                         result.update(state='checking', reason='Verificação interrompida pelo encerramento do Local Suite.')
                         return result
                     sha.update(block)
+                    processed += len(block)
+                    report()
             if sha.hexdigest() != digest:
                 raise ValueError('Integridade de artefato não confirmada.')
+            completed += 1
+            report()
+        report(True)
         adapter = manifest.get('adapter', '')
         if not isinstance(adapter, str) or adapter.count(':') != 1:
             raise ValueError('Adaptador inválido.')
@@ -224,7 +256,7 @@ def _host_info(suite_root, cfg):
         import radai_version
         version = radai_version._entrega_txt()
     return {'contract': HOST_CONTRACT, 'version': str(version),
-            'suite_root': str(suite_root)}
+            'suite_root': str(suite_root), 'python_executable': sys.executable}
 
 
 def _installation_hint(suite_root):
@@ -269,12 +301,18 @@ def montar(app, cfg=None):
              'token': secrets.token_urlsafe(32), 'host_services': None}
     entry.update(load_lock=threading.RLock(), load_complete=threading.Event(),
                  closed=threading.Event(), load_thread=None, release_thread=None,
-                 load_started=False, release_checked_at=0.0,
+                 load_started=False, verification={}, release_checked_at=0.0,
                  release_check={'state': 'checking', 'reason': 'Consultando a versão disponível.'})
     app.state.neuro_plugin_entry = entry
     import radai_neuro_install
+    def restart():
+        import radai_shutdown
+        port = int((cfg.get('arranque') or {}).get('PORT'))
+        return radai_shutdown.reabrir_para_plugin(app, port)
+    cfg.setdefault('neuro_restart', restart)
     provider = radai_neuro_install.build_provider(suite_root, info, cfg)
     entry['update_provider'] = provider
+    provider.verification_in_progress = lambda: entry['load_started'] and not entry['load_complete'].is_set()
     _UPDATE_PROVIDER = provider
     cfg.setdefault('neuro_install', provider.install)
 
@@ -290,7 +328,10 @@ def montar(app, cfg=None):
             if entry['closed'].is_set():
                 return
             entry['installation'] = dict(entry['installation'], reason='Verificando a instalação do NEURO RT.')
-            verified = discover_plugin(suite_root, host_info=info, cancelled=entry['closed'].is_set)
+            def progress(value):
+                entry['verification'] = value
+            verified = discover_plugin(suite_root, host_info=info,
+                cancelled=entry['closed'].is_set, progress=progress)
             if entry['closed'].is_set():
                 return
             if verified['state'] != 'ready':
@@ -366,13 +407,14 @@ def montar(app, cfg=None):
     def public_status():
         current = entry['installation']
         consent = provider.consent_status()
-        return {'plugin_id': PLUGIN_ID, 'state': current['state'],
+        return {'plugin_id': PLUGIN_ID, 'host_pid': os.getpid(), 'state': current['state'],
                 'reason': current.get('reason', ''),
                 'active_version': current.get('active_version'),
                 'mounted': bool((entry['receipt'] or {}).get('mounted')),
                 'install_available': callable(cfg.get('neuro_install')),
                 'token': entry['token'],
                 'release_check': entry.get('release_check'),
+                'verification': dict(entry.get('verification') or {}),
                 'update': provider.status(),
                 'consent': {'policy': provider.consent_policy(),
                             'installation_accepted': consent.get('installation_accepted') is True,
@@ -398,7 +440,7 @@ def montar(app, cfg=None):
                     '<p id="neuro-update-message" role="status"></p>'
                     '<progress id="neuro-update-progress" max="100" hidden></progress>'
                     '<div id="neuro-update-actions"></div></section>'
-                    '<p>O preparo baixa código, ambiente e modelos licenciados. Confirme para iniciar.</p>'
+                    '<p>O preparo instala o código do plugin e reutiliza os recursos do Local Suite. Confirme para iniciar.</p>'
                     '<p><a href="/">Voltar à suíte</a></p></section>')
         script = ('<script>window.NEURO_INSTALL_CATALOG=' +
                   json.dumps(radai_neuro_install.INSTALL_UI_CATALOG, ensure_ascii=True).replace('<', '\\u003c') +

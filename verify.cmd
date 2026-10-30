@@ -303,6 +303,9 @@ set "RC88=%ERRORLEVEL%"
 echo.>> "%LOG%"
 "%PY%" "%R%tools\test_instalar_direto.py" >> "%LOG%" 2>&1
 set "RC89=%ERRORLEVEL%"
+echo.>> "%LOG%"
+"%PY%" "%R%tools\test_neuro_restart.py" >> "%LOG%" 2>&1
+set "RC90=%ERRORLEVEL%"
 
 type "%LOG%"
 
@@ -397,6 +400,7 @@ if not "%RC86%"=="0" goto :falhou
 if not "%RC87%"=="0" goto :falhou
 if not "%RC88%"=="0" goto :falhou
 if not "%RC89%"=="0" goto :falhou
+if not "%RC90%"=="0" goto :falhou
 echo   TUDO OK.  Log: verify_log.txt
 echo ============================================================
 echo.
@@ -494,6 +498,7 @@ echo     test_componentes=%RC86%
 echo     test_entrada=%RC87%
 echo     test_installer=%RC88%
 echo     test_instalar_direto=%RC89%
+echo     test_neuro_restart=%RC90%
 echo   O veredito e a soma dos rodapes OK: e FALHOU: do log.
 echo   Log completo: %LOG%
 echo ============================================================

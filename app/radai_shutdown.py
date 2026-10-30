@@ -2,6 +2,7 @@
 import json
 import os
 import threading
+import time
 
 MARCA = "radai-encerrar-css"
 ROTA_ENCERRAR = "/api/encerrar"
@@ -396,10 +397,40 @@ def _sucessor_padrao(porta):
     return radai_lancador.subir_sucessor(porta, os.getpid())
 
 
+def reabrir_para_plugin(app, porta):
+    state = getattr(app.state, 'radai_reabertura', None)
+    if not state or not callable(state.get('encerrar')):
+        raise ValueError('O encerramento controlado da suíte está indisponível.')
+    if isinstance(porta, bool):
+        raise ValueError('Porta inválida.')
+    porta = int(porta)
+    if not 0 < porta < 65536:
+        raise ValueError('Porta inválida.')
+    with state['lock']:
+        if state.get('pedido'):
+            return dict(state['pedido'])
+        process = state['sucessor'](porta)
+        if process is None or process.poll() is not None:
+            raise ValueError('O processo de reabertura não iniciou.')
+        def finish():
+            time.sleep(.75)
+            state['encerrar']()
+        worker = threading.Thread(target=finish, name='radai-neuro-reabrir', daemon=False)
+        try:
+            worker.start()
+        except BaseException:
+            process.terminate()
+            raise
+        state['pedido'] = {'ok': True, 'scheduled': True, 'pid': os.getpid()}
+        return dict(state['pedido'])
+
+
 def montar(app, ao_encerrar, sucessor=None):
     from fastapi import Request
     from fastapi.responses import HTMLResponse
     sucessor = sucessor or _sucessor_padrao
+    app.state.radai_reabertura = {'encerrar': ao_encerrar, 'sucessor': sucessor,
+                                 'lock': threading.Lock(), 'pedido': None}
 
     @app.post("/api/encerrar")
     async def _encerrar(request: Request):

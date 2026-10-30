@@ -1,7 +1,7 @@
 {
   "_leia": "A versão de cada app que o empacotador baixa com --dos-repositorios. A tag é a do repositório do app; arvore_sha256 é o sha256 do manifesto da árvore extraída (uma linha «<sha256 do arquivo>  <caminho relativo, sem a pasta de topo do zip>» por arquivo, em ordem, com os bytes como o zip os entrega), e prova identidade com o que foi conferido (não autenticidade). Os bytes do zip não entram: o GitHub não os promete estáveis. Tag nula: o app ainda não publicou versão, e o download para. Escrever: python build/baixar_componentes.py --travar <tag>.",
   "componentes": [
-    {"nome": "CONTOURLAB", "repositorio": "drhenriquebraga/contourlab", "tag": "v8.10", "arvore_sha256": "577e5367e033c86cbee91193de0b277bbba35633dd351af1f12b9fe7d3cf6e49"},
+    {"nome": "CONTOURLAB", "repositorio": "drhenriquebraga/contourlab", "tag": "v8.11", "arvore_sha256": "857b8b39b324816ec63edc5451d4626758270d27c932260cd91035edfc6f6fcd"},
     {"nome": "DICOM_BRIDGE", "repositorio": "drhenriquebraga/dicom-bridge", "tag": "v8.10", "arvore_sha256": "0b34b5029000ce6a22222dee47e2a47144bb1b82fe184f213c15fe7e6ba385e9"},
     {"nome": "RECON_3D", "repositorio": "drhenriquebraga/recon-3d", "tag": "v8.10", "arvore_sha256": "6a8f93a14e1c0ec6d6fe8786828deccf3786db64cddc983c0c51a8a763ed6fcd"},
     {"nome": "ELASTIC_RT", "repositorio": "drhenriquebraga/elastic-rt", "tag": "v8.10", "arvore_sha256": "4880a76f7f9601e646774f5cee271ec20249134480486484b49a7b8806d61cd6"},

@@ -1,6 +1,19 @@
 # -*- coding: utf-8 -*-
 
 TABELA = [
+    (u"O preparo instala o código do plugin e reutiliza os recursos do Local Suite. Confirme para iniciar.",
+     u"Setup installs the plugin code and reuses Local Suite resources. Confirm to start.",
+     u"La preparación instala el código del plugin y reutiliza los recursos de Local Suite. Confirme para comenzar.",
+     u"Die Einrichtung installiert den Plugin-Code und nutzt die Ressourcen von Local Suite. Bestätigen Sie, um zu beginnen.",
+     u"La préparation installe le code du plugin et réutilise les ressources de Local Suite. Confirmez pour commencer.",
+     u"La preparazione installa il codice del plugin e riutilizza le risorse di Local Suite. Confermare per iniziare.",
+     u"Przygotowanie instaluje kod wtyczki i wykorzystuje zasoby Local Suite. Potwierdź, aby rozpocząć.",
+     u"準備ではプラグインのコードをインストールし、Local Suite のリソースを再利用します。開始するには確認してください。",
+     u"准备过程将安装插件代码并复用 Local Suite 的资源。请确认以开始。",
+     u"تُثبّت عملية الإعداد شيفرة الإضافة وتعيد استخدام موارد Local Suite. أكّد للبدء.",
+     u"설치 프로그램은 플러그인 코드를 설치하고 Local Suite의 리소스를 재사용합니다. 시작하려면 확인하세요.",
+     u"প্রস্তুতি প্লাগইনের কোড ইনস্টল করে এবং Local Suite-এর বিদ্যমান রিসোর্স ব্যবহার করে। শুরু করতে নিশ্চিত করুন।"),
+
     (u"sem espaço no começo nem no fim",
      u"no space at the start or end",
      u"sin espacio al principio ni al final",

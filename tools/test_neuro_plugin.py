@@ -18,7 +18,7 @@ import radai_neuro_install as N
 class NeuroHost(unittest.TestCase):
  def setUp(self):
   self.root=Path(tempfile.mkdtemp(dir=BASE));self.events=[]
-  self.provider=N.build_provider(self.root,{"version":"8.10"},{})
+  self.provider=N.build_provider(self.root,{"version":"8.11","python_executable":sys.executable},{})
   self.app=FastAPI()
   self.stack=patch.object(N,"build_provider",return_value=self.provider);self.stack.start();self.addCleanup(self.stack.stop)
   for name,value in (("check_plugin_release",{"state":"unavailable"}),("status",{"state":"idle"})):
@@ -27,7 +27,7 @@ class NeuroHost(unittest.TestCase):
   def update(plugin,action):self.events.append(action);return {"state":"preparing"}
   p=patch.object(self.provider,"install",side_effect=install);p.start();self.addCleanup(p.stop)
   p=patch.object(self.provider,"request_plugin_update",side_effect=update);p.start();self.addCleanup(p.stop)
-  self.entry=P.montar(self.app,{"suite_root":self.root,"neuro_host_version":"8.10"})
+  self.entry=P.montar(self.app,{"suite_root":self.root,"neuro_host_version":"8.11"})
   self.client=TestClient(self.app,base_url="http://localhost")
   self.headers={"origin":"http://localhost","x-neuro-plugin-token":self.entry["token"]}
  def acknowledgement(self):
@@ -36,6 +36,7 @@ class NeuroHost(unittest.TestCase):
   before=set(sys.modules)
   d=self.client.get("/api/plugins/neuro-rt").json()
   self.assertEqual(d["state"],"absent");self.assertFalse(d["mounted"])
+  self.assertEqual(d["host_pid"], os.getpid())
   self.assertFalse(d["consent"]["installation_accepted"])
   self.assertEqual(d["consent"]["policy"],self.provider.consent_policy())
   self.assertFalse(any(n.startswith(("torch","SimpleITK","neuro_rt")) for n in set(sys.modules)-before))
