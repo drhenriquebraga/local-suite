@@ -437,6 +437,53 @@ def teste_empacotador_confere_a_arvore():
         shutil.rmtree(base, ignore_errors=True)
 
 
+def teste_empacotador_exige_recon_compativel():
+    secao(u"o coletor recusa Recon3D publico antigo antes de montar base sem Nidus")
+    import empacotar_instalador as E
+    base = tempfile.mkdtemp(prefix="radai_baixa_")
+    antes = os.environ.get(C.VARIAVEL_DA_PASTA)
+    try:
+        servidor = os.path.join(base, "servidor")
+        os.makedirs(servidor)
+        suite = os.path.join(base, "SUITE")
+        os.makedirs(suite)
+        antigos = {"app/radai_recon3d_vascular.py": b"import radai_nidus_screen\n"}
+        so_core = dict(antigos, **{"app/radai_projection.py": b"X = 1\n"})
+        adaptados = dict(so_core, **{
+            "app/radai_projection_bone.py": b"Y = 1\n",
+            "app/radai_recon3d_vascular.py": b"import radai_projection\nimport radai_projection_bone\n"})
+        for numero, arquivos in enumerate((antigos, so_core, adaptados)):
+            tag = "vteste%d" % numero
+            _zipball(os.path.join(servidor, "RECON_3D-%s.zip" % tag), "RECON_3D", arquivos)
+            trava = os.path.join(base, "trava.json")
+            gravar(trava, json.dumps({"componentes": [{
+                "nome": "RECON_3D", "repositorio": "RECON_3D", "tag": tag,
+                "arvore_sha256": _arvore("RECON_3D", arquivos)}]}))
+            baixados = os.path.join(base, "baixados%d" % numero)
+            B.baixar_todos(baixados, trava, _origem(servidor), avisar=lambda *_: None)
+            os.environ[C.VARIAVEL_DA_PASTA] = baixados
+            try:
+                nomes = [n for n, _ in E.coletar_componentes(set(), suite=suite, trava=trava)]
+                erro = u""
+            except SystemExit as e:
+                nomes, erro = [], u"%s" % e
+            if numero < 2:
+                checar(u"Recon sem %s e recusado com motivo antes de gerar pacote" %
+                       ("os dois helpers" if numero == 0 else "o helper de osso"),
+                       not nomes and u"RECON_3D" in erro
+                       and u"radai_projection_bone.py" in erro, erro)
+            else:
+                checar(u"Recon adaptado com os dois helpers entra na montagem",
+                       not erro and "app/radai_projection.py" in nomes
+                       and "app/radai_projection_bone.py" in nomes, erro)
+    finally:
+        if antes is None:
+            os.environ.pop(C.VARIAVEL_DA_PASTA, None)
+        else:
+            os.environ[C.VARIAVEL_DA_PASTA] = antes
+        shutil.rmtree(base, ignore_errors=True)
+
+
 def teste_exportador():
     if OFICINA is None:
         secao(u"o exportador do componente")
@@ -446,11 +493,11 @@ def teste_exportador():
 
 
 def teste_trava_do_repositorio():
-    secao(u"a trava versionada lista os seis apps")
+    secao(u"a trava versionada lista os cinco apps da base")
     lista = B.ler_trava()
     nomes = sorted(c["nome"] for c in lista)
-    checar(u"os seis componentes estão na trava",
-           nomes == sorted(["CONTOURLAB", "DICOM_BRIDGE", "RECON_3D", "NIDUS_RT",
+    checar(u"os cinco componentes da base estão na trava",
+           nomes == sorted(["CONTOURLAB", "DICOM_BRIDGE", "RECON_3D",
                             "ELASTIC_RT", "3D_PRINTED_BOLUS"]), nomes)
     reais = sorted(d.get("nome") for _, d in C.componentes())
     checar(u"e são os mesmos que a marca acha nesta máquina (quando há irmãs)",
@@ -584,6 +631,7 @@ def main():
               teste_montagem_sem_o_que_o_git_ignora,
               teste_pasta_alternativa, teste_baixador, teste_travar,
               teste_empacotador_confere_a_arvore,
+              teste_empacotador_exige_recon_compativel,
               teste_o_empacotador_confere_antes_do_nome_oficial,
               teste_o_carimbo_ve_o_app_alterado, teste_exportador,
               teste_trava_do_repositorio):

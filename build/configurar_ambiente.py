@@ -82,7 +82,7 @@ URL_PIP = ("https://files.pythonhosted.org/packages/f3/6e/"
 def _pastas_do_app():
     sys.path.insert(0, str(RAIZ / "tools"))
     import _componentes
-    return [RAIZ / "app", RAIZ] + [Path(p) for p in _componentes.pastas("app", str(RAIZ))[1:]]
+    return [RAIZ / "app", RAIZ] + [Path(p) for p in _componentes.pastas_base("app", str(RAIZ))[1:]]
 
 
 def _ligar_caminho():
@@ -1749,7 +1749,7 @@ def etapa_app(ctx):
     sys.path.insert(0, str(RAIZ / "tools"))
     import _componentes
     origens = {}
-    for pasta_app in _componentes.pastas("app", str(RAIZ)):
+    for pasta_app in _componentes.pastas_base("app", str(RAIZ)):
         for padrao in ("radai_*.py", "*.cmd"):
             for p in Path(pasta_app).glob(padrao):
                 if p.name in origens:
@@ -1758,7 +1758,7 @@ def etapa_app(ctx):
                 origens[p.name] = p
     for nome in obrigatorios:
         if nome not in origens:
-            for pasta_app in _componentes.pastas("app", str(RAIZ)):
+            for pasta_app in _componentes.pastas_base("app", str(RAIZ)):
                 if (Path(pasta_app) / nome).is_file():
                     origens[nome] = Path(pasta_app) / nome
                     break

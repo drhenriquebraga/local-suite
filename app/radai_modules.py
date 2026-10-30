@@ -5,6 +5,7 @@ CORES = {
     "bridge": ("--mod-bridge", "--mod-bridge-fraco"),
     "autocontorno": ("--mod-auto", "--mod-auto-fraco"),
     "recon3d": ("--mod-recon", "--mod-recon-fraco"),
+    "neuro": ("--mod-nidus", "--mod-nidus-fraco"),
     "nidus": ("--mod-nidus", "--mod-nidus-fraco"),
     "elastic": ("--mod-elastic", "--mod-elastic-fraco"),
     "bolus": ("--mod-bolus", "--mod-bolus-fraco"),
@@ -35,6 +36,11 @@ MODULOS = {
         "frase": (u"Carregue os casos segmentados pelo módulo ContourLab para "
                   u"análise tridimensional"),
         "linha": u"<b>Uso pr&oacute;prio</b> dentro do app",
+    },
+    "neuro": {
+        "icone": u"cruzamento", "titulo": u"NEURO ", "destaque": u"RT",
+        "frase": u"Ferramentas de estudo do sistema nervoso central: projeção vascular, tumores e anatomia.",
+        "linha": u"Material de estudo — processamento local; estruturas não aprovadas.",
     },
     "nidus": {
         "icone": u"cruzamento",
@@ -116,6 +122,13 @@ FERRAMENTAS = {
          u"Superfície, trajeto dos vasos e projeções bidimensionais "
          u"sintéticas a partir da segmentação de vasos", u"",
          (u"angiografia sintética", u"3D", u"MIP")),
+    ],
+    "neuro": [
+        ("nidus", u"cruzamento", u"Nidus RT", "/neuro/nidus", u"Projeção vascular por construção geométrica, sem exportar a interseção.", u""),
+        ("neuro_glioma", u"contornos", u"Glioma RT", "/neuro/glioma", u"Estudo de gliomas por seleção explícita de modelos e sequências.", u""),
+        ("neuro_metastasis", u"contornos", u"Metastasis RT", "/neuro/metastasis", u"Estudo de metástases com máscaras separadas por modelo.", u""),
+        ("neuro_meningioma", u"contornos", u"Meningioma RT", "/neuro/meningioma", u"Estudo de meningiomas com revisão das entradas e dos resultados.", u""),
+        ("neuro_anatomia", u"contornos", u"Anatomia RT", "/neuro/anatomia", u"Estruturas anatômicas na série de referência selecionada.", u""),
     ],
     "nidus": [
         ("nidus_projecao", u"cruzamento", u"Projeção Vascular", "/nidus/projecao",
@@ -214,6 +227,10 @@ AJUDA = {
             u"próprio, sem biblioteca de terceiros; sem WebGL, uma nuvem de "
             u"pontos em canvas 2D. As máscaras vêm do TotalSegmentator, "
             u"Apache-2.0.",),
+    },
+    "neuro": {
+        u"O que não faz": (u"Nenhuma segmentação roda por omissão. Toda estrutura gerada é sugestão não aprovada, com procedência; não há CTV nem fusão RM–TC implícita.",),
+        u"Componentes de terceiros": (u"Os modelos e suas licenças pertencem ao catálogo versionado do plugin. Nidus conserva seus limites próprios de construção geométrica.",),
     },
     "nidus": {
         u"O que não faz": (

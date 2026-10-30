@@ -118,185 +118,191 @@ echo.>> "%LOG%"
 "%PY%" "%R%tools\test_atualizar_v89.py" >> "%LOG%" 2>&1
 set "RC27=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_rt.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_atualizar_v810.py" >> "%LOG%" 2>&1
 set "RC28=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_caminho_dos_dados.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_motor_v810.py >> "%LOG%" 2>&1
 set "RC29=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_credits.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_neuro_plugin.py" >> "%LOG%" 2>&1
 set "RC30=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_cover.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_rt.py >> "%LOG%" 2>&1
 set "RC31=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_packager.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_caminho_dos_dados.py >> "%LOG%" 2>&1
 set "RC32=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_delivery.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_credits.py" >> "%LOG%" 2>&1
 set "RC33=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_consent.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_cover.py" >> "%LOG%" 2>&1
 set "RC34=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_languages.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_packager.py" >> "%LOG%" 2>&1
 set "RC35=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_languages_installer.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_delivery.py" >> "%LOG%" 2>&1
 set "RC36=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_shutdown.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_consent.py" >> "%LOG%" 2>&1
 set "RC37=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_ui.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_languages.py" >> "%LOG%" 2>&1
 set "RC38=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_design.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_languages_installer.py" >> "%LOG%" 2>&1
 set "RC39=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_varrer.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_shutdown.py" >> "%LOG%" 2>&1
 set "RC40=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_porta.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_ui.py" >> "%LOG%" 2>&1
 set "RC41=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_inicio.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_design.py" >> "%LOG%" 2>&1
 set "RC42=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_provenance.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_varrer.py" >> "%LOG%" 2>&1
 set "RC43=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_moose.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_porta.py" >> "%LOG%" 2>&1
 set "RC44=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_modelos_v84.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_inicio.py" >> "%LOG%" 2>&1
 set "RC45=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_queue.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_provenance.py >> "%LOG%" 2>&1
 set "RC46=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_ui_interacao.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_moose.py >> "%LOG%" 2>&1
 set "RC47=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_nv_segment.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_modelos_v84.py >> "%LOG%" 2>&1
 set "RC48=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_skin.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_queue.py" >> "%LOG%" 2>&1
 set "RC49=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_constructs.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_ui_interacao.py" >> "%LOG%" 2>&1
 set "RC50=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_hnlnl.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_nv_segment.py >> "%LOG%" 2>&1
 set "RC51=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_zip_split.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_skin.py >> "%LOG%" 2>&1
 set "RC52=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_thumbnail.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_constructs.py >> "%LOG%" 2>&1
 set "RC53=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_recon3d.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_hnlnl.py >> "%LOG%" 2>&1
 set "RC54=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_recon3d_v84.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_zip_split.py >> "%LOG%" 2>&1
 set "RC55=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_bolus.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_thumbnail.py" >> "%LOG%" 2>&1
 set "RC56=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_dicom.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_recon3d.py >> "%LOG%" 2>&1
 set "RC57=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_bridge.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_recon3d_v84.py >> "%LOG%" 2>&1
 set "RC58=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_bridge_motor.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_bolus.py >> "%LOG%" 2>&1
 set "RC59=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_bridge_tela.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_dicom.py" >> "%LOG%" 2>&1
 set "RC60=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_nidus.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_bridge.py >> "%LOG%" 2>&1
 set "RC61=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_elastic.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_bridge_motor.py >> "%LOG%" 2>&1
 set "RC62=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_lifecycle.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_bridge_tela.py >> "%LOG%" 2>&1
 set "RC63=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_interactions.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_elastic.py >> "%LOG%" 2>&1
 set "RC64=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_conversion.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_lifecycle.py" >> "%LOG%" 2>&1
 set "RC65=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_dryrun.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_interactions.py >> "%LOG%" 2>&1
 set "RC66=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_installer_light.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_conversion.py" >> "%LOG%" 2>&1
 set "RC67=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_weights.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_dryrun.py >> "%LOG%" 2>&1
 set "RC68=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_loop.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_installer_light.py" >> "%LOG%" 2>&1
 set "RC69=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_cleaner.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_weights.py >> "%LOG%" 2>&1
 set "RC70=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_batch.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_loop.py" >> "%LOG%" 2>&1
 set "RC71=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_plausibility.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_cleaner.py" >> "%LOG%" 2>&1
 set "RC72=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_overnight.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_batch.py >> "%LOG%" 2>&1
 set "RC73=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_levels.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_plausibility.py >> "%LOG%" 2>&1
 set "RC74=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_suite.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_overnight.py >> "%LOG%" 2>&1
 set "RC75=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_image.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_levels.py >> "%LOG%" 2>&1
 set "RC76=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_records.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_suite.py" >> "%LOG%" 2>&1
 set "RC77=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_version.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_image.py >> "%LOG%" 2>&1
 set "RC78=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_validation.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_records.py >> "%LOG%" 2>&1
 set "RC79=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_fila_simulacao.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_version.py" >> "%LOG%" 2>&1
 set "RC80=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_nomes_no_tps.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_validation.py" >> "%LOG%" 2>&1
 set "RC81=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_nomes_proprios.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_fila_simulacao.py" >> "%LOG%" 2>&1
 set "RC82=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\_componentes.py" --rodar test_bolus_aplicador.py >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_nomes_no_tps.py >> "%LOG%" 2>&1
 set "RC83=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_componentes.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_nomes_proprios.py >> "%LOG%" 2>&1
 set "RC84=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_entrada.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\_componentes.py" --rodar test_bolus_aplicador.py >> "%LOG%" 2>&1
 set "RC85=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_installer.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_componentes.py" >> "%LOG%" 2>&1
 set "RC86=%ERRORLEVEL%"
 echo.>> "%LOG%"
-"%PY%" "%R%tools\test_instalar_direto.py" >> "%LOG%" 2>&1
+"%PY%" "%R%tools\test_entrada.py" >> "%LOG%" 2>&1
 set "RC87=%ERRORLEVEL%"
+echo.>> "%LOG%"
+"%PY%" "%R%tools\test_installer.py" >> "%LOG%" 2>&1
+set "RC88=%ERRORLEVEL%"
+echo.>> "%LOG%"
+"%PY%" "%R%tools\test_instalar_direto.py" >> "%LOG%" 2>&1
+set "RC89=%ERRORLEVEL%"
 
 type "%LOG%"
 
@@ -389,6 +395,8 @@ if not "%RC84%"=="0" goto :falhou
 if not "%RC85%"=="0" goto :falhou
 if not "%RC86%"=="0" goto :falhou
 if not "%RC87%"=="0" goto :falhou
+if not "%RC88%"=="0" goto :falhou
+if not "%RC89%"=="0" goto :falhou
 echo   TUDO OK.  Log: verify_log.txt
 echo ============================================================
 echo.
@@ -424,66 +432,68 @@ echo     test_estacao=%RC24%
 echo     test_retorno_v88=%RC25%
 echo     test_motor_v89=%RC26%
 echo     test_atualizar_v89=%RC27%
-echo     test_rt=%RC28%
-echo     test_caminho_dos_dados=%RC29%
-echo     test_credits=%RC30%
-echo     test_cover=%RC31%
-echo     test_packager=%RC32%
-echo     test_delivery=%RC33%
-echo     test_consent=%RC34%
-echo     test_languages=%RC35%
-echo     test_languages_installer=%RC36%
-echo     test_shutdown=%RC37%
-echo     test_ui=%RC38%
-echo     test_design=%RC39%
-echo     test_varrer=%RC40%
-echo     test_porta=%RC41%
-echo     test_inicio=%RC42%
-echo     test_provenance=%RC43%
-echo     test_moose=%RC44%
-echo     test_modelos_v84=%RC45%
-echo     test_queue=%RC46%
-echo     test_ui_interacao=%RC47%
-echo     test_nv_segment=%RC48%
-echo     test_skin=%RC49%
-echo     test_constructs=%RC50%
-echo     test_hnlnl=%RC51%
-echo     test_zip_split=%RC52%
-echo     test_thumbnail=%RC53%
-echo     test_recon3d=%RC54%
-echo     test_recon3d_v84=%RC55%
-echo     test_bolus=%RC56%
-echo     test_dicom=%RC57%
-echo     test_bridge=%RC58%
-echo     test_bridge_motor=%RC59%
-echo     test_bridge_tela=%RC60%
-echo     test_nidus=%RC61%
-echo     test_elastic=%RC62%
-echo     test_lifecycle=%RC63%
-echo     test_interactions=%RC64%
-echo     test_conversion=%RC65%
-echo     test_dryrun=%RC66%
-echo     test_installer_light=%RC67%
-echo     test_weights=%RC68%
-echo     test_loop=%RC69%
-echo     test_cleaner=%RC70%
-echo     test_batch=%RC71%
-echo     test_plausibility=%RC72%
-echo     test_overnight=%RC73%
-echo     test_levels=%RC74%
-echo     test_suite=%RC75%
-echo     test_image=%RC76%
-echo     test_records=%RC77%
-echo     test_version=%RC78%
-echo     test_validation=%RC79%
-echo     test_fila_simulacao=%RC80%
-echo     test_nomes_no_tps=%RC81%
-echo     test_nomes_proprios=%RC82%
-echo     test_bolus_aplicador=%RC83%
-echo     test_componentes=%RC84%
-echo     test_entrada=%RC85%
-echo     test_installer=%RC86%
-echo     test_instalar_direto=%RC87%
+echo     test_atualizar_v810=%RC28%
+echo     test_motor_v810=%RC29%
+echo     test_neuro_plugin=%RC30%
+echo     test_rt=%RC31%
+echo     test_caminho_dos_dados=%RC32%
+echo     test_credits=%RC33%
+echo     test_cover=%RC34%
+echo     test_packager=%RC35%
+echo     test_delivery=%RC36%
+echo     test_consent=%RC37%
+echo     test_languages=%RC38%
+echo     test_languages_installer=%RC39%
+echo     test_shutdown=%RC40%
+echo     test_ui=%RC41%
+echo     test_design=%RC42%
+echo     test_varrer=%RC43%
+echo     test_porta=%RC44%
+echo     test_inicio=%RC45%
+echo     test_provenance=%RC46%
+echo     test_moose=%RC47%
+echo     test_modelos_v84=%RC48%
+echo     test_queue=%RC49%
+echo     test_ui_interacao=%RC50%
+echo     test_nv_segment=%RC51%
+echo     test_skin=%RC52%
+echo     test_constructs=%RC53%
+echo     test_hnlnl=%RC54%
+echo     test_zip_split=%RC55%
+echo     test_thumbnail=%RC56%
+echo     test_recon3d=%RC57%
+echo     test_recon3d_v84=%RC58%
+echo     test_bolus=%RC59%
+echo     test_dicom=%RC60%
+echo     test_bridge=%RC61%
+echo     test_bridge_motor=%RC62%
+echo     test_bridge_tela=%RC63%
+echo     test_elastic=%RC64%
+echo     test_lifecycle=%RC65%
+echo     test_interactions=%RC66%
+echo     test_conversion=%RC67%
+echo     test_dryrun=%RC68%
+echo     test_installer_light=%RC69%
+echo     test_weights=%RC70%
+echo     test_loop=%RC71%
+echo     test_cleaner=%RC72%
+echo     test_batch=%RC73%
+echo     test_plausibility=%RC74%
+echo     test_overnight=%RC75%
+echo     test_levels=%RC76%
+echo     test_suite=%RC77%
+echo     test_image=%RC78%
+echo     test_records=%RC79%
+echo     test_version=%RC80%
+echo     test_validation=%RC81%
+echo     test_fila_simulacao=%RC82%
+echo     test_nomes_no_tps=%RC83%
+echo     test_nomes_proprios=%RC84%
+echo     test_bolus_aplicador=%RC85%
+echo     test_componentes=%RC86%
+echo     test_entrada=%RC87%
+echo     test_installer=%RC88%
+echo     test_instalar_direto=%RC89%
 echo   O veredito e a soma dos rodapes OK: e FALHOU: do log.
 echo   Log completo: %LOG%
 echo ============================================================

@@ -643,7 +643,7 @@ if ($NO_LUGAR) {
 Diga "   sao varios GB. Pode demorar. NAO feche esta janela."
 if (-not (Test-Path -LiteralPath $DESTINO)) { New-Item -ItemType Directory -Path $DESTINO -Force | Out-Null }
 $rcLog = Join-Path $AQUI "INSTALAR_COPIA_LOG.txt"
-$rcArgs = @($CARGA, $DESTINO, "/E", "/R:2", "/W:2", "/NFL", "/NDL", "/NP")
+$rcArgs = @($CARGA, $DESTINO, "/E", "/R:2", "/W:2", "/NFL", "/NDL", "/NP", "/XD", (Join-Path $CARGA "Plugins"), (Join-Path $DESTINO "Plugins"))
 $proc = Start-Process -FilePath "robocopy.exe" -ArgumentList $rcArgs `
         -RedirectStandardOutput $rcLog -NoNewWindow -PassThru
 try { $null = $proc.Handle } catch { }
@@ -680,11 +680,40 @@ else { Diga ("   copia concluida (robocopy " + $rc + ")") }
 Anote ("robocopy=" + $rc)
 }
 
+$raizCachesBase = [IO.Path]::GetFullPath($DESTINO).TrimEnd('\') + '\'
+$raizPluginsPreservados = [IO.Path]::GetFullPath((Join-Path $DESTINO 'Plugins')).TrimEnd('\') + '\'
 foreach ($pc in (Get-ChildItem -LiteralPath $DESTINO -Recurse -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue)) {
-    try { Remove-Item -LiteralPath $pc.FullName -Recurse -Force } catch { }
+    $cacheBaseAtual = [IO.Path]::GetFullPath($pc.FullName)
+    if (-not $cacheBaseAtual.StartsWith($raizCachesBase, [StringComparison]::OrdinalIgnoreCase)) { throw 'Cache fora da instalacao base.' }
+    if ($cacheBaseAtual.StartsWith($raizPluginsPreservados, [StringComparison]::OrdinalIgnoreCase)) { continue }
+    try { Remove-Item -LiteralPath $cacheBaseAtual -Recurse -Force } catch { }
+}
+
+function HashCodigoNeuroLegado([string]$arquivo) {
+    $algoritmo = [Security.Cryptography.SHA256]::Create()
+    $leitor = [IO.File]::OpenRead($arquivo)
+    try { return ([BitConverter]::ToString($algoritmo.ComputeHash($leitor))).Replace('-', '').ToLowerInvariant() }
+    finally { $leitor.Dispose(); $algoritmo.Dispose() }
+}
+foreach ($nomeNeuroLegado in @("radai_nidus.py", "radai_nidus_screen.py")) {
+    $fonteNeuroLegado = Join-Path $DESTINO $nomeNeuroLegado
+    if (Test-Path -LiteralPath $fonteNeuroLegado -PathType Leaf) {
+        $hashNeuroLegado = (HashCodigoNeuroLegado $fonteNeuroLegado)
+        $pastaNeuroBackup = Join-Path $DESTINO ".migration-backups\neuro-rt-v1"
+        New-Item -ItemType Directory -Path $pastaNeuroBackup -Force | Out-Null
+        $arquivoNeuroBackup = Join-Path $pastaNeuroBackup ($hashNeuroLegado + "-" + $nomeNeuroLegado)
+        if (-not (Test-Path -LiteralPath $arquivoNeuroBackup)) {
+            Copy-Item -LiteralPath $fonteNeuroLegado -Destination $arquivoNeuroBackup -ErrorAction Stop
+        }
+        if ((HashCodigoNeuroLegado $arquivoNeuroBackup) -ne $hashNeuroLegado) {
+            throw "Backup do modulo legado Nidus nao confere; remocao interrompida."
+        }
+    }
 }
 
 $ORFAOS = @(
+    "radai_nidus.py",
+    "radai_nidus_screen.py",
     "radai_calibrator.py",
     "radai_compiler.py",
     "radai_crosscheck.py",

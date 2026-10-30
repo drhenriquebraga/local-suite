@@ -419,17 +419,55 @@ def _faixas_do_bolus_caladas(txt, k):
     return fora
 
 
+def _fonte_neuro_opcional():
+    valor = os.environ.get("RADAI_NEURO_SOURCE")
+    if valor is None:
+        return None
+    import json
+    raiz = os.path.realpath(valor.strip()) if valor.strip() else ""
+    marca = os.path.join(raiz, "module.json")
+    tela = os.path.join(raiz, "app", "radai_nidus_screen.py")
+    if not raiz or not os.path.isdir(raiz) or not os.path.isfile(marca) or not os.path.isfile(tela):
+        raise ValueError("RADAI_NEURO_SOURCE deve apontar para a raiz do plugin com module.json e app/radai_nidus_screen.py")
+    with io.open(marca, encoding="utf-8") as arquivo:
+        dados = json.load(arquivo)
+    if not isinstance(dados, dict) or dados.get("id") != "neuro-rt":
+        raise ValueError("RADAI_NEURO_SOURCE nao identifica o plugin neuro-rt")
+    if os.path.commonpath((raiz, os.path.realpath(tela))) != raiz:
+        raise ValueError("A tela Nidus deve pertencer a RADAI_NEURO_SOURCE")
+    return tela
+
+
+def _modalidades_nidus_exatas(modalidades):
+    return bool(modalidades) and set(modalidades) == {"CT", "MR"}
+
+
+def teste_a_tela_nidus_opcional():
+    secao("Nidus opcional: modalidades do plugin explicitamente indicado")
+    checar("  isca: CT e MR independem da ordem",
+           _modalidades_nidus_exatas(("MR", "CT")))
+    checar("  isca: retirar MR reprova", not _modalidades_nidus_exatas(("CT",)))
+    checar("  isca: retirar CT reprova", not _modalidades_nidus_exatas(("MR",)))
+    checar("  isca: modalidade extra reprova",
+           not _modalidades_nidus_exatas(("CT", "MR", "PT")))
+    checar("  isca: declaracao vazia reprova", not _modalidades_nidus_exatas(()))
+    caminho = _fonte_neuro_opcional()
+    if caminho is None:
+        _componentes.pulado("modalidades Nidus: defina RADAI_NEURO_SOURCE para verificar o plugin")
+        return
+    with io.open(caminho, encoding="utf-8") as arquivo:
+        fonte = arquivo.read()
+    mods = _tupla_do_fonte(fonte, r"^MODALIDADES\s*=\s*\(([^)]*)\)")
+    checar("o seletor Nidus declara exatamente CT e MR (%s)" % (mods,),
+           _modalidades_nidus_exatas(mods))
+    texto = _texto_da_ferramenta("neuro", "nidus")
+    checar("o registro canonico neuro/nidus existe", bool(texto))
+    fora = [item for item in _modalidades_mal_ditas(texto, mods) if item.startswith("promete ")]
+    checar("o cartao neuro/nidus nao promete modalidade ausente da tela", not fora, "; ".join(fora))
+
+
 def teste_o_registro_diz_o_que_a_tela_aceita():
     secao("o registro diz o que a tela aceita (modalidade, faixa, modo)")
-    mods_n = _tupla_do_fonte(ler("app/radai_nidus_screen.py"),
-                             r"^MODALIDADES\s*=\s*\(([^)]*)\)")
-    checar("li as modalidades do seletor do Nidus (%s)" % (mods_n,),
-           bool(mods_n))
-    for dono, txt in ((u"FERRAMENTAS nidus_projecao",
-                       _texto_da_ferramenta("nidus", "nidus_projecao")),):
-        ruim = _modalidades_mal_ditas(txt, mods_n)
-        checar("%s diz as modalidades que a tela lista" % dono, not ruim,
-               "; ".join(ruim))
     checar("  isca: o texto de antes («Projeta a angiotomografia») cala a RM",
            _modalidades_mal_ditas(u"Projeta a angiotomografia na incidência "
                                   u"escolhida", ("CT", "MR"))
@@ -555,6 +593,7 @@ def main():
               teste_a_topografia_so_procura_tabela_que_existe,
               teste_as_crases_dos_documentos,
               teste_o_registro_diz_o_que_a_tela_aceita,
+              teste_a_tela_nidus_opcional,
               teste_o_registro_nao_promete_o_que_venceu]
     for t in testes:
         try:

@@ -3035,8 +3035,8 @@ def teste_autoteste_percorre_a_tela():
            u"vao=%s vao_antigo=%s" % (_vn, _va))
     checar(u"  e o Paint rodou sem erro", cab.get(u"pintado") == u"ok",
            cab.get(u"pintado"))
-    checar(u"  e o titulo radioterapia.ai, pintado sem erro",
-           marca.get(u"titulo") == u"radioterapia.ai"
+    checar(u"  e o titulo Local Suite, pintado sem erro",
+           marca.get(u"titulo") == u"Local Suite"
            and marca.get(u"pintado") == u"ok",
            u"%s | %s" % (marca.get(u"titulo"), marca.get(u"pintado")))
     try:
@@ -3044,10 +3044,10 @@ def teste_autoteste_percorre_a_tela():
     except ValueError:
         _cl = _az = _vi = 0
     checar(u"  e ele CHEGOU a tela: letras claras e as duas pontas do "
-           u"gradiente do .ai", _cl >= 50 and _az >= 5 and _vi >= 5,
+           u"gradiente de Suite", _cl >= 50 and _az >= 5 and _vi >= 5,
            u"claros/azuis/violetas = %s" % marca.get(u"pixels"))
-    checar(u"  com o subtitulo LOCAL SUITE",
-           marca.get(u"sub", u"").lower() == u"local suite", marca.get(u"sub"))
+    checar(u"  sem subtitulo repetido",
+           marca.get(u"sub", u"") == u"", marca.get(u"sub"))
     checar(u"  e logo, titulo e subtitulo EM CIMA da pergunta do idioma",
            marca.get(u"ordem") == u"ok", marca.get(u"ordem"))
 

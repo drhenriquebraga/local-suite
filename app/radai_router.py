@@ -174,6 +174,7 @@ JS_AVISO_VERSAO = u"""<script id="radai-versao-js">
      setTimeout(perguntar, ESPERAS[n]);
    }).catch(function(){});
  }
+ document.addEventListener('radai-versao-consultada',perguntar);
  if(document.readyState==='loading')
   document.addEventListener('DOMContentLoaded',perguntar);
  else perguntar();
@@ -195,7 +196,7 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
 
 
 MINI_PAGINAS = (("bridge", "/bridge"), ("recon3d", "/recon3d"),
-                ("nidus", "/nidus"), ("elastic", "/elastic"),
+                ("elastic", "/elastic"),
                 ("bolus", "/bolus"))
 
 
@@ -216,6 +217,11 @@ def montar(app):
         def _mod(chave=_chave):
             return mini_pagina(chave)
         app.get(_rota, response_class=HTMLResponse)(_mod)
+
+    @app.get("/nidus")
+    def _nidus_compatibilidade():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse("/neuro", status_code=307)
 
     @app.get("/torax", response_class=HTMLResponse)
     def _torax_saiu():

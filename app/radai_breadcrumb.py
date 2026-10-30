@@ -6,7 +6,12 @@ ARVORE = {
     "bridge":       (u"DicomBridge",           "/bridge",        "inicio"),
     "autocontorno": (u"ContourLab",            "/autocontorno",  "inicio"),
     "recon3d":      (u"Reconstruções 3D",      "/recon3d",       "inicio"),
-    "nidus":        (u"Nidus RT",              "/nidus",         "inicio"),
+    "neuro":        (u"NEURO RT",              "/neuro",         "inicio"),
+    "nidus":        (u"Nidus RT",              "/neuro/nidus",   "neuro"),
+    "neuro_glioma": (u"Glioma RT",             "/neuro/glioma",  "neuro"),
+    "neuro_metastasis": (u"Metastasis RT",     "/neuro/metastasis", "neuro"),
+    "neuro_meningioma": (u"Meningioma RT",     "/neuro/meningioma", "neuro"),
+    "neuro_anatomia": (u"Anatomia RT",         "/neuro/anatomia", "neuro"),
     "elastic":      (u"Elastic RT",            "/elastic",       "inicio"),
     "bolus":        (u"3D Printed Bolus",      "/bolus",         "inicio"),
 
@@ -16,7 +21,7 @@ ARVORE = {
     "ver":          (u"Ver segmentação",       "/ver",           "autocontorno"),
     "vigia":        (u"Fila de estudo",       "/vigia",         "autocontorno"),
 
-    "nidus_projecao": (u"Projeção Vascular",  "/nidus/projecao", "nidus"),
+    "nidus_projecao": (u"Projeção Vascular",  "/nidus/projecao", "neuro"),
     "elastic_fusao":  (u"Fusão elástica",     "/elastic/fusao",  "elastic"),
     "bolus_gerar":    (u"Gerar bólus",        "/bolus/gerar",    "bolus"),
     "bibliografia": (u"Bibliografia",          "/bibliografia",  "inicio"),

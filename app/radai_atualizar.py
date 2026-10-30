@@ -32,6 +32,7 @@ PREPARADOR = u"preparador"
 ERRO = u"erro"
 EM_ANDAMENTO = (ESPERANDO, BAIXANDO, PREPARANDO, FECHANDO)
 
+SEGURA_NEURO = u"O NEURO RT está processando. Caso a atualização interrompa, o item deve ser solicitado novamente."
 SEGURA_VIGIA = u"A série do vigia está rodando."
 SEGURA_LOTE = u"O lote do «Rodar agora» está rodando."
 SEGURA_TURNO = u"O turno da noite está aberto."
@@ -75,6 +76,12 @@ def etapa():
 
 
 def o_que_segura(status):
+    try:
+        import radai_queue_state as Q
+        if Q.quem_tem_a_vez().get("dono") == "neuro":
+            return SEGURA_NEURO
+    except ImportError:
+        pass
     s = status if isinstance(status, dict) else {}
     if s.get("overnight"):
         return SEGURA_TURNO
@@ -421,6 +428,8 @@ def _fluxo(interromper):
         _log(u"a v%s precisa de pacote novo: espera a segunda confirmacao"
              % versao)
         return None
+    if interromper and not _interromper_neuro():
+        return None
     if not interromper:
         segura = o_que_segura(_status())
         if segura:
@@ -455,6 +464,16 @@ def _fluxo(interromper):
     if porta:
         _encerrar_o_motor(porta)
     return None
+
+
+def _interromper_neuro():
+    import radai_queue_state as Q
+    Q.cancelar_neuro_ativo()
+    while Q.quem_tem_a_vez().get("dono") == "neuro":
+        if _CTX.get("cancelar"):
+            return False
+        time.sleep(INTERVALO_DA_ESPERA_S)
+    return True
 
 
 def _rodar_fluxo(interromper):
@@ -499,7 +518,10 @@ def agir(acao, porta=None):
         if acao in (u"comecar", u"esperar", u"interromper") and \
                 atual in EM_ANDAMENTO:
             return estado_publico()
-        if acao == u"comecar":
+        if acao == u"consultar":
+            import radai_version as V
+            V.iniciar_consulta(forcar=True)
+        elif acao == u"comecar":
             try:
                 import radai_version as V
                 nova = V.ultima_consulta().get("estado") == u"nova"
@@ -528,7 +550,9 @@ def agir(acao, porta=None):
         elif acao == u"interromper":
             _log(u"a pessoa confirmou interromper o que rodava para atualizar")
             _iniciar(True)
-        elif acao == u"bundle" and atual == BUNDLE:
+        elif (acao == u"bundle" and atual == BUNDLE) or (
+                acao == u"instalador" and atual == ERRO
+                and _E.get("motivo_chave") == M_DECISAO and _CTX.get("raiz")):
             try:
                 import radai_version as V
                 aqui = V._entrega_txt()
@@ -562,9 +586,13 @@ def estado_publico():
         import radai_version as V
         t = V.para_a_tela()
         d.update({"aqui": t.get("aqui"), "publicada": t.get("publicada"),
-                  "link": t.get("link"), "nova": t.get("nova")})
+                  "link": t.get("link"), "nova": t.get("nova"),
+                  "consulta_estado": t.get("estado"),
+                  "consultando": bool(t.get("consultando"))})
     except Exception:
         pass
+    d["pode_abrir_instalador"] = bool(d.get("etapa") == ERRO
+        and d.get("motivo_chave") == M_DECISAO and _CTX.get("raiz"))
     return d
 
 
@@ -838,6 +866,7 @@ JS = u"""<script id="radai-atualizar-js">
    quadro(T('A atualização não aconteceu.'), T(d.motivo_chave || ''), d.detalhe || '', false);
    barra(null);
    var bs = [];
+   if(d.pode_abrir_instalador) bs.push({rot:'Abrir o instalador', cls:'pri', fn:function(){ pedir('instalador').then(pintar) }});
    if(d.link) bs.push({rot:'Baixar o instalador mais recente', href:d.link});
    bs.push({rot:'Fechar', fn:function(){ pedir('cancelar'); fechar() }});
    botoes(bs);
@@ -845,6 +874,24 @@ JS = u"""<script id="radai-atualizar-js">
    fechar();
   }
  }
+ window.radaiConsultarVersao = function(){
+  var bt=document.getElementById('btConsultarVersao');
+  var msg=document.getElementById('subAtu');
+  function mostrar(d){
+   if(!d){ if(bt) bt.disabled=false; if(msg) msg.textContent=T('Não foi possível verificar atualizações.'); return }
+   if(bt) bt.disabled=!!d.consultando;
+   if(msg) msg.textContent=T(d.consultando ? 'Verificando atualizações…' :
+     (d.nova ? 'Versão nova disponível' : (d.consulta_estado==='atual' ? 'O programa está atualizado.' : 'Não foi possível verificar atualizações.')))
+     +(!d.consultando && d.publicada ? ' ('+d.publicada+')' : '');
+   var agora=document.getElementById('btAtuAgora');
+   if(agora){ agora.hidden=!d.nova; agora.style.display=d.nova?'':'none' }
+   if(d.consultando){ setTimeout(function(){ pedir('estado').then(mostrar) },600); return }
+   document.dispatchEvent(new Event('radai-versao-consultada'));
+   try{ if(window.radaiRetraduzir) window.radaiRetraduzir() }catch(e){}
+  }
+  if(bt) bt.disabled=true;
+  return pedir('consultar').then(mostrar);
+ };
  window.radaiAtualizarAgora = function(){
   reabrindo = false; atualizando = true;
   try{ sessionStorage.setItem(MARCA, '1') }catch(e){}

@@ -53,8 +53,7 @@ ALERTAS = {
     u"autocontorno": u"Material de estudo — 100% local. Nenhuma imagem sai desta rede",
     u"bridge": u"Processamento 100% local",
     u"recon3d": u"Uso próprio dentro do app",
-    u"nidus": (u"Construção geométrica a partir do desenho do usuário — "
-               u"não é um volume de tratamento"),
+    u"neuro": u"Material de estudo — processamento local; estruturas não aprovadas.",
     u"bolus": (u"O STL sai por ato declarado, como rascunho sujeito a revisão "
                u"física e médica — a dosimetria do material é obrigatória"),
 }
@@ -107,13 +106,13 @@ SAIRAM = {
                 u"Escolha o que exportar para o TPS",
                 u"Escolha o que exportar", u"Conversão de imagens"),
     u"recon3d": (u"Oncologia torácica",),
-    u"nidus": (u"Trilha de ensino",),
+    u"neuro": (u"Trilha de ensino",),
     u"elastic": (u"Onde a fusão falha",),
 }
 
 NO_BALAO = {
     u"recon3d": u"Esta tela não exporta",
-    u"nidus": u"A interseção é uma construção geométrica",
+    u"neuro": u"Nenhuma segmentação roda por omissão",
     u"elastic": u"Este módulo não propaga contorno",
     u"bolus": u"Este módulo exporta um STL",
 }
@@ -605,6 +604,23 @@ def _ok_modal(m):
     return aberto and dentro and preso and fechou and voltou == u"bt_modal"
 
 
+def teste_a_geometria_do_core_comum():
+    secao(u"geometria comum: roda sem importar o plugin Nidus")
+    import math
+    import radai_projection as G
+    checar(u"o motor geometrico vem de radai_projection",
+           os.path.basename(G.__file__) == "radai_projection.py")
+    for a, b in ((0, 0), (37, 24), (-90, 0)):
+        eixos = G.matriz_da_incidencia(a, b)
+        checar(u"incidencia %s: matriz finita" % ((a, b),),
+               all(math.isfinite(v) for eixo in eixos for v in eixo))
+        checar(u"incidencia %s: base ortonormal" % ((a, b),),
+               all(abs(sum(x*y for x, y in zip(eixos[i], eixos[j])) - (1 if i == j else 0)) < 1e-12
+                   for i in range(3) for j in range(3)))
+    checar(u"incidencia AP preserva os eixos LPS",
+           G.eixos_da_incidencia(0, 0) == {"L": (1.0, 0.0, 0.0), "P": (0.0, 0.0, 1.0), "S": (0.0, -1.0, 0.0)})
+
+
 def teste_a_porta():
     secao(u"a porta: um título, seis cartões, o rodapé e os três controles")
     import html as _h
@@ -631,6 +647,10 @@ def teste_a_porta():
     checar(u"a grade de módulos", u'class="ls-cards"' in m)
     n = len(re.findall(r'class="ls-card tool-card', m))
     checar(u"  com os seis módulos", n == 6, str(n))
+    import radai_menu
+    checar(u"a porta usa NEURO RT na posicao do antigo Nidus",
+           radai_menu.MODULOS_HOME == ("bridge", "autocontorno", "recon3d", "neuro", "elastic", "bolus")
+           and u'href="/neuro"' in m)
     t = u" ".join(_texto(p).split())
     checar(u"o rodapé traz a fronteira do autor, com «sugestão não aprovada»",
            _fronteira() in t and u"sugestão não aprovada" in t.lower())
@@ -657,7 +677,7 @@ def teste_as_mini_paginas():
     secao(u"as mini-páginas: o nome em Anton com o final, a arte, o `?`, cartões e alerta")
     import html
     import radai_modules as M
-    for chave in (u"autocontorno", u"bridge", u"recon3d", u"nidus", u"elastic",
+    for chave in (u"autocontorno", u"bridge", u"recon3d", u"neuro", u"elastic",
                   u"bolus"):
         p = _mini(chave)
         m = _sem_script(p)
@@ -835,7 +855,7 @@ def teste_a_geometria_no_navegador():
         return
     paginas = {u"/": _porta()}
     rotas = {u"autocontorno": u"/autocontorno", u"bridge": u"/bridge",
-             u"recon3d": u"/recon3d", u"nidus": u"/nidus", u"elastic": u"/elastic",
+             u"recon3d": u"/recon3d", u"neuro": u"/neuro", u"elastic": u"/elastic",
              u"bolus": u"/bolus"}
     for k, r in rotas.items():
         paginas[r] = _mini(k)
@@ -894,10 +914,13 @@ def teste_a_geometria_no_navegador():
                        u"%r contra %r" % (v[u"h1"], ref[u"h1"]))
                 checar(u"  o nome em Anton e o resto não", v[u"fonte"].startswith(u"Anton")
                        and u"Anton" not in v[u"fonteCartao"], repr((v[u"fonte"], v[u"fonteCartao"])))
-                checar(u"  os cartões com o mesmo topo e a mesma altura",
-                       len(set(v[u"tops"])) == 1 and len(set(v[u"alturas"])) == 1,
-                       repr((v[u"tops"], v[u"alturas"])))
                 n = min(3, v[u"n"])
+                checar(u"  primeira linha alinhada e cartões com a mesma altura",
+                       len(set(v[u"tops"][:n])) == 1 and len(set(v[u"alturas"])) == 1,
+                       repr((v[u"tops"], v[u"alturas"])))
+                checar(u"  a grade acomoda todas as linhas de cartões",
+                       len(set(v[u"tops"])) == (v[u"n"] + n - 1) // n,
+                       repr(v[u"tops"]))
                 colunas = len(set(v[u"lefts"]))
                 checar(u"  %d cartão(ões) lado a lado" % n, colunas == n, repr(v[u"lefts"]))
                 if n < 3:
@@ -1105,7 +1128,6 @@ def teste_o_mais_do_card_da_fila():
 TELAS_DE_FUNCAO = {
     u"R3": u"app/radai_batch.py",
     u"V1": u"app/radai_view.py",
-    u"N5": u"app/radai_nidus_screen.py",
     u"X1": u"app/radai_elastic_screen.py",
     u"O8": u"app/radai_bolus_screen.py",
     u"B8": u"app/radai_bridge.py",
@@ -1126,10 +1148,35 @@ def _chama_a_cabeca(fonte):
     return False
 
 
+def _fonte_neuro_opcional():
+    valor = os.environ.get("RADAI_NEURO_SOURCE")
+    if valor is None:
+        return None
+    import json
+    raiz = os.path.realpath(valor.strip()) if valor.strip() else ""
+    marca = os.path.join(raiz, "module.json")
+    tela = os.path.join(raiz, "app", "radai_nidus_screen.py")
+    if not raiz or not os.path.isdir(raiz) or not os.path.isfile(marca) or not os.path.isfile(tela):
+        raise ValueError("RADAI_NEURO_SOURCE deve apontar para a raiz do plugin com module.json e app/radai_nidus_screen.py")
+    with io.open(marca, encoding="utf-8") as arquivo:
+        dados = json.load(arquivo)
+    if not isinstance(dados, dict) or dados.get("id") != "neuro-rt":
+        raise ValueError("RADAI_NEURO_SOURCE nao identifica o plugin neuro-rt")
+    if os.path.commonpath((raiz, os.path.realpath(tela))) != raiz:
+        raise ValueError("A tela Nidus deve pertencer a RADAI_NEURO_SOURCE")
+    return tela
+
+
 def teste_as_telas_de_funcao_usam_a_cabeca():
     secao(u"as telas de função usam radai_ui.cabeca_de_funcao")
     sem = set()
-    for ident, rel in sorted(TELAS_DE_FUNCAO.items()):
+    telas = dict(TELAS_DE_FUNCAO)
+    opcional = _fonte_neuro_opcional()
+    if opcional is None:
+        _componentes.pulado("cabeca da tela Nidus: defina RADAI_NEURO_SOURCE para verificar o plugin")
+    else:
+        telas[u"N5"] = opcional
+    for ident, rel in sorted(telas.items()):
         with io.open(_componentes.fonte(rel), encoding="utf-8") as f:
             if not _chama_a_cabeca(f.read()):
                 sem.add(ident)
@@ -1280,6 +1327,7 @@ def main():
               teste_as_telas_de_funcao_usam_a_cabeca,
               teste_os_componentes_no_navegador, teste_a_porta,
               teste_as_mini_paginas, teste_as_frases_novas_tem_os_doze_idiomas,
+              teste_a_geometria_do_core_comum,
               teste_a_geometria_no_navegador, teste_as_abas_da_barra_da_direita,
               teste_o_mais_do_card_da_fila, teste_o_alerta_sobrevive_a_traducao,
               teste_o_bolus_diz_o_aplicador_e_o_risco,

@@ -34,7 +34,7 @@ public static class RadaiConsoleAtualizacao {
 }' | Out-Null
     }
     $script:ConsoleDisponivel = [RadaiConsoleAtualizacao]::Abrir()
-    $script:ConsoleExtra = $script:ConsoleDisponivel -and [RadaiConsoleAtualizacao]::Propria() -and [RadaiConsoleAtualizacao]::Redirecionada()
+    $script:ConsoleExtra = (-not $SoDecidir) -and $script:ConsoleDisponivel -and [RadaiConsoleAtualizacao]::Propria() -and [RadaiConsoleAtualizacao]::Redirecionada()
 } catch { }
 $script:LogDoAtualizador = ""
 $script:LogManual = $script:ConsoleExtra
@@ -705,6 +705,7 @@ function _Relativos($de, $so) {
 function Copiar($de, $para, $so) {
     $n = 0; $t = 0
     foreach ($it in (_Relativos $de $so)) {
+        if (($it.rel -split "[\\/]")[0] -ieq "Plugins") { throw "A atualizacao base nao pode alterar Plugins." }
         $alvo = Join-Path $para $it.rel
         if (-not (Test-Path -LiteralPath $alvo)) { $n++ }
         elseif ((Get-Item -LiteralPath $alvo).Length -ne $it.f.Length -or
@@ -864,6 +865,7 @@ function Aplicar($de, $para, $so) {
         New-Item -ItemType Directory -Path $para -Force | Out-Null
     }
     foreach ($it in (_Relativos $de $so)) {
+        if (($it.rel -split "[\\/]")[0] -ieq "Plugins") { throw "A atualizacao base nao pode alterar Plugins." }
         $alvo = Join-Path $para $it.rel
         $pasta = Split-Path -Parent $alvo
         if ($pasta -and -not (Test-Path -LiteralPath $pasta)) {
@@ -887,7 +889,31 @@ foreach ($cacheCodigo in $script:CachesDoCodigo.Keys) {
     if (Test-Path -LiteralPath $cacheNormal -PathType Container) { Remove-Item -LiteralPath $cacheNormal -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
+function HashCodigoNeuroLegado([string]$arquivo) {
+    $algoritmo = [Security.Cryptography.SHA256]::Create()
+    $leitor = [IO.File]::OpenRead($arquivo)
+    try { return ([BitConverter]::ToString($algoritmo.ComputeHash($leitor))).Replace('-', '').ToLowerInvariant() }
+    finally { $leitor.Dispose(); $algoritmo.Dispose() }
+}
+foreach ($nomeNeuroLegado in @("radai_nidus.py", "radai_nidus_screen.py")) {
+    $fonteNeuroLegado = Join-Path $INST $nomeNeuroLegado
+    if (Test-Path -LiteralPath $fonteNeuroLegado -PathType Leaf) {
+        $hashNeuroLegado = (HashCodigoNeuroLegado $fonteNeuroLegado)
+        $pastaNeuroBackup = Join-Path $INST ".migration-backups\neuro-rt-v1"
+        New-Item -ItemType Directory -Path $pastaNeuroBackup -Force | Out-Null
+        $arquivoNeuroBackup = Join-Path $pastaNeuroBackup ($hashNeuroLegado + "-" + $nomeNeuroLegado)
+        if (-not (Test-Path -LiteralPath $arquivoNeuroBackup)) {
+            Copy-Item -LiteralPath $fonteNeuroLegado -Destination $arquivoNeuroBackup -ErrorAction Stop
+        }
+        if ((HashCodigoNeuroLegado $arquivoNeuroBackup) -ne $hashNeuroLegado) {
+            throw "Backup do modulo legado Nidus nao confere; remocao interrompida."
+        }
+    }
+}
+
 $ORFAOS = @(
+    "radai_nidus.py",
+    "radai_nidus_screen.py",
     "radai_calibrator.py",
     "radai_compiler.py",
     "radai_crosscheck.py",

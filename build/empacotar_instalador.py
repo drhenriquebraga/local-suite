@@ -231,6 +231,16 @@ def coletar_componentes(ja, suite=None, trava=None):
     itens = []
     achados = []
     for pasta, dados in _componentes.componentes(str(suite or RAIZ)):
+        if dados.get("nome") == "RECON_3D":
+            ausentes_recon = [nome for nome in ("radai_projection.py", "radai_projection_bone.py")
+                              if not (Path(pasta) / "app" / nome).is_file()]
+            if ausentes_recon:
+                raise SystemExit(
+                    u"PAREI: RECON_3D incompativel com a base 8.10 sem Nidus: "
+                    u"faltam %s. O pin publico v8.9 ainda nao contem esses helpers. "
+                    u"Use a arvore adaptada pelos patches privados do Neuro RT "
+                    u"antes de empacotar; nao altere tag/hash publico por inferencia."
+                    % u", ".join("app/" + nome for nome in ausentes_recon))
         achados.append(dados.get("nome"))
         deste = []
         for sub in ("app", "tools"):
@@ -263,7 +273,7 @@ def coletar_componentes(ja, suite=None, trava=None):
     if faltam:
         raise SystemExit(
             u"PAREI: o instalador sairia sem %s. Clone os repositorios dos "
-            u"seis apps como pastas irmas do local-suite (ou aponte "
+            u"apps da base como pastas irmas do local-suite (ou aponte "
             u"RADAI_COMPONENTES_DIR para a pasta que os tem), ou monte com "
             u"--dos-repositorios." % u", ".join(faltam))
     return itens

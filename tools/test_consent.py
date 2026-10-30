@@ -4317,7 +4317,7 @@ _NOMES_FORA_DO_FAST = {"pelvic_muscles": u"Muscles_ai",
                        "anus": u"Anus_ai", "Skin": u"Skin_ai",
                        "ChestWall_L": u"ChestWall_L_ai", "ChestWall_R": u"ChestWall_R_ai",
                        "ribs_left": u"Ribs_L_ai", "ribs_right": u"Ribs_R_ai",
-                       "costal_cartilages": u"Cartilage_Costal_ai"}
+                       "costal_cartilages": u"Cartilage_Costal_ai", "sternum": u"Sternum_ai"}
 
 
 def _cita_nome(nome, texto):
@@ -7642,27 +7642,33 @@ def teste_o_que_a_v85_muda_na_18():
         checar(u"  isca: %s: reprova" % rotulo,
                bool(_ponte_divergente(fatos, politica, termos)))
 
-    src_n = ler(u"app/radai_nidus_screen.py")
-    fn = _fatos_do_nidus(src_n)
-    div = _nidus_divergente(fn, politica)
-    checar(u"o Nidus RT guarda na aba sob a impressao do UID (%s caracteres), "
-           u"com os campos de hoje — o codigo e a Politica (3)" % fn["digitos"],
-           bool(fn["digitos"]) and not div, u" | ".join(div))
-    checar(u"  isca: a impressao com 16 caracteres: reprova",
-           bool(_nidus_divergente(dict(fn, digitos=16), politica)))
-    checar(u"  isca: a chave volta a ser o bilhete do processo: reprova",
-           bool(_nidus_divergente(dict(fn, pelo_uid=False), politica)))
-    checar(u"  isca: a Politica cala a laje e o traco: reprova",
-           bool(_nidus_divergente(fn, politica.replace(
-               u"a laje, o inverter", u"X"))))
+    src_n = _fonte_do_nidus_opcional()
+    if not src_n:
+        checar(u"Nidus e opcional: nao integra a base nem tem tela embutida",
+               "NIDUS_RT" in _componentes.COMPONENTES_FORA_DA_BASE
+               and not ler(u"app/radai_nidus_screen.py")
+               and "def discover_plugin(" in ler(u"app/radai_plugins.py"))
+    else:
+        fn = _fatos_do_nidus(src_n)
+        div = _nidus_divergente(fn, politica)
+        checar(u"o Nidus RT guarda na aba sob a impressao do UID (%s caracteres), "
+               u"com os campos de hoje — o codigo e a Politica (3)" % fn["digitos"],
+               bool(fn["digitos"]) and not div, u" | ".join(div))
+        checar(u"  isca: a impressao com 16 caracteres: reprova",
+               bool(_nidus_divergente(dict(fn, digitos=16), politica)))
+        checar(u"  isca: a chave volta a ser o bilhete do processo: reprova",
+               bool(_nidus_divergente(dict(fn, pelo_uid=False), politica)))
+        checar(u"  isca: a Politica cala a laje e o traco: reprova",
+               bool(_nidus_divergente(fn, politica.replace(
+                   u"a laje, o inverter", u"X"))))
 
-    nav = (u"radai_nidus_" in src_n, u"DC_SESSAO" in ler(u"app/radai_bridge.py"))
-    diz_nav = (u"no Nidus RT, o desenho e os parâmetros" in politica,
-               u"os identificadores dos cartões que ele pôs na fila"
-               in politica)
-    checar(u"o armazenamento da aba do Nidus RT e do DicomBridge (medido: %s): "
-           u"a Politica diz" % (nav,), nav == diz_nav,
-           u"codigo=%s, Politica=%s" % (nav, diz_nav))
+        nav = (u"radai_nidus_" in src_n, u"DC_SESSAO" in ler(u"app/radai_bridge.py"))
+        diz_nav = (u"no Nidus RT, o desenho e os parâmetros" in politica,
+                   u"os identificadores dos cartões que ele pôs na fila"
+                   in politica)
+        checar(u"o armazenamento da aba do Nidus RT e do DicomBridge (medido: %s): "
+               u"a Politica diz" % (nav,), nav == diz_nav,
+               u"codigo=%s, Politica=%s" % (nav, diz_nav))
 
     v_ver = _valores_do_modulo(ler(u"app/radai_version.py"))
     div = _contato_divergente(((u"Politica", CS.POLITICA),
@@ -8220,6 +8226,14 @@ def _ponte_divergente(f, politica, termos):
     return fora
 
 
+def _fonte_do_nidus_opcional():
+    origem = os.environ.get("RADAI_NEURO_SOURCE", "")
+    if not origem:
+        return u""
+    with io.open(os.path.join(origem, "app", "radai_nidus_screen.py"), encoding="utf-8") as f:
+        return f.read()
+
+
 def _fatos_do_nidus(src):
     chave = _fonte_da_funcao(src, "chave_da_serie")
     m = re.search(r"hexdigest\(\)\[:(\d+)\]", chave)
@@ -8679,8 +8693,7 @@ _MARCAS_DA_20 = {
     "delgadas": (
         (u"termos", u"Os nervos ópticos, o quiasma, os constritores da "
                     u"faringe e a tireoide saem sem suavização da máscara"),
-        (u"termos", u"menos nas estruturas finas — os nervos ópticos, o "
-                    u"quiasma, os constritores da faringe e a tireoide —")),
+        (u"termos", u"no FAST, sem redução de pontos do contorno")),
     "mandibula_cheia": (
         (u"termos", u"A mandíbula sai cheia."),
         (u"termos", u"a suavização dela nunca tira área")),
@@ -8799,8 +8812,8 @@ def _fatos_da_20():
     src_ap = ler(u"app/radai_bolus_aplicador.py")
     src_upd = ler(u"packager/UPDATE.ps1")
     src_prep = ler(u"build/configurar_ambiente.py")
-    v_nid = _valores_do_modulo(ler(u"app/radai_nidus.py"))
-    v_nids = _valores_do_modulo(ler(u"app/radai_nidus_screen.py"))
+    v_nid = _valores_do_modulo(ler(u"app/radai_projection.py"))
+    v_nids = _valores_do_modulo(_fonte_do_nidus_opcional())
     inst = ler(u"installer/INSTALL.ps1")
     un = ler(u"installer/UNINSTALL.ps1")
     coracao = _fonte_da_funcao(src_eng, "_acabamento_do_coracao")
@@ -9008,10 +9021,11 @@ def _medidas_da_20(f):
           if float(v[0]) == 0 and float(v[1]) > 0 else None)
     exige("_caldwell", u"termos", lambda v: u"Caldwell, CAU %d" % abs(
         int(v[1])) if float(v[0]) == 0 and float(v[1]) < 0 else None)
-    for doc in (u"termos", u"politica"):
-        exige("_malhas_mb", doc, lambda v: u"no máximo %d MB" % int(v))
-        exige("_soltar_s", doc, lambda v: u"depois de %d minutos sem uso"
-              % int(round(float(v) / 60.0)))
+    if f.get("_malhas_mb") is not None or f.get("_soltar_s") is not None:
+        for doc in (u"termos", u"politica"):
+            exige("_malhas_mb", doc, lambda v: u"no máximo %d MB" % int(v))
+            exige("_soltar_s", doc, lambda v: u"depois de %d minutos sem uso"
+                  % int(round(float(v) / 60.0)))
     exige("_fechamento_laringe", u"termos",
           lambda v: u"com um fechamento de %s mm" % _num_pt(v))
     exige("_margem_atm", u"termos",
@@ -9055,8 +9069,8 @@ def teste_o_que_a_v87_muda_na_20():
           u"Otimizar que saiu, o primeiro acesso, a janela, a atualizacao "
           u"com um clique, a varredura, o motor, o Nidus RT e o pacote)")
     import radai_consent as CS
-    checar(u"a versao dos documentos e a 2.2, de 28/10/2026",
-           CS.VERSAO_DOCS == u"2.2" and CS.DATA_DOCS == u"2026-10-28",
+    checar(u"a versao dos documentos e a 2.3, de 30/10/2026",
+           CS.VERSAO_DOCS == u"2.3" and CS.DATA_DOCS == u"2026-10-30",
            u"%s %s" % (CS.VERSAO_DOCS, CS.DATA_DOCS))
     checar(u"  e a 1.9 continua em IMPRESSOES_PUBLICADAS como foi publicada",
            CS.IMPRESSOES_PUBLICADAS.get(u"1.9", u"").startswith(u"087a47ba")
@@ -9679,7 +9693,7 @@ def teste_o_que_o_retorno_de_campo_muda_na_21():
     docs, src = _docs_da_20(), _fontes_da_21()
     f = _fatos_da_21(src)
     checar(u"a 2.2 e de 28/10/2026; a 2.0 publicada permanece intacta",
-           CS.VERSAO_DOCS == "2.2" and CS.DATA_DOCS == "2026-10-28"
+           CS.VERSAO_DOCS == "2.3" and CS.DATA_DOCS == "2026-10-30"
            and CS.IMPRESSOES_PUBLICADAS.get("2.0") ==
                "c6b3c126af07cd56a14230008af944a09824c7d7f9ed51b834dcfdca4728aa97"
            and CS.RESSELAGENS_ANTES_DA_PUBLICACAO.get("2.0") == 2)
@@ -9794,7 +9808,7 @@ def _fatos_da_22(src=None):
     v = _valores_do_modulo(eng)
     alvo = set(sets.get("FORA_DO_OAR_FAST") or ())
     exigidos = {"bag_bowel_oar", "anus", "Skin", "ChestWall_L", "ChestWall_R",
-                "ribs_left", "ribs_right", "costal_cartilages"}
+                "ribs_left", "ribs_right", "costal_cartilages", "sternum"}
     cranio = modes.get("TASKS_DO_FAST") or {}
     motores = modes.get("MOTORES_DO_FAST_POR_REGIAO") or {}
     terminal = _fonte_da_funcao(eng, "acabamentos_terminais")
@@ -9864,8 +9878,8 @@ def _divergencias_da_22(fatos, termos, politica):
 def teste_o_que_a_v89_muda_na_22():
     secao(u"documentos 2.2: regras da 8.9 e tabelas publicadas ate 2.1 intactas")
     import radai_consent as CS
-    checar(u"versao 2.2 pede novo aceite com data 28/10/2026",
-           CS.VERSAO_DOCS == "2.2" and CS.DATA_DOCS == "2026-10-28")
+    checar(u"versao 2.3 pede novo aceite com data 30/10/2026",
+           CS.VERSAO_DOCS == "2.3" and CS.DATA_DOCS == "2026-10-30")
     for nome, esperado in sorted(_HASHES_DAS_TABELAS_ATE_21.items()):
         tabela = getattr(CS, nome)
         checar(u"%s: todas as entradas publicadas ate 2.1 permanecem intactas" % nome,
@@ -9873,6 +9887,9 @@ def teste_o_que_a_v89_muda_na_22():
         isca = dict(tabela, **{"2.1": "alterada"})
         checar(u"  isca: alterar qualquer dado da 2.1 em %s reprova" % nome,
                _hash_da_tabela_ate_21(isca) != esperado)
+    checar(u"a 2.2 publicada permanece selada e sem resselagem",
+           CS.IMPRESSOES_PUBLICADAS.get("2.2") == "1e1647d8af01d4fc904b17fe3386a4ca2016eb23a47392ab0499c5c37f288ab1"
+           and CS.RESSELAGENS_ANTES_DA_PUBLICACAO.get("2.2") == 0)
     f = _fatos_da_22()
     checar(u"fatos 8.9 lidos dos pontos de processamento e cadastro", all(f.values()), repr(f))
     div = _divergencias_da_22(f, CS.TERMOS, CS.POLITICA)

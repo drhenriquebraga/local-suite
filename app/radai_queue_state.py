@@ -383,6 +383,8 @@ def _item_do_contrato(item, origem_padrao):
         return None, u"faltou o uid da série"
     origem = (u"%s" % (item.get("origem") or origem_padrao or
                        Q.RODAR_AGORA)).strip().lower()
+    if origem == Q.NEURO:
+        return None, u"use o contrato de estudo do NEURO RT"
     if origem == Q.VIGIA:
         return None, (u"o vigia põe as séries dele pela varredura, e não "
                       u"por esta rota")
@@ -499,7 +501,7 @@ def turno_na_vez():
         if (not turno or turno[0].get("estado") != Q.ESPERANDO
                 or not turno[0].get("iniciar_pedido")):
             return False
-        return not any(Q.e_do_lote(c)
+        return not any(Q.e_manual(c)
                        and c.get("estado") in (Q.ESPERANDO, Q.RODANDO)
                        for c in _CARDS)
 
@@ -584,7 +586,7 @@ def series_esperando():
 
 def ha_manual_esperando():
     with _TRAVA:
-        return any(Q.e_do_lote(c) and c.get("estado") == Q.ESPERANDO
+        return any(Q.e_manual(c) and c.get("estado") == Q.ESPERANDO
                    for c in _CARDS)
 
 
@@ -649,6 +651,10 @@ def cancelar(visivel):
 
 
 def tirar(cid):
+    c = cartao(cid)
+    if (c and Q.executor(c) == Q.NEURO
+            and c.get("estado") not in Q.TERMINAIS):
+        return cancel_neuro(cid)
     with _TRAVA:
         k = _pelo_id(cid)
         if k < 0 or not Q.pode_tirar(_CARDS[k]):
@@ -1071,11 +1077,13 @@ _VEZ = {"dono": None, "lote_quer": False, "desde": 0.0}
 def quem_tem_a_vez():
     with _VEZ_COND:
         return {"dono": _VEZ["dono"], "lote_quer": bool(_VEZ["lote_quer"]),
-                "desde": _VEZ["desde"]}
+                "desde": _VEZ["desde"], "ticket": _VEZ.get("ticket")}
 
 
 def tentar_a_vez(quem):
     with _VEZ_COND:
+        if not _pode_conceder(quem):
+            return False
         if _VEZ["dono"] not in (None, quem):
             return False
         if quem == Q.VIGIA and _VEZ["lote_quer"]:
@@ -1096,7 +1104,7 @@ def esperar_a_vez(quem=Q.LOTE, parar=None, passo_s=0.5, ao_esperar=None):
     with _VEZ_COND:
         if quem == Q.LOTE:
             _VEZ["lote_quer"] = True
-        while _VEZ["dono"] not in (None, quem):
+        while not _pode_conceder(quem):
             if parar is not None:
                 try:
                     if parar():
@@ -1118,12 +1126,18 @@ def esperar_a_vez(quem=Q.LOTE, parar=None, passo_s=0.5, ao_esperar=None):
                     _VEZ_COND.acquire()
                 continue
             _VEZ_COND.wait(passo_s)
+        if parar is not None and parar():
+            if quem == Q.LOTE:
+                _VEZ["lote_quer"] = False
+            return False
         _VEZ["dono"] = quem
         _VEZ["desde"] = _agora()
         return True
 
 
 def soltar_a_vez(quem):
+    if quem == Q.NEURO:
+        return False
     with _VEZ_COND:
         if _VEZ["dono"] == quem:
             _VEZ["dono"] = None
@@ -1329,7 +1343,9 @@ ESCOLHA_PERSISTIDA = ("modo", "tasks", "protocolos", "protocolos_3d",
 CAMPOS_DO_ARQUIVO = ("id", "tipo", "origem", "executor", "estado", "uid",
                      "fim", "criado", "dono", "pendentes_por_memoria",
                      "tentativa_complemento", "ja_concluida",
-                     "complemento", "trava_solta", "iniciar_pedido")
+                     "complemento", "trava_solta", "iniciar_pedido",
+                     "neuro_key", "neuro_fingerprint", "neuro_cancel",
+                     "neuro_progress")
 CAMPOS_DO_INDICE = ("pasta", "rotulo", "copiar_rs_para", "mensagem", "motivo",
                     "faltou", "sem_estrutura", "nao_contornavel")
 
@@ -1347,6 +1363,8 @@ def _ao_arquivo(c):
 
 
 def _ao_indice(c):
+    if Q.executor(c) == Q.NEURO:
+        return {}
     d = dict((k, c.get(k)) for k in CAMPOS_DO_INDICE if c.get(k))
     carga = dict(c.get("carga") or {})
     for k in ESCOLHA_PERSISTIDA:
@@ -1491,7 +1509,8 @@ def carregar(log=None):
             c["executor"] = Q.executor(c)
             falharam += 1
             soltar.append(c)
-        if c.get("tipo") == Q.SERIE and not _existe(carga):
+        if (c.get("tipo") == Q.SERIE and Q.executor(c) != Q.NEURO
+                and not _existe(carga)):
             achada = _achar_pasta(c.get("uid"))
             if achada:
                 carga["pasta"] = achada
@@ -1501,6 +1520,9 @@ def carregar(log=None):
                 c["mensagem"] = FRASE_NAO_ENCONTRADA
                 c.pop("pendentes_por_memoria", None)
                 sumidas += 1
+        if Q.executor(c) == Q.NEURO and estado in Q.NA_ESPERA:
+            c = Q.terminar(c, Q.FALHOU)
+            c["mensagem"] = FRASE_FECHOU_NO_MEIO
         voltaram.append(c)
     with _TRAVA:
         presentes = set(c.get("id") for c in _CARDS)
@@ -1608,6 +1630,22 @@ def montar(app):
         except Exception as e:
             return _erro(e)
 
+    @app.post("/api/fila/neuro/cancelar")
+    def _cancelar_neuro_atual():
+        pausar_neuro(True)
+        cancelar_neuro_ativo()
+        return _pacote()
+
+    @app.post("/api/fila/neuro/pausar")
+    def _pausar_neuro():
+        pausar_neuro(True)
+        return _pacote()
+
+    @app.post("/api/fila/neuro/iniciar")
+    def _iniciar_neuro():
+        pausar_neuro(False)
+        return _pacote()
+
     @app.post("/api/fila/cancelar")
     async def _cancelar(request: Request):
         try:
@@ -1694,3 +1732,151 @@ def botoes_do_lote(lote):
     return {"rodando": bool(lote.get("rodando")),
             "pausa_pedida": bool(lote.get("pausar")),
             "cancelando": bool(lote.get("cancelar"))}
+
+
+_NEURO_CANCEL = {}
+_NEURO_PAUSA = False
+
+
+def _primeiro_manual():
+    with _TRAVA:
+        return next((c for c in _visiveis()
+                     if Q.e_manual(c) and c.get("estado") == Q.ESPERANDO), None)
+
+
+def _pode_conceder(quem):
+    if quem not in (Q.LOTE, Q.VIGIA):
+        return False
+    if _FECHAR_AO_FIM["pedido"] or _NEURO_PAUSA:
+        return False
+    if _VEZ["dono"] not in (None, quem):
+        return False
+    if _VEZ["dono"] == quem:
+        return True
+    primeiro = _primeiro_manual()
+    if quem == Q.VIGIA and (primeiro or _VEZ["lote_quer"]):
+        return False
+    if quem == Q.LOTE and primeiro and Q.executor(primeiro) == Q.NEURO:
+        return False
+    return quem in (Q.LOTE, Q.VIGIA)
+
+
+def bind_neuro_cancel(cid, callback):
+    with _TRAVA:
+        if callback is None:
+            _NEURO_CANCEL.pop(cid, None)
+        elif callable(callback):
+            _NEURO_CANCEL[cid] = callback
+
+
+def enqueue_neuro(key, fingerprint):
+    import re
+    if not all(re.fullmatch(r"[0-9a-f]{64}", str(v)) for v in (key, fingerprint)):
+        raise ValueError("identificador opaco Neuro inválido")
+    with _TRAVA:
+        for c in _CARDS:
+            if Q.executor(c) == Q.NEURO and c.get("neuro_key") == key:
+                if c.get("neuro_fingerprint") != fingerprint:
+                    raise ValueError("pedido Neuro repetido com conteúdo diferente")
+                return dict(c)
+        c = Q.novo_card(Q.SERIE, rotulo=u"NEURO RT", origem=Q.NEURO,
+                        extra={"neuro_key": key, "neuro_fingerprint": fingerprint,
+                               "criado": _agora(), "neuro_cancel": False})
+        _CARDS[:] = Q.acrescentar(_CARDS, [c])
+    _gravar()
+    return dict(c)
+
+
+def try_neuro_turn(cid):
+    with _VEZ_COND:
+        if _FECHAR_AO_FIM["pedido"] or _VEZ["dono"] is not None or _NEURO_PAUSA:
+            return False
+        with _TRAVA:
+            primeiro = _primeiro_manual()
+            if not primeiro or primeiro.get("id") != cid:
+                return False
+            if Q.executor(primeiro) != Q.NEURO or primeiro.get("neuro_cancel"):
+                return False
+            k = _pelo_id(cid)
+            c = dict(_CARDS[k])
+            c.update(estado=Q.RODANDO, comecou=_agora(), fim=0)
+            _CARDS[k] = c
+            _VEZ.update(dono=Q.NEURO, ticket=cid, desde=_agora())
+    _gravar()
+    return True
+
+
+def report_neuro(cid, progress):
+    import math
+    p = progress if isinstance(progress, dict) else {}
+    stage = p.get("stage")
+    safe = {}
+    if stage in ("queued", "preparing", "running", "restoring", "exporting", "visualizing"):
+        safe["stage"] = stage
+    fraction = p.get("fraction")
+    if isinstance(fraction, (float, int)) and math.isfinite(fraction):
+        safe["fraction"] = max(0.0, min(1.0, float(fraction)))
+    with _TRAVA:
+        k = _pelo_id(cid)
+        if k < 0 or Q.executor(_CARDS[k]) != Q.NEURO or _CARDS[k]["estado"] != Q.RODANDO:
+            return False
+        _CARDS[k] = dict(_CARDS[k], neuro_progress=safe)
+    _gravar()
+    return True
+
+
+def finish_neuro(cid, outcome):
+    status = outcome.get("status") if isinstance(outcome, dict) else outcome
+    states = {"completed": Q.PRONTO, "empty": Q.PRONTO, "partial": Q.PARCIAL,
+              "failed": Q.FALHOU, "interrupted": Q.FALHOU, "cancelled": Q.CANCELADO}
+    if status not in states:
+        raise ValueError("desfecho Neuro desconhecido")
+    with _VEZ_COND:
+        with _TRAVA:
+            k = _pelo_id(cid)
+            if k < 0 or Q.executor(_CARDS[k]) != Q.NEURO:
+                return False
+            c = _CARDS[k]
+            if c.get("estado") in Q.TERMINAIS:
+                return False
+            state = Q.CANCELADO if c.get("neuro_cancel") else states[status]
+            _CARDS[k] = Q.terminar(c, state)
+            _NEURO_CANCEL.pop(cid, None)
+        if _VEZ["dono"] == Q.NEURO and _VEZ.get("ticket") == cid:
+            _VEZ.update(dono=None, ticket=None, desde=0.0)
+        _VEZ_COND.notify_all()
+    _gravar()
+    return True
+
+
+def cancel_neuro(cid):
+    with _TRAVA:
+        k = _pelo_id(cid)
+        if k < 0 or Q.executor(_CARDS[k]) != Q.NEURO:
+            return False
+        c = _CARDS[k]
+        if c.get("estado") in Q.TERMINAIS:
+            return False
+        c = dict(c, neuro_cancel=True)
+        if c.get("estado") != Q.RODANDO:
+            c = Q.terminar(c, Q.CANCELADO)
+        _CARDS[k] = c
+        callback = _NEURO_CANCEL.get(cid)
+    _gravar()
+    if callback:
+        callback()
+    return True
+
+
+def cancelar_neuro_ativo():
+    with _VEZ_COND:
+        cid = _VEZ.get("ticket") if _VEZ["dono"] == Q.NEURO else None
+    return cancel_neuro(cid) if cid else False
+
+
+def pausar_neuro(sim=True):
+    global _NEURO_PAUSA
+    with _VEZ_COND:
+        _NEURO_PAUSA = bool(sim)
+        _VEZ_COND.notify_all()
+    return _NEURO_PAUSA

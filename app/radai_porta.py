@@ -97,7 +97,7 @@ ICONES = {
     u"recon3d": (u"", u"1.15", u"",
                  u'<path d="m42 5 29 17v37L42 78 13 59V22Z M13 22l29 18 29-18M42 40v38M42 5v35M13 59l29-19 29 19"/>'
                  u'<path d="m13 40 29 19 29-19M27 13v55m30-54v54m-30-5 30-36m-30-4 30 36" opacity=".23"/>'),
-    u"nidus": (u" ls-vasos", u"1.35", u' stroke-linecap="round"',
+    u"neuro": (u" ls-vasos", u"1.35", u' stroke-linecap="round"',
                u'<path d="M31 78c2-19 7-27 13-36s2-16-1-27M40 60c-5-12-14-14-23-19S8 30 7 18M43 43c12-7 21-10 25-25M41 52c15 1 20 11 29 22M44 30C33 26 31 21 29 10M37 66C25 61 21 65 10 70M56 52c4-12 11-13 22-12M21 43c2-10-1-16-4-22M55 36c-4-8 3-15 5-27"/>'
                u'<path d="m43 16 6-8m-20 5 4-8M8 29l8-6m6 33-7-4m-2 17-7-6m61-39 9 1m-5 27 7 7m-12 10 10-3m-21-50-6-7" opacity=".7"/>'),
     u"elastic": (u"", u".85", u"", _malha_do_elastic()),
@@ -178,7 +178,7 @@ def ordem():
         import radai_menu
         return tuple(radai_menu.MODULOS_HOME)
     except Exception:
-        return (u"bridge", u"autocontorno", u"recon3d", u"nidus", u"elastic",
+        return (u"bridge", u"autocontorno", u"recon3d", u"neuro", u"elastic",
                 u"bolus")
 
 

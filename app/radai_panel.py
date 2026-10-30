@@ -746,6 +746,7 @@ a.cfg-card[aria-current="true"]{border-color:var(--accent,#4DA3FF);
    versão indicada acima. O instalador preserva a configuração, o acervo e
    os logs desta estação.</p>
   <div class="linha">
+   <button type="button" class="sec" id="btConsultarVersao" onclick="if(window.radaiConsultarVersao) window.radaiConsultarVersao()" data-radai-frase>Verificar atualizações</button>
    @BT_ATU_AGORA@
    <a class="bt sec" id="lkAtu" target="_blank" rel="noopener"
     href="@URL_VERSOES@"
@@ -1909,7 +1910,6 @@ def montar(app, ler_vigia=None, config=None):
                  "radai_viewseg", "radai_view", "radai_bibliography",
                  "radai_router",
                  "radai_bridge", "radai_recon3d_screen",
-                 "radai_nidus_screen",
                  "radai_elastic_screen",
                  "radai_bolus_screen",
                  "radai_provenance_screen",
@@ -1936,6 +1936,12 @@ def montar(app, ler_vigia=None, config=None):
                     mod.montar(app)
         except Exception as e:
             _MONTAGEM[nome] = "%s: %s" % (type(e).__name__, str(e)[:200])
+
+    try:
+        import radai_plugins
+        radai_plugins.montar(app, cfg)
+    except Exception as e:
+        _MONTAGEM["radai_plugins"] = "%s: %s" % (type(e).__name__, str(e)[:200])
 
     @app.get("/config", response_class=HTMLResponse)
     def _tela_config():
@@ -1974,10 +1980,10 @@ def montar(app, ler_vigia=None, config=None):
             nova = bool(radai_version.para_a_tela().get("nova"))
         except Exception:
             nova = False
-        agora = (u'<button type="button" class="pri" id="btAtuAgora" '
+        agora = (u'<button type="button" class="pri" id="btAtuAgora" %s '
                  u'onclick="if(window.radaiAtualizarAgora) '
                  u'window.radaiAtualizarAgora()" data-radai-frase>'
-                 u'Atualizar agora</button>') if nova else u""
+                 u'Atualizar agora</button>') % (u"" if nova else u'hidden style="display:none"')
         if link:
             bt = (u'<a class="bt %s" id="lkInst" target="_blank" '
                   u'rel="noopener" href="%s" data-radai-frase>Baixar o '

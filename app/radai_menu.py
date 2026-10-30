@@ -7,6 +7,7 @@ ITENS = [
     ("inicio",      "/",            u"inicio",      u"Início",        u"os módulos da suíte"),
     ("bridge",      "/bridge",      u"ponte",      u"DicomBridge",    u"o que impede o TPS de aceitar, e o que a conversão resolve"),
     ("autocontorno", "/autocontorno", u"contornos",     u"ContourLab",     u"comparar modelos sobre o mesmo exame"),
+    ("neuro",       "/neuro",       u"cruzamento", u"NEURO RT", u"ferramentas de estudo do sistema nervoso central"),
     ("nidus",       "/nidus",       u"cruzamento",      u"Nidus RT",      u"projeção vascular: a mesma lesão em duas incidências"),
     ("nidus_projecao", "/nidus/projecao", u"cruzamento", u"Projeção Vascular", u"circular na projeção, ver onde as duas se cruzam"),
     ("elastic",     "/elastic",     u"malha",      u"Elastic RT",    u"fusão elástica: o que a deformação fez, e se ela é possível"),
@@ -22,7 +23,7 @@ ITENS = [
     ("config",      "/config",      u"engrenagem",      u"Configurações", u"o vigia, os modelos e o diagnóstico"),
 ]
 
-MODULOS_HOME = ("bridge", "autocontorno", "recon3d", "nidus", "elastic",
+MODULOS_HOME = ("bridge", "autocontorno", "recon3d", "neuro", "elastic",
                 "bolus")
 
 SEM_ITEM_NO_MENU = ("diagnostico",)
@@ -87,7 +88,7 @@ body{margin-left:var(--ui-lado) !important}
  --mod-cor-fraca:var(--mod-bridge-fraco,rgba(124,92,255,.14))}
 .radai-menu a[data-mod="recon3d"]{--mod-cor:var(--mod-recon,#31D0AA);
  --mod-cor-fraca:var(--mod-recon-fraco,rgba(49,208,170,.14))}
-.radai-menu a[data-mod="nidus"]{--mod-cor:var(--mod-nidus,#E39B4F);
+.radai-menu a[data-mod="neuro"],.radai-menu a[data-mod="nidus"]{--mod-cor:var(--mod-nidus,#E39B4F);
  --mod-cor-fraca:var(--mod-nidus-fraco,rgba(227,155,79,.14))}
 .radai-menu a[data-mod="elastic"]{--mod-cor:var(--mod-elastic,#8FA9F2);
  --mod-cor-fraca:var(--mod-elastic-fraco,rgba(143,169,242,.14))}
@@ -134,7 +135,7 @@ ALIAS = {
     "creditos": "bibliografia",
 }
 
-MODULOS = ("bridge", "autocontorno", "recon3d", "nidus", "elastic", "bolus")
+MODULOS = ("bridge", "autocontorno", "recon3d", "neuro", "elastic", "bolus")
 NO_PE = ("bibliografia", "config")
 
 GRUPOS = [(u"", MODULOS), (u"", NO_PE)]

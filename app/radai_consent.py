@@ -7,8 +7,8 @@ import radai_archive
 import radai_menu
 import radai_web
 
-VERSAO_DOCS = "2.2"
-DATA_DOCS = "2026-10-28"
+VERSAO_DOCS = "2.3"
+DATA_DOCS = "2026-10-30"
 ARQUIVO_ACEITE = "aceite.json"
 
 IMPRESSOES_PUBLICADAS = {
@@ -21,6 +21,7 @@ IMPRESSOES_PUBLICADAS = {
     "2.0": "c6b3c126af07cd56a14230008af944a09824c7d7f9ed51b834dcfdca4728aa97",
     "2.1": "5ec308c786f4495cd965ec6a5b6acda89853731f5415eacf9556cf2ea6f28013",
     "2.2": "1e1647d8af01d4fc904b17fe3386a4ca2016eb23a47392ab0499c5c37f288ab1",
+    "2.3": "e3aadaa481fdbf73d4741f2517449c665d56bd3f156a285330bc8062f5d266e9",
 }
 
 # GUARDA: versao publicada nao se retoca (mudou o texto, versao nova); so a
@@ -28,7 +29,7 @@ IMPRESSOES_PUBLICADAS = {
 # abaixo, com o que entrou no texto.
 RESSELAGENS_ANTES_DA_PUBLICACAO = {"1.4": 2, "1.5": 3, "1.6": 4, "1.7": 3,
                                    "1.8": 6, "1.9": 2,
-                                   "2.0": 2, "2.1": 2, "2.2": 0}
+                                   "2.0": 2, "2.1": 2, "2.2": 0, "2.3": 0}
 
 IMPRESSOES_TROCADAS_ANTES_DA_PUBLICACAO = {
     "2.1": (("fedb3e1174c9",
@@ -771,7 +772,7 @@ tem armazenamento próprio fora dela. Os lugares, um por um:</p>
  as pastas para onde foram, o UID, a escolha e o rótulo, que leva a descrição
  da série —, por até 24 horas e no máximo 64 entregas, nunca em disco: ela
  serve para conferir no disco se o RTSTRUCT chegou a cada pasta e para pôr a
- série de novo na fila, e some quando o programa fecha. No Nidus RT, as
+ série de novo na fila, e some quando o programa fecha. No Nidus RT, quando o plugin opcional NEURO RT estiver instalado, as
  malhas do 3D da caixa — que, numa série com a cabeça no campo, podem
  mostrar o rosto —, no máximo 24 MB, apagadas quando a série fecha e depois
  de 10 minutos sem uso, nunca em disco. E o que cada leitura de pasta achou
@@ -805,6 +806,14 @@ tem armazenamento próprio fora dela. Os lugares, um por um:</p>
  que tudo isso fica.</li>
 </ul>
 <p><b>Nada disso sai sozinho.</b> O que sai, sai por um ato seu — seção 5.</p>
+
+<p>O NEURO RT é um plugin opcional, instalado apenas por pedido em
+ <code>Plugins/NEURO RT</code>. Ele possui termo e política próprios, apresentados
+ antes da instalação e no primeiro uso. Sua consulta e seus downloads usam o
+ repositório público <code>github.com/drhenriquebraga/neuro-rt</code> e os arquivos
+ da release, com verificação de integridade. Nenhuma imagem de paciente é
+ incluída nessa consulta ou nesses downloads. As referências ao Nidus nesta
+ Política descrevem a ferramenta do plugin quando instalada.</p>
 
 <h2>4 · Conexões de rede</h2>
 <p><b>Nenhuma imagem de paciente é enviada para servidor externo.</b> Não existe
@@ -1402,20 +1411,23 @@ obrigatória (seção 1.4).</p>
  parede torácica e dispensa o pós-processamento voltado apenas à entrega
  dessas ROIs. Os insumos ósseos compartilhados, incluindo costelas e cartilagem
  costal, permanecem internamente até o acabamento do coração de radioterapia,
- com o processamento necessário para preservar seu limite. O esterno continua
- no entregue. Costelas, esterno e cartilagem
+ com o processamento necessário para preservar seu limite. O esterno (<code>Sternum_ai</code>) não é gravado no FAST; continua
+ no STUDY do AUTO e das personalizações e no FULL, e permanece como insumo interno quando necessário. Costelas, esterno e cartilagem
  pertencem ao mesmo bloco de inferência da base de TC: retirar essas ROIs não
  elimina a inferência desse bloco. As cristas ilíacas saem, só com a pelve identificada,
  como no entregue; e ele sai sem parótida, porque ela vem dos níveis
  cervicais, que o FAST não roda. As estruturas preservadas passam pelo mesmo
  pós-processamento do completo, com as diferenças que o nome declara: os
- compostos são suavizados inteiros, e não parte a parte; e os pontos de cada
- contorno são reduzidos (Douglas–Peucker, com tolerância de 0,2 mm e pelo
- menos 3 pontos por contorno), menos nas estruturas finas — os nervos
- ópticos, o quiasma, os constritores da faringe e a tireoide —, que saem sem
- redução. O contorno com menos de 1 cm² de área fica
+ compostos são suavizados inteiros, e não parte a parte. FAST, STUDY e FULL
+ usam o mesmo gravador de pontos, sem decimação adicional no FAST e sem
+ compressão inicial dos pontos colineares da borda. Essa gravação mais densa
+ preserva a máscara 3D e pode mudar a rasterização do contorno final em relação
+ às versões anteriores. O esôfago final tem prioridade: Aorta e GreatArteries
+ cedem a ele seus voxels de interseção, sem modificar o esôfago. Antes da versão
+ 8.10 havia uma etapa adicional no FAST (Douglas–Peucker, com tolerância de 0,2 mm
+ e pelo menos 3 pontos por contorno). Os números abaixo descrevem essa etapa histórica. O contorno com menos de 1 cm² de área fica
  como está, e o que mudaria de área em mais de 1% volta ao de antes. Essas
- duas guardas comparam cada contorno com ele mesmo antes da redução, e não
+ duas guardas históricas comparam cada contorno com ele mesmo antes da redução, e não
  são o teto da diferença entre os dois entregues. Em medição de uma versão
  anterior, em duas TC de tórax de teste, de 5 mm, o entregue do FAST saiu,
  contra o do AUTO da mesma série,
@@ -2461,7 +2473,16 @@ diferente do aceito pede aceite de novo.</p>
 uma vulnerabilidade, pelo relato privado do repositório do projeto no GitHub
 (<a href="https://github.com/drhenriquebraga/local-suite/security">drhenriquebraga/local-suite</a>,
 aba Security), nunca numa issue pública e nunca com dado de paciente.</p>
-</div></body></html>"""
+</div><p><b>NEURO RT opcional.</b> O plugin é instalado separadamente, por pedido
+ explícito, com seus avisos e licenças próprios no instalador e no primeiro uso.
+ Nesta entrega apenas Nidus RT está habilitado; Glioma, Metastasis, Meningioma e
+ Anatomia ficam em construção e não iniciam novas execuções. Instalar ou abrir
+ o plugin não autoriza inferência automática. Resultados continuam como sugestões
+ não aprovadas e a aprovação pertence ao operador no TPS.</p>
+<p>Nas configurações, Verificar atualizações consulta a versão publicada sob
+ demanda, sem iniciar a instalação. Se o decisor de atualização falhar, é
+ possível abrir o instalador já baixado e verificado para seguir o preparo guiado.</p>
+</body></html>"""
 
 
 def montar(app):

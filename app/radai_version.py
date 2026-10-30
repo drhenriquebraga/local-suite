@@ -2,6 +2,7 @@
 import io
 import json
 import os
+import threading
 
 _AQUI = os.path.dirname(os.path.abspath(__file__))
 
@@ -168,7 +169,8 @@ FRASE_DO_404 = (u"consulta indisponivel (o endereco das versoes respondeu "
 
 _CONSULTA = {"estado": "nunca", "versao": u"", "quando": None,
              "erro": u"", "url": u""}
-_TRAVA_CONSULTA = None
+_TRAVA_CONSULTA = threading.Lock()
+_THREAD_CONSULTA = None
 
 
 def _api_de(url_pagina):
@@ -225,7 +227,7 @@ def link_do_instalador(url_pagina=None, nome=None):
             % (dono, repo, nome))
 
 
-def consultar(url_pagina=None, timeout=None):
+def consultar(url_pagina=None, timeout=None, forcar=False):
     import json
     import urllib.error
     import urllib.request
@@ -241,6 +243,9 @@ def consultar(url_pagina=None, timeout=None):
                         u"endereco das versoes fora do formato do GitHub")
         return fora
 
+    if forcar:
+        import time
+        api += ("&" if "?" in api else "?") + "consulta=" + str(time.time_ns())
     aqui = u""
     try:
         import radai_delivery
@@ -414,28 +419,36 @@ def _maior(a, b):
     return _n(a) > _n(b)
 
 
-def iniciar_consulta(url_pagina=None, timeout=None, ao_terminar=None):
+def iniciar_consulta(url_pagina=None, timeout=None, ao_terminar=None, forcar=False):
     url_pagina = _url(url_pagina)
     import datetime
     import threading
-    global _TRAVA_CONSULTA
+    global _TRAVA_CONSULTA, _THREAD_CONSULTA
     if _TRAVA_CONSULTA is None:
         _TRAVA_CONSULTA = threading.Lock()
-
     def _rodar():
-        r = consultar(url_pagina, timeout)
+        try:
+            r = consultar(url_pagina, timeout, forcar=True) if forcar else consultar(url_pagina, timeout)
+        except Exception as e:
+            r = {"estado": "erro", "erro": type(e).__name__}
         with _TRAVA_CONSULTA:
             _CONSULTA.update(r)
             _CONSULTA["quando"] = datetime.datetime.now()
+            _CONSULTA["consultando"] = False
         if ao_terminar:
             try:
                 ao_terminar(ultima_consulta())
             except Exception:
                 pass
-
-    t = threading.Thread(target=_rodar, name="radai-versao", daemon=True)
-    t.start()
-    return t
+    with _TRAVA_CONSULTA:
+        anterior = globals().get("_THREAD_CONSULTA")
+        if anterior is not None and anterior.is_alive():
+            return anterior
+        _CONSULTA["consultando"] = True
+        t = threading.Thread(target=_rodar, name="radai-versao", daemon=True)
+        _THREAD_CONSULTA = t
+        t.start()
+        return t
 
 
 def ultima_consulta(hoje=None):
@@ -483,6 +496,8 @@ def para_a_tela():
     try:
         d = ultima_consulta()
         fora["estado"] = str(d.get("estado") or "nunca")
+        fora["consultando"] = bool(d.get("consultando"))
+        fora["publicada"] = str(d.get("versao") or "")
         try:
             import radai_delivery
             fora["aqui"] = str((radai_delivery.carimbo() or {}).get("versao")

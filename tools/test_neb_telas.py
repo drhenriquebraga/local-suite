@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 import ast
+import importlib.util
 import io
 import json
 import os
 import re
 import sys
 import traceback
+from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -27,6 +29,49 @@ io.open(_CFG, "w", encoding="utf-8").write(u"ROOT=\n")
 os.environ["RADAI_CONFIG"] = _CFG
 
 _R = []
+_NEURO_TELA = None
+
+
+def _raiz_neuro_opcional():
+    if "RADAI_NEURO_SOURCE" not in os.environ:
+        return None
+    valor = os.environ["RADAI_NEURO_SOURCE"].strip()
+    if not valor:
+        raise ValueError("RADAI_NEURO_SOURCE está definida mas vazia.")
+    raiz = Path(valor).resolve(strict=True)
+    if not raiz.is_dir():
+        raise ValueError("RADAI_NEURO_SOURCE deve apontar à raiz do NEURO_RT.")
+    for rel in ("module.json", "app/radai_nidus_screen.py", "app/radai_nidus.py"):
+        arquivo = (raiz / rel).resolve(strict=True)
+        if not arquivo.is_file() or not arquivo.is_relative_to(raiz):
+            raise ValueError("Fonte Neuro ausente ou fora da raiz: %s" % rel)
+    manifesto = json.loads((raiz / "module.json").read_text(encoding="utf-8"))
+    if manifesto.get("id") != "neuro-rt":
+        raise ValueError("RADAI_NEURO_SOURCE não contém o manifesto neuro-rt.")
+    return raiz
+
+
+def _tela_nidus_opcional():
+    global _NEURO_TELA
+    raiz = _raiz_neuro_opcional()
+    if raiz is None:
+        print(u"    OPCIONAL não solicitado: tela Nidus requer RADAI_NEURO_SOURCE.")
+        return None
+    if _NEURO_TELA is not None:
+        if Path(_NEURO_TELA.__file__).resolve() != (raiz / "app/radai_nidus_screen.py").resolve():
+            raise RuntimeError("A fonte Neuro mudou durante a bateria.")
+        return _NEURO_TELA
+    import radai_projection
+    anterior = sys.modules.get("radai_nidus")
+    if anterior is not None and anterior is not radai_projection:
+        raise RuntimeError("Core Nidus antigo já carregado; use o core Recon compartilhado.")
+    sys.modules["radai_nidus"] = radai_projection
+    caminho = raiz / "app/radai_nidus_screen.py"
+    spec = importlib.util.spec_from_file_location("_neb_neuro_nidus_screen", str(caminho))
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    _NEURO_TELA = modulo
+    return modulo
 
 
 def checar(nome, ok, detalhe=u""):
@@ -41,6 +86,11 @@ def secao(t):
 
 
 def _fonte(nome):
+    if nome == "radai_nidus_screen.py":
+        raiz = _raiz_neuro_opcional()
+        if raiz is None:
+            raise RuntimeError("Fonte Nidus só pode ser lida com RADAI_NEURO_SOURCE explícita.")
+        return (raiz / "app" / nome).read_text(encoding="utf-8")
     with io.open(_componentes.fonte("app/" + nome), encoding="utf-8") as f:
         return f.read()
 
@@ -104,20 +154,53 @@ def teste_os_comentarios_de_antes_ficaram():
     OFICINA.teste_os_comentarios_de_antes_ficaram(sys.modules[__name__])
 
 
-def _nomes_da_projecao():
+def teste_neuro_estrutura():
+    secao(u"NEURO RT na base: entrada, rota, ferramenta e fronteira clínica")
+    _raiz_neuro_opcional()
     import radai_breadcrumb as B
     import radai_menu as MN
     import radai_modules as M
+    import radai_router as R
+    modulo = M.MODULOS["neuro"]
+    nome = _norm(modulo["titulo"] + modulo["destaque"])
+    checar(u"o módulo da base se chama NEURO RT", nome == u"NEURO RT", nome)
+    checar(u"a trilha Neuro aponta à entrada opcional da suíte",
+           B.ARVORE["neuro"][:2] == (u"NEURO RT", "/neuro"), B.ARVORE["neuro"])
+    entradas = [item for item in MN.ITENS if item[0] == "neuro"]
+    checar(u"o trilho tem uma entrada NEURO RT em /neuro",
+           len(entradas) == 1 and entradas[0][1] == "/neuro" and entradas[0][3] == u"NEURO RT",
+           entradas)
+    porta = R.montar_porta()
+    checar(u"a porta abre NEURO RT pelo loader, sem pedir a tela Nidus à base",
+           'href="/neuro"' in porta and u"NEURO" in _texto(porta)
+           and 'href="/nidus"' not in porta)
+    nidus = [f for f in M.FERRAMENTAS["neuro"] if f[0] == "nidus"]
+    checar(u"Nidus RT é ferramenta interna em /neuro/nidus",
+           len(nidus) == 1 and nidus[0][2] == u"Nidus RT" and nidus[0][3] == "/neuro/nidus", nidus)
+    linha = _norm(_texto(modulo["linha"]))
+    pagina = M.pagina("neuro")
+    checar(u"a linha Neuro mantém estudo e estruturas não aprovadas à vista",
+           u"estudo" in linha.lower() and u"não aprovadas" in linha.lower()
+           and linha in _norm(_texto(pagina)), linha)
+    _sem_marcador(pagina)
+
+
+def _nomes_da_projecao(tela):
+    import radai_breadcrumb as B
+    p = tela.pagina()
+    tag = re.search(r'<h1[^>]*class="ui-fn-tag"[^>]*>(.*?)</h1>', p, re.S)
     fora = {u"trilha": B.ARVORE["nidus_projecao"][0]}
-    fora[u"trilho"] = [i[3] for i in MN.ITENS if i[0] == "nidus_projecao"][0]
-    fora[u"mini-página"] = [f[2] for f in M.FERRAMENTAS["nidus"] if f[0] == "nidus_projecao"][0]
+    fora[u"tag da ferramenta"] = _norm(_texto(tag.group(1))) if tag else u""
     return fora
 
 
 def teste_um_nome_so_para_a_projecao():
     secao(u"Nidus RT: a ferramenta tem um nome só, em todo lugar")
-    nomes = _nomes_da_projecao()
-    checar(u"trilha, trilho e mini-página dizem «Projeção Vascular», como a tag",
+    tela = _tela_nidus_opcional()
+    if tela is None:
+        return
+    nomes = _nomes_da_projecao(tela)
+    checar(u"trilha e tag da ferramenta dizem «Projeção Vascular» dentro de NEURO RT",
            set(nomes.values()) == {u"Projeção Vascular"}, nomes)
     isca = dict(nomes, trilha=u"Projeção vascular")
     checar(u"  isca: um lugar com o nome antigo é acusado",
@@ -127,8 +210,10 @@ def teste_um_nome_so_para_a_projecao():
 def teste_nidus_estrutura():
     secao(u"Nidus RT: a cabeça, o ?, o alerta e os comandos")
     import radai_modules as M
-    import radai_nidus as N
-    import radai_nidus_screen as S
+    import radai_projection as N
+    S = _tela_nidus_opcional()
+    if S is None:
+        return
     fonte = _fonte("radai_nidus_screen.py")
     p = S.pagina()
     checar(u"a tela chama radai_ui.cabeca_de_funcao", _chama(fonte, "cabeca_de_funcao"))
@@ -148,7 +233,9 @@ def teste_nidus_estrutura():
     i_trab, i_mpr = p.find(u'class="nd-trabalho"'), p.find(u'id="nd_mpr"')
     checar(u"a projeção e o MPR moram no mesmo trabalho, o MPR depois",
            0 < i_trab < p.find(u'id="nd_palco"') < i_mpr)
-    linha = _norm(_texto(M.MODULOS["nidus"]["linha"]))
+    linha = _norm(_texto(S._alerta()))
+    checar(u"a fronteira Nidus declara construção geométrica sem volume de tratamento",
+           u"Construção geométrica" in linha and u"não é um volume de tratamento" in linha, linha)
     checar(u"o alerta do pé é a linha do módulo, depois do MPR",
            _norm(_alerta_no_pe(p, u'id="nd_mpr"')) == linha, _alerta_no_pe(p, u'id="nd_mpr"'))
     for ident, rot in ((u"nd_procurar", u"Procurar (explorador)"), (u"nd_inverter", u"inverter cores"),
@@ -161,10 +248,72 @@ def teste_nidus_estrutura():
     checar(u"«Procurar» abre o explorador de pastas", u"uiExplorador(" in S.JS)
     checar(u"a etiqueta da demo saiu", u'id="nd_demo"' not in p and u"nd_demo" not in S.JS)
     checar(u"o carregamento orgânico cobre a espera", u"uiCarregando(" in S.JS)
-    import test_nidus as TN
-    soltos = TN.identificadores_soltos(S.JS)
+    soltos = _identificadores_soltos(S.JS)
     checar(u"o JS não lê nome solto", not soltos, u", ".join(soltos))
+    checar(u"  isca: o verificador acusa um nome não declarado",
+           u"NEB_NOME_NAO_DECLARADO" in _identificadores_soltos(S.JS + u"\nNEB_NOME_NAO_DECLARADO();"))
     _sem_marcador(p)
+
+
+_JS_GLOBAIS = frozenset(u"""document window fetch Promise JSON String Number Math
+Boolean Array Object setTimeout setInterval clearTimeout console Error Date
+RegExp encodeURIComponent decodeURIComponent parseInt parseFloat isNaN
+Float32Array Uint16Array Uint32Array Int32Array DataView Infinity""".split())
+
+_JS_PALAVRAS = frozenset(u"""var function return if else for while do in of new
+typeof instanceof this null true false undefined break continue try catch
+finally throw switch case default delete void class const let""".split())
+
+def _declarados_por_var(t):
+    nomes = set()
+    for m in re.finditer(r"\bvar\b", t):
+        i, prof, esperando = m.end(), 0, True
+        while i < len(t):
+            c = t[i]
+            if c in u"([{":
+                prof += 1
+            elif c in u")]}":
+                if prof == 0:
+                    break
+                prof -= 1
+            elif prof == 0 and c == u";":
+                break
+            elif prof == 0 and c == u",":
+                esperando = True
+            elif prof == 0 and c == u"\n" and not esperando:
+                anterior = t[:i].rstrip()
+                if not anterior.endswith((u",", u"=")):
+                    break
+            elif esperando and (c.isalpha() or c in u"_$"):
+                j = i
+                while j < len(t) and (t[j].isalnum() or t[j] in u"_$"):
+                    j += 1
+                nomes.add(t[i:j])
+                esperando, i = False, j
+                continue
+            elif esperando and not c.isspace():
+                esperando = False
+            i += 1
+    return nomes
+
+def _identificadores_soltos(js):
+    t = re.sub(r"/\*.*?\*/", " ", js, flags=re.S)
+    t = re.sub(r"//[^\n]*", " ", t)
+    t = re.sub(r"'(?:\\.|[^'\\])*'", "''", t)
+    t = re.sub(r'"(?:\\.|[^"\\])*"', '""', t)
+    dec = _declarados_por_var(t)
+    dec |= set(re.findall(r"\bfunction\s+([A-Za-z_$][\w$]*)", t))
+    for par in re.findall(r"\bfunction\s*[\w$]*\s*\(([^)]*)\)", t):
+        dec |= set(p.strip() for p in par.split(",") if p.strip())
+    dec |= set(re.findall(r"\bcatch\s*\(\s*([\w$]+)", t))
+    fora = set()
+    for m in re.finditer(r"(\.\s*)?\b([A-Za-z_$][\w$]*)\b(\s*:)?", t):
+        if m.group(1) or m.group(3):
+            continue
+        n = m.group(2)
+        if n not in dec and n not in _JS_GLOBAIS and n not in _JS_PALAVRAS:
+            fora.add(n)
+    return sorted(fora)
 
 
 def _sem_marcador(p):
@@ -250,19 +399,20 @@ def teste_as_iscas():
     import radai_bolus_screen as TB
     import radai_elastic_screen as TE
     import radai_modules as M
-    import radai_nidus_screen as S
-    p = S.pagina()
-    i, j = p.find(u'<div class="ui-alerta'), p.find(u'<section class="nd-cx nd-mpr"')
-    fim = p.find(u"</div>", p.find(u"</span></div>", i)) + 6
-    alerta = p[i:p.find(u"</span></div>", i) + len(u"</span></div>")]
-    isca = p.replace(alerta, u"").replace(u'<section class="nd-cx nd-mpr"',
-                                         alerta + u'<section class="nd-cx nd-mpr"')
-    linha = _norm(_texto(M.MODULOS["nidus"]["linha"]))
-    checar(u"  isca: o alerta do Nidus ANTES do MPR é acusado",
-           i > 0 and j > 0 and fim > i and _norm(_alerta_no_pe(isca, u'id="nd_mpr"')) != linha)
-    checar(u"  isca: «tomografia» de volta no rótulo do MPR é acusada",
-           bool(re.search(r">\s*tomografia\s*<", p.replace(u"<span>MPR <b",
-                                                           u"<span>tomografia</span><span>MPR <b"), re.I)))
+    S = _tela_nidus_opcional()
+    if S is not None:
+        p = S.pagina()
+        i, j = p.find(u'<div class="ui-alerta'), p.find(u'<section class="nd-cx nd-mpr"')
+        fim = p.find(u"</div>", p.find(u"</span></div>", i)) + 6
+        alerta = p[i:p.find(u"</span></div>", i) + len(u"</span></div>")]
+        isca = p.replace(alerta, u"").replace(u'<section class="nd-cx nd-mpr"',
+                                             alerta + u'<section class="nd-cx nd-mpr"')
+        linha = _norm(_texto(S._alerta()))
+        checar(u"  isca: o alerta do Nidus ANTES do MPR é acusado",
+               i > 0 and j > 0 and fim > i and _norm(_alerta_no_pe(isca, u'id="nd_mpr"')) != linha)
+        checar(u"  isca: «tomografia» de volta no rótulo do MPR é acusada",
+               bool(re.search(r">\s*tomografia\s*<", p.replace(u"<span>MPR <b",
+                                                               u"<span>tomografia</span><span>MPR <b"), re.I)))
     pe = TE.pagina()
     checar(u"  isca: «TPS» de volta na tela do Elastic é acusado",
            u"TPS" in _texto(pe.replace(u"</header>", u"<p>contra o TPS</p></header>")))
@@ -313,9 +463,9 @@ def _centroide(plano, lo, hi):
 
 
 def teste_os_eixos_seguem_a_projecao():
-    secao(u"Nidus RT: os eixos 3D apontam para onde a projeção põe a anatomia")
+    secao(u"Recon compartilhado: os eixos 3D acompanham a projeção da anatomia")
     import math
-    import radai_nidus as N
+    import radai_projection as N
     img = _volume_com_marcas()
     lado = 128
     casos = ((0.0, 0.0), (40.0, 0.0), (0.0, 30.0), (35.0, -25.0), (-50.0, 20.0))
@@ -341,7 +491,7 @@ def teste_os_eixos_seguem_a_projecao():
         return min(piores) if piores else -1.0
 
     if not hasattr(N, "eixos_da_incidencia"):
-        checar(u"radai_nidus.eixos_da_incidencia existe", False)
+        checar(u"radai_projection.eixos_da_incidencia existe", False)
         return
     pior = concorda(N.eixos_da_incidencia)
     checar(u"cada eixo aponta para a marca dele na projeção (cos ≥ 0,95)",
@@ -355,11 +505,11 @@ def teste_os_eixos_seguem_a_projecao():
 
 
 def teste_a_caixa_recorta_a_projecao():
-    secao(u"Nidus RT: a projeção mostra só o que está dentro da caixa")
-    import radai_nidus as N
+    secao(u"Recon compartilhado: a projeção mostra só o que está dentro da caixa")
+    import radai_projection as N
     img = _volume_com_marcas()
     if not hasattr(N, "caixa_de_texto"):
-        checar(u"radai_nidus.caixa_de_texto existe", False)
+        checar(u"radai_projection.caixa_de_texto existe", False)
         return
     checar(u"a caixa inteira é «sem caixa»", N.caixa_de_texto(u"0,1,0,1,0,1") is None)
     checar(u"texto torto é «sem caixa»", N.caixa_de_texto(u"a,b") is None
@@ -417,11 +567,12 @@ def _cliente(montar):
     return TestClient(app)
 
 
-def teste_as_rotas():
+def teste_as_rotas_nidus():
     secao(u"as rotas: as listas sem demo, a caixa na projeção, as telas do MPR")
     import time
-    import radai_elastic_screen as T
-    import radai_nidus_screen as S
+    S = _tela_nidus_opcional()
+    if S is None:
+        return
     import radai_varrer
     pasta = _serie_fantoma(os.path.join(_BASE_TMP, "rotas", "share", "PAC", "CT"))
 
@@ -463,7 +614,14 @@ def teste_as_rotas():
            r1.status_code == 200 and r2.status_code == 200
            and r2.headers.get("content-type") == "image/png" and r1.content != r2.content)
 
+
+
+def teste_as_rotas():
+    secao(u"Elastic na base: lista sem demo e recusa de fundir a mesma série")
+    import time
+    import radai_elastic_screen as T
     import radai_varrer
+    pasta = _serie_fantoma(os.path.join(_BASE_TMP, "rotas_elastic", "share", "PAC", "CT"))
 
     def _elastic_e_casca(app):
         radai_varrer.montar(app)
@@ -485,7 +643,6 @@ def teste_as_rotas():
     r = e.post("/api/elastic/fundir", json={"fixa": "x", "movel": "x"}).json()
     checar(u"fundir uma série com ela mesma é recusado no servidor",
            r.get("erro") == T.ESCOLHA_DUAS, r)
-
 
 PORTA = 8847
 BASE = "http://127.0.0.1:%d" % PORTA
@@ -682,7 +839,7 @@ def _bolus(pg, checar, larg, idioma, tema, root):
 
 
 def teste_no_navegador(checar, secao, base_tmp):
-    secao(u"o navegador: o Elastic e o bólus servidos e medidos (o Nidus, no test_nidus)")
+    secao(u"o navegador: o Elastic e o bólus da base servidos e medidos")
     try:
         from playwright.sync_api import sync_playwright
     except Exception:
@@ -731,11 +888,12 @@ def teste_no_navegador(checar, secao, base_tmp):
 
 
 def main():
-    for t in (teste_os_comentarios_de_antes_ficaram, teste_um_nome_so_para_a_projecao,
+    for t in (teste_os_comentarios_de_antes_ficaram, teste_neuro_estrutura,
+              teste_um_nome_so_para_a_projecao,
               teste_nidus_estrutura, teste_elastic_estrutura, teste_bolus_estrutura,
               teste_as_iscas,
               teste_as_frases_novas_tem_os_doze, teste_os_eixos_seguem_a_projecao,
-              teste_a_caixa_recorta_a_projecao, teste_as_rotas,
+              teste_a_caixa_recorta_a_projecao, teste_as_rotas, teste_as_rotas_nidus,
               lambda: teste_no_navegador(checar, secao, _BASE_TMP)):
         try:
             t()

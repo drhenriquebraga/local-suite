@@ -4552,15 +4552,15 @@ function PerguntarIdioma {
     $d.BackColor = $script:Cor.Fundo
     try { if ($form.Icon) { $d.Icon = $form.Icon } } catch { }
 
-    Sessao 'marca da splash: radioterapia.ai + LOCAL SUITE (sem imagem)'
+    Sessao 'marca da splash: Local Suite (sem imagem)'
 
     $tit = New-Object System.Windows.Forms.Panel
     $tit.Location = New-Object System.Drawing.Point(20, 28)
     $tit.Size = New-Object System.Drawing.Size(400, 50)
     $tit.BackColor = $script:Cor.Fundo
     $tit.Tag = @{
-        Palavra  = 'radioterapia'
-        Sufixo   = '.ai'
+        Palavra  = 'Local'
+        Sufixo   = ' Suite'
         Fonte    = (Fonte 26 'Bold')
         CorTexto = $script:Cor.Texto
         Cores    = @([System.Drawing.Color]::FromArgb(0x4D, 0xA3, 0xFF),
@@ -4579,7 +4579,7 @@ function PerguntarIdioma {
     $d.Controls.Add($tit)
 
     $sub = New-Object System.Windows.Forms.Label
-    $sub.Text = 'LOCAL SUITE'
+    $sub.Text = ''
     $sub.Location = New-Object System.Drawing.Point(20, 78)
     $sub.Size = New-Object System.Drawing.Size(400, 22)
     $sub.Font = Fonte 10 'Bold'

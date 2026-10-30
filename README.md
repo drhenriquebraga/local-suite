@@ -2,7 +2,7 @@
 
 **Part of the Radioterapia.AI local ecosystem. A study bench for AI segmentation in radiation oncology — teaching and research material, not a medical device.**
 
-`License: Apache-2.0` · `Version: 8.9` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
+`License: Apache-2.0` · `Version: 8.10` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
 
 > **Teaching and research material. This is not a medical device.**
 > It is **not** validated for clinical use, it has no ANVISA registration, no
@@ -78,25 +78,25 @@ wall, a bowel bag, a femur cut at the ischial tuberosity.
 
 | mode | where | what runs | what it writes |
 |---|---|---|---|
-| **FAST** | *Run now* | the anatomy base; chest tasks for heart, breast and effusions; head-gland and CT-brain sources for eyes, lenses, optic nerves, brainstem and chiasm when the head is in the field | only `RadAI_STUDY_Fast`: no bowel bag, anus, skin, chest walls, ribs or costal-cartilage ROIs; necessary heart-cropping inputs remain internal; fewer points per contour |
+| **FAST** | *Run now* | the anatomy base; chest tasks for heart, breast and effusions; head-gland and CT-brain sources for eyes, lenses, optic nerves, brainstem and chiasm when the head is in the field | only `RadAI_STUDY_Fast`: no bowel bag, anus, skin, chest walls, ribs, sternum or costal-cartilage ROIs; necessary heart-cropping inputs remain internal; the same dense point writer as STUDY and FULL |
 | **AUTO** | *Run now*, and always the night watcher | the base, then the tasks of each region it found (the head‑and‑neck tasks only when the neck is confirmed, vertebrae and mandible), the CT brain model when the brain is in the field, and the cervical nodal levels when the head and neck are in the field | `RadAI_FULL` + `RadAI_STUDY` |
 | **CUSTOM** | *Run now* | protocols switch their tasks on, and any task can be switched off; or a *custom protocol* of the workstation chooses the delivered structures; model comparison on request; any structure can be dropped from the delivered set, for that series only | `RadAI_FULL` + `RadAI_STUDY` + the sets you asked for |
 
 FAST is not a second post‑processing: it runs the same one, filtered to what
-its file carries.
+its file carries. Sternum remains an internal heart input when needed and remains in AUTO/custom STUDY and FULL. Aorta yields overlapping voxels to the final esophagus before the GreatArteries union; the final union also excludes the esophagus.
 
-### Six modules
+Settings includes **Check for updates** for an application already running. A machine-only update decision keeps its response available to the application; if that decision fails, the interface can open the installer it already downloaded and verified.
 
-<p align="center">
-  <img src="docs/img/modulos.png" alt="The suite in six modules: DicomBridge, ContourLab, 3D Reconstructions, Nidus RT, Elastic RT and 3D Printed Bolus" width="100%">
-</p>
+### Five base modules and an optional plugin
+
+NEURO RT is installed separately from its [public release](https://github.com/drhenriquebraga/neuro-rt/releases/latest), through the home card. Installation and first use present the plugin's own terms. Only Nidus is enabled in this release; Glioma, Metastasis, Meningioma and Anatomy are marked under construction and cannot run. Base updates preserve installed plugins.
 
 | | |
 |---|---|
 | **DicomBridge** | one card, one pipeline that opens step by step — load (files, a folder read in the background with the series appearing as they are found, **Load a CD**, which reads the whole disc, folders and subfolders, without writing to it, or **Import image**, a JPEG, PNG, TIFF or BMP picked in the Windows file dialog), choose each series and its segmentation (none, FAST, AUTO or CUSTOM), a diagnosis made of alerts only, convert, deliver, and segment through the workstation's single queue —: what stops a study from being accepted by a planning system, the conversion that fixes it (colour images turned to greyscale, each forced choice written into the DICOM as an alert), delivered into a new folder, and the RTSTRUCT written beside the converted series when its segmentation finishes. A JPEG or PNG image goes through the same pipeline, without segmentation: its adjustment (a mandatory slice thickness, a pixel scale you type or measure with two clicks on a known distance in the image itself, a slice order you can reverse, both confirmed next to an MPR that shows any distortion before converting, the orientation read from the series description) lives in the diagnosis step, and it is delivered with the DICOM series, always with a new Frame of Reference, so the fusion has to be registered in the planning system and is never assumed |
 | **ContourLab** | *Run now*, in the three modes — the folder is read in the background, the series appear as they are found, and the pop‑up closes on its own when the reading ends —, and *View segmentation*, on CT and MR: two views side by side, one file per viewer, with slice, window and zoom locked together |
 | **3D Reconstructions** | three planes, MIP and MinIP, and each segmented structure as a 3D mesh with its own transparency, drawn in WebGL (a point cloud where WebGL is missing), with *See‑through*, LAO/RAO and CRA/CAU bars and eight projections by button, in the C‑arm convention of Nidus RT; an RTSTRUCT drawn on sagittal, coronal or oblique slices becomes a mesh in place; a synthetic angiography (*Vascular*) takes the bone out through the segmentation ContourLab already wrote for the series, with a 700 HU threshold only as a fallback the screen names; a video of the viewer (MP4 or WebM) is the only export, recorded by a declared act each time — and it may show the patient's face; no mesh or STL export |
-| **Nidus RT** | vascular projection in a free incidence, on angio‑CT or contrast MR, in one C‑arm convention (LAO puts the detector on the patient's left; Towne is CRA 30 and Caldwell CAU 15): a projection that can follow a box, a low‑resolution preview while an angle is dragged (the pencil waits for the full projection), a map of projections, a 3D view of the box (detector view, see‑through; the meshes stay in memory and are never exported) and an illustrative room with a C‑arm drawn in code; bone is removed through the segmentation ContourLab already wrote for the series (or a "segment first" through the queue — bone is never guessed from density), and the intersection of two tubes drawn with the pencil is shown, and never turned into a volume |
+| **NEURO RT · optional plugin, Nidus tool** | vascular projection in a free incidence, on angio‑CT or contrast MR, in one C‑arm convention (LAO puts the detector on the patient's left; Towne is CRA 30 and Caldwell CAU 15): a projection that can follow a box, a low‑resolution preview while an angle is dragged (the pencil waits for the full projection), a map of projections, a 3D view of the box (detector view, see‑through; the meshes stay in memory and are never exported) and an illustrative room with a C‑arm drawn in code; bone is removed through the segmentation ContourLab already wrote for the series (or a "segment first" through the queue — bone is never guessed from density), and the intersection of two tubes drawn with the pencil is shown, and never turned into a volume |
 | **Elastic RT** | deformable registration measured by AAPM TG‑132, on CT, MR or PET; nothing is read when the screen opens — two cards, one for the image to be deformed and one for the target, each pick a series from the local archive or a folder you point to, read in the background with a filter by date, and the fusion starts only when you click Fuse; the report flags where one CT has gas and the other tissue (no deformation is physically right there) and gives the round‑trip residual of the inverted field — and it comes out with the image, never without it |
 | **3D Printed Bolus** | a bolus drawn over the skin of a CT, a mould for it if you ask, and a surface brachytherapy applicator — catheter channels at a set distance from the skin, with each afterloader's and catheter's minimum bend radius blocking what is known to damage the treatment, and a channel that drops out in the middle, with channels accepted on both sides, blocking too: the centre would be left without a catheter; on automatic, both channel directions are tried and the one holding more channels is kept, and when no channel fits a trimmed box is proposed, applied only on a click —, exported as STL for 3D printing only by a declared act, each time, with a sheet of parameters and warnings; not for clinical use |
 
@@ -152,7 +152,7 @@ head and neck structures stays in the complete set only, and on one without
 the chest the summed lungs stand for the two lungs; the brain drawn on an MR
 stays in the complete set only). In FAST the delivered set is
 `RadAI_STUDY_Fast`, with no complete set beside it, no bowel bag, anus, skin,
-chest walls, ribs or costal-cartilage ROIs. Necessary skeletal inputs still
+chest walls, ribs, sternum or costal-cartilage ROIs. Necessary skeletal inputs still
 protect the existing radiotherapy Heart boundary. SpinalCord is split at the first
 superior slice of L2: that slice and the caudal remainder become
 `CaudaEquina_ai`; without an identified L2, the original cord is retained.
@@ -444,7 +444,7 @@ your own cases, and build your own package — nothing needs to come back here.
    data in it — DICOM with or without extension, medical volumes, run logs.
    **No patient data is used anywhere in this repository, and none may be
    committed to it.** This repository is the Suite: the shell, the
-   packager, the installer and the integration. The code of each of the six
+   packager, the installer and the integration. The code of each of the five base
    modules lives in its own repository; clone them as sibling folders of this
    one (`tools/_componentes.py` finds them by their `componente.json`), or let
    the packager download them (step 4).
@@ -456,7 +456,7 @@ your own cases, and build your own package — nothing needs to come back here.
 3. **Tests.** `verify.cmd` runs every battery over synthetic phantoms and
    writes `verify_log.txt`; the verdict is the sum of the `OK:` and
    `FALHOU:` footers of each battery, not the exit code. One battery alone,
-   from any of the seven folders:
+   from any base repository:
    `.venv\Scripts\python.exe tools\_componentes.py --rodar test_<name>.py`.
 4. **Light installer.** Set `RADAI_RAIZ_DEPLOY` to an output folder outside
    any synced folder, and run `.venv\Scripts\python.exe build\empacotar_instalador.py`

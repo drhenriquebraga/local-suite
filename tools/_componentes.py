@@ -12,6 +12,8 @@ MARCA = "componente.json"
 SUITE = "local-suite"
 NOME_DO_PTH = "radai_componentes.pth"
 IGNORAR = ("__pycache__",)
+COMPONENTES_FORA_DA_BASE = frozenset(("NIDUS_RT",))
+_EXTRAS = {}
 
 
 class ComponenteDuplicado(Exception):
@@ -58,7 +60,7 @@ def componentes(suite=None):
                 os.path.exists(suite) and os.path.samefile(pasta, suite)):
             continue
         dados = _ler_marca(pasta)
-        if dados is not None:
+        if dados is not None and dados.get("nome") not in COMPONENTES_FORA_DA_BASE:
             achados.append((pasta, dados))
     return achados
 
@@ -74,13 +76,22 @@ def _pasta_de(raiz, sub):
     return p
 
 
-def pastas(sub, suite=None):
+def pastas_base(sub, suite=None):
     suite = suite or raiz_da_suite()
     saida = [_pasta_de(suite, sub)]
     for pasta, _ in componentes(suite):
         p = os.path.join(pasta, sub)
         if os.path.isdir(p):
             saida.append(p)
+    return saida
+
+
+def pastas(sub, suite=None):
+    saida = pastas_base(sub, suite)
+    if sub == "app":
+        for pasta in _EXTRAS.get(os.path.normcase(os.path.abspath(suite or raiz_da_suite())), ()):
+            if pasta not in saida:
+                saida.append(pasta)
     return saida
 
 
@@ -129,7 +140,7 @@ def fonte(relativo, suite=None):
         return relativo
     suite = suite or raiz_da_suite()
     rel = os.path.normpath(relativo.replace("\\", "/"))
-    for raiz in [suite] + [p for p, _ in componentes(suite)]:
+    for raiz in [suite] + [p for p, _ in componentes(suite)] + [os.path.dirname(p) for p in _EXTRAS.get(os.path.normcase(os.path.abspath(suite)), ())]:
         caminho = os.path.join(raiz, rel)
         if os.path.exists(caminho):
             return caminho
@@ -149,7 +160,7 @@ def ler(relativo, suite=None):
 def ler_todos(relativo, suite=None):
     suite = suite or raiz_da_suite()
     partes = []
-    for raiz in [suite] + [p for p, _ in componentes(suite)]:
+    for raiz in [suite] + [p for p, _ in componentes(suite)] + [os.path.dirname(p) for p in _EXTRAS.get(os.path.normcase(os.path.abspath(suite)), ())]:
         caminho = os.path.join(raiz, relativo)
         if os.path.isfile(caminho):
             with io.open(caminho, encoding="utf-8", errors="replace") as f:
@@ -249,13 +260,28 @@ def verificar(pasta, suite=None):
 
 def ligar(suite=None):
     destino = os.path.join(sysconfig.get_paths()["purelib"], NOME_DO_PTH)
-    linhas = pastas("app", suite) + pastas("tools", suite)
+    linhas = pastas_base("app", suite) + pastas_base("tools", suite)
     with io.open(destino, "w", encoding="utf-8") as f:
         f.write(u"\n".join(linhas) + u"\n")
     return destino, linhas
 
 
-def ligar_caminho(suite=None):
+def ligar_caminho(suite=None, extras=()):
+    suite = suite or raiz_da_suite()
+    chave = os.path.normcase(os.path.abspath(suite))
+    novos = list(_EXTRAS.get(chave, ()))
+    for pasta in extras:
+        pasta = os.path.abspath(pasta)
+        if not os.path.isdir(pasta):
+            raise ValueError("pasta extra do plugin ausente: %s" % pasta)
+        if pasta not in novos:
+            novos.append(pasta)
+    _EXTRAS[chave] = tuple(novos)
+    for pasta in list(sys.path):
+        dados = _ler_marca(os.path.dirname(os.path.abspath(pasta)))
+        if dados and dados.get("nome") in COMPONENTES_FORA_DA_BASE:
+            sys.path.remove(pasta)
+    arquivos("app", suite=suite)
     for p in reversed(pastas("app", suite)):
         if p not in sys.path:
             sys.path.insert(0, p)
@@ -297,7 +323,7 @@ def nao_ignorados(pasta):
 
 def montar_app(destino, suite=None):
     copiados = {}
-    for pasta in pastas("app", suite):
+    for pasta in pastas_base("app", suite):
         # GUARDA: o que o .gitignore da pasta ignora e estado de execucao (config, registro, modelos) e nao entra na montagem.
         permitidos = nao_ignorados(pasta)
         for atual, dirs, nomes in os.walk(pasta):

@@ -118,6 +118,102 @@ def teste_construir():
                frac >= 0.80, u"%.0f%%" % (frac * 100))
 
 
+CHAVES_OPCIONAIS_NEURO = frozenset((
+    '%s mm por pixel da projeção',
+    '%s mm por pixel da projeção — acima do que esta série oferece: o que aparece a mais é interpolação, e não o paciente',
+    '%s · %s cortes · %s mm',
+    'A cor de cada linha diz de qual incidência ela veio. A linha mais forte é onde as duas se cruzam.',
+    'A fila deu esta série como pronta, e nenhuma segmentação com osso apareceu ao lado dela.',
+    'A projeção é paralela, sem ampliação. A sala mostra a posição do arco para quem estuda, sem distância fonte–detector e sem colisão.',
+    'Acompanhar a caixa',
+    'Afastar',
+    'Ajustar à tela',
+    'C:\\... ou \\\\servidor\\...',
+    'Caixa de recorte',
+    'Carregar série',
+    'Convenção dos ângulos: a do arco em C (DICOM). LAO põe o detector do lado esquerdo do paciente; CRA o inclina para a cabeça.',
+    'Cruzar de novo',
+    'Enquanto um ângulo é arrastado, chega uma prévia em baixa resolução; o lápis espera a projeção cheia.',
+    'Esta série já tem uma entrega do ContourLab, e ela não tem osso que sirva para a projeção.',
+    'Guardar incidência',
+    'Inverter cores',
+    'Limpar recorte',
+    'Listar séries',
+    'O 3D da caixa mostra o que está dentro dela: o vaso por limiar (sem o osso da segmentação do ContourLab), o osso dessa segmentação e a pele. Ele pode mostrar o rosto: fica nesta máquina e não se exporta. A interseção não aparece no 3D.',
+    'O que esta tela é, e o que ela não é.',
+    'Sala',
+    'Sala na vista padrão',
+    'Segmentar em AUTO (substitui a entrega)',
+    'Segmentar em AUTO e substituir',
+    'Segmentar em AUTO grava o FULL e substitui a entrega desta série. A entrega nova também é sugestão, e passa pela revisão médica.',
+    'Segmentar primeiro (AUTO)',
+    'Substituir a entrega desta série?',
+    'Tirar o osso',
+    'Vista do detector',
+    'Vista livre',
+    'a confirmação não abriu: nada foi para a fila',
+    'a fila está parada: o cartão espera alguém clicar em «Iniciar» na barra da fila, e só então a segmentação AUTO começa',
+    'a fila fechou o cartão, e nenhuma segmentação com osso apareceu ao lado da série: o osso continua na projeção',
+    'a fila não responde: quando a segmentação terminar, escolha a série de novo',
+    'a malha não veio do servidor',
+    'a marcação continua salva.',
+    'a marcação salva desta série voltou: as incidências estão na lista',
+    'a mesma lesão em duas incidências, e onde as duas se cruzam',
+    'a projeção não veio do servidor',
+    'a retroprojeção falhou: as linhas continuam as do último estado bom, e as incidências desenhadas estão salvas — «Cruzar de novo» tenta outra vez.',
+    'a roda do mouse aproxima',
+    'a segmentação AUTO desta série está rodando: quando terminar, o osso sai da projeção',
+    'a segmentação não terminou: o osso continua na projeção.',
+    'a segmentação terminou: o osso saiu da projeção',
+    'a série parou de responder: «Tentar de novo» reabre a série, e a marcação continua salva.',
+    'a tela voltou ao último estado bom, e nada do que foi desenhado se perdeu.',
+    'aguarde a projeção desta incidência chegar para desenhar sobre ela',
+    'aparecem aqui quando uma incidência é guardada',
+    'arrastar gira a incidência',
+    'arrastar gira só o 3D',
+    'arrastar move o arco · Shift gira a sala',
+    'arraste as bordas da caixa nos três planos: a projeção mostra só o que fica dentro dela',
+    'arraste contornando o ninho',
+    'arraste contornando o ninho · soltar fecha a área',
+    'arraste contornando o ninho · soltar fecha a área · Shift ou o botão do meio movem a imagem ampliada',
+    'as linhas da marcação não vieram do servidor, nem depois de uma nova tentativa: as incidências desenhadas estão salvas — «Cruzar de novo» tenta outra vez.',
+    'carregando o corte…',
+    'circule o ninho antes de guardar (3 pontos, no mínimo)',
+    'esta série não está mais no acervo: recarregue a lista e escolha-a de novo',
+    'fila indisponível: a fila da estação não respondeu. Mande a série pelo «Rodar agora» e escolha-a de novo quando terminar.',
+    'guarde ou apague o traço antes de girar: a lista já tem o máximo de incidências',
+    'ilustrativa: projeção paralela, sem colisão',
+    'legenda do MPR',
+    'linhas finas: o que foi retroprojetado',
+    'mapa LAO/RAO por CRA/CAU: setas giram 1 grau, Shift e setas 10 graus',
+    'mapa de incidências',
+    'montando…',
+    'na fila, e a fila está rodando: a segmentação AUTO desta série começa na vez dela',
+    'na fila: quando a segmentação AUTO do ContourLab terminar, o osso sai da projeção',
+    'nenhuma incidência guardada — gire o gantry, circule o ninho, e guarde',
+    'nesta série nada pode ser desenhado: escolha outra na lista.',
+    'não consegui reler a segmentação: escolha a série de novo.',
+    'o 3D não veio do servidor',
+    'o 3D olha de onde o detector olha: a mesma orientação da projeção',
+    'o cartão continua na fila, e esta tela parou de acompanhá-lo: quando a segmentação terminar, escolha a série de novo',
+    'o cartão saiu da fila, e nenhuma segmentação com osso apareceu ao lado da série: o osso continua na projeção',
+    'o corte não veio do servidor',
+    'o osso está à mostra: a segmentação do ContourLab foi achada, e está desligada',
+    'o osso sai da projeção (MIP) pela segmentação do ContourLab',
+    'o que o visor menor mostra',
+    'o traço da incidência anterior foi guardado antes de girar',
+    'o visor enquadra o que está na caixa de recorte',
+    'onde se cruzam',
+    'pedido de projeção substituído por um mais novo',
+    'projetando…',
+    'prévia · baixa resolução',
+    'sinal da RM, sem HU: as janelas são relativas ao sinal desta série',
+    'série aberta — escolha a incidência e circule a área',
+    'vaso colado ao osso pode sair junto com ele: confira com o osso à mostra',
+    'é o máximo — cada incidência é um volume na memória.',
+))
+
+
 def _texto_de_tela():
     import radai_phrases as F
 
@@ -154,6 +250,9 @@ def _texto_de_tela():
     except Exception:
         pass
 
+    tela_neuro = _fonte_neuro()
+    if tela_neuro is not None:
+        partes.extend(literais(str(tela_neuro)))
     bruto = u"\n".join(partes)
     _atrib = u" ".join(
         re.findall(r'(?:title|aria-label|placeholder)="([^"]+)"', bruto))
@@ -175,7 +274,7 @@ NAO_TRADUZ = (
     u"radioterapia.ai", u"· radioterapia.ai", u"Auto-Contorno",
     u"Henrique Braga · radioterapia.ai",
     u"MIP/MinIP", u"nnU-Net", u"TG-263",
-    u"Nidus RT", u"Elastic RT", u"Nidus", u"Elastic",
+    u"NEURO RT", u"Neuro RT", u"Neuro", u"Nidus RT", u"Elastic RT", u"Nidus", u"Elastic",
     u"NIDUS RT", u"ELASTIC RT", u"NIDUS", u"ELASTIC", u"RT",
     u"TG-132", u"AAPM TG-132", u"Med Phys", u"Brock et al.",
     u"3D Printed Bolus", u"3D Printed", u"Bolus", u"STL", u"LPS",
@@ -219,7 +318,6 @@ _UMA_PALAVRA = frozenset([
 TELAS_DA_MAO = (
     ("/vigia", "radai_watcher", "PAGE", "vigia"),
     ("/bridge/laudo", "radai_bridge", "pagina", "bridge_laudo"),
-    ("/nidus/projecao", "radai_nidus_screen", "pagina", "nidus_projecao"),
     ("/elastic/fusao", "radai_elastic_screen", "pagina", "elastic_fusao"),
     ("/bolus/gerar", "radai_bolus_screen", "pagina", "bolus_gerar"),
     ("/recon3d/anatomia", "radai_recon3d_screen", "pagina",
@@ -236,7 +334,7 @@ TELAS_DA_MAO = (
 )
 
 ROTAS_MONTADAS = ("/", "/suite", "/autocontorno", "/config",
-                  "/bridge", "/recon3d", "/nidus", "/elastic", "/bolus")
+                  "/bridge", "/recon3d", "/neuro", "/elastic", "/bolus")
 
 FORA_DA_MEDIDA = {
     "/termos": u"documento legal — não se traduz por dicionário",
@@ -247,6 +345,80 @@ FORA_DA_MEDIDA = {
                     u"`nu`",
     "/creditos": u"monta, mas 30 de 43 frases sem chave — dívida declarada",
 }
+
+
+def _fonte_neuro():
+    from pathlib import Path
+    import json
+    definida = os.environ.get("RADAI_NEURO_SOURCE")
+    if definida is None:
+        return None
+    escolhida = definida.strip()
+    if not escolhida:
+        raise ValueError("RADAI_NEURO_SOURCE foi definida vazia.")
+    raiz = Path(escolhida).expanduser().resolve()
+    manifesto = raiz / "module.json"
+    tela = (raiz / "app/radai_nidus_screen.py").resolve()
+    if (not manifesto.is_file() or not tela.is_file()
+            or not tela.is_relative_to(raiz)
+            or json.loads(manifesto.read_text(encoding="utf-8-sig")).get("id") != "neuro-rt"):
+        raise ValueError("RADAI_NEURO_SOURCE deve apontar para a fonte válida do plugin NEURO RT.")
+    return tela
+
+
+def _telas_do_neuro():
+    tela = _fonte_neuro()
+    if tela is None:
+        return []
+    import importlib
+    antigas = list(sys.path)
+    try:
+        sys.path.insert(0, str(tela.parent))
+        modulo = importlib.import_module("radai_nidus_screen")
+        from pathlib import Path
+        import radai_projection
+        if (Path(modulo.__file__).resolve() != tela
+                or modulo.radai_nidus is not radai_projection):
+            raise ValueError("A tela Nidus não corresponde à fonte explícita e ao núcleo compartilhado.")
+        return [("nidus_projecao", modulo.pagina())]
+    finally:
+        sys.path[:] = antigas
+
+
+def teste_neuro_opcional():
+    secao(u"NEURO na base; a tela Nidus pertence à fonte opcional")
+    nomes = set(_componentes.nomes("app"))
+    checar(u"NEURO é a rota-base, sem minipágina Nidus antiga",
+           "/neuro" in ROTAS_MONTADAS and "/nidus" not in ROTAS_MONTADAS)
+    checar(u"a tela Nidus não faz parte do integrador base",
+           "radai_nidus_screen.py" not in nomes)
+    checar(u"o núcleo de geometria compartilhado permanece na base",
+           "radai_projection.py" in nomes)
+    checar(u"Nidus não é importado pela lista obrigatória de telas",
+           all(linha[1] != "radai_nidus_screen" for linha in TELAS_DA_MAO))
+    import radai_phrases as F
+    linhas = {F.normalizar(linha[0]): linha for linha in F.TABELA}
+    iguais_ao_pt = {("Sala", "es"), ("Sala", "it"), ("Sala", "pl"), ("montando…", "es")}
+    incompletas = [chave for chave in CHAVES_OPCIONAIS_NEURO
+                   if chave not in linhas or len(linhas[chave]) != 12
+                   or any(not isinstance(valor, str) or not (valor.strip() or (chave, codigo) in iguais_ao_pt)
+                          for codigo, valor in zip(F.CODIGOS, linhas[chave][1:]))]
+    checar(u"o catálogo compartilhado Nidus conserva os doze idiomas sempre",
+           not incompletas, str(incompletas[:5]))
+    try:
+        tela = _fonte_neuro()
+        checar(u"RADAI_NEURO_SOURCE ausente ou válida", True)
+        if tela is None:
+            print(u"  OPCIONAL: tela Nidus não carregada; use RADAI_NEURO_SOURCE para medi-la.")
+        else:
+            checar(u"a tela opcional indicada monta de verdade", len(_telas_do_neuro()) == 1)
+            corpus = _texto_de_tela()
+            sem_fonte = [chave for chave in CHAVES_OPCIONAIS_NEURO
+                         if chave not in corpus and not _molde_vivo(chave, corpus)]
+            checar(u"cada chave opcional continua viva na fonte indicada",
+                   not sem_fonte, str(sem_fonte[:5]))
+    except Exception as erro:
+        checar(u"RADAI_NEURO_SOURCE ausente ou válida", False, str(erro))
 
 
 def _telas():
@@ -283,17 +455,27 @@ def _telas():
             saida.append((chave, radai_menu.aplicar(bruto, chave)))
         except Exception:
             pass
+    try:
+        for chave, pagina in _telas_do_neuro():
+            saida.append((chave, radai_menu.aplicar(pagina, chave)))
+    except Exception as erro:
+        checar(u"a tela opcional Nidus monta", False, str(erro))
     return saida
 
 
 def _rotas_html():
     achadas = {}
-    for n in _componentes.nomes("app"):
-        if not n.endswith(".py"):
-            continue
+    fontes = [(n, _componentes.fonte("app/" + n))
+              for n in _componentes.nomes("app") if n.endswith(".py")]
+    try:
+        tela = _fonte_neuro()
+        if tela is not None:
+            fontes.append(("NEURO_RT/app/radai_nidus_screen.py", str(tela)))
+    except Exception as erro:
+        checar(u"a fonte opcional de rotas Nidus é válida", False, str(erro))
+    for n, caminho in fontes:
         try:
-            arv = ast.parse(io.open(_componentes.fonte("app/" + n),
-                                    encoding="utf-8").read())
+            arv = ast.parse(io.open(caminho, encoding="utf-8").read())
         except Exception:
             continue
         consts = {}
@@ -303,15 +485,23 @@ def _rotas_html():
                     and isinstance(no.value, ast.Constant)
                     and isinstance(no.value.value, str)):
                 consts[no.targets[0].id] = no.value.value
+        html_sem_anotacao = set()
+        for funcao in ast.walk(arv):
+            if not isinstance(funcao, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if any(isinstance(item, ast.Call)
+                   and getattr(item.func, "id", "") == "HTMLResponse"
+                   for item in ast.walk(funcao)):
+                html_sem_anotacao.update(id(decorador) for decorador in funcao.decorator_list)
         for no in ast.walk(arv):
             if not isinstance(no, ast.Call):
                 continue
             f = no.func
             if not (isinstance(f, ast.Attribute) and f.attr == "get"):
                 continue
-            if not any(k.arg == "response_class"
+            if not (id(no) in html_sem_anotacao or any(k.arg == "response_class"
                        and getattr(k.value, "id", "") == "HTMLResponse"
-                       for k in no.keywords):
+                       for k in no.keywords)):
                 continue
             if not no.args:
                 continue
@@ -328,6 +518,8 @@ def _rotas_html():
 
 def _rotas_sem_dono(achadas):
     medidas = set(ROTAS_MONTADAS) | {l[0] for l in TELAS_DA_MAO}
+    if os.environ.get("RADAI_NEURO_SOURCE", "").strip():
+        medidas.add("/nidus/projecao")
     return sorted(r for r in achadas
                   if r not in medidas and r not in FORA_DA_MEDIDA)
 
@@ -338,6 +530,10 @@ def teste_rotas_medidas():
     checar(u"a varredura achou as rotas do app (%d)" % len(achadas),
            len(achadas) >= 18, str(sorted(achadas))[:120])
     checar(u"a varredura ve /bridge/laudo", "/bridge/laudo" in achadas)
+    checar(u"a varredura vê a página NEURO servida pelo loader", "/neuro" in achadas)
+    if not os.environ.get("RADAI_NEURO_SOURCE", "").strip():
+        checar(u"a varredura base não inventa a tela Nidus ausente",
+               "/nidus/projecao" not in achadas)
     checar(u"e /bridge/tps e /bridge/imagem deixaram de ser tela (levam ao pipeline)",
            "/bridge/tps" not in achadas and "/bridge/imagem" not in achadas)
 
@@ -583,8 +779,12 @@ def teste_chave_viva():
     checar(u"a limpeza de tag para na quebra de linha", _frase in _junto,
            u"a comparação do JS comeu o literal seguinte")
 
+    diferidas = (CHAVES_OPCIONAIS_NEURO if _fonte_neuro() is None else frozenset())
+    if diferidas:
+        print(u"  OPCIONAL: vivacidade de %d chaves Nidus adiada para RADAI_NEURO_SOURCE; catálogo continua medido." % len(diferidas))
     mortas = [F.normalizar(l[0]) for l in F.TABELA
-              if F.normalizar(l[0]) not in tela
+              if F.normalizar(l[0]) not in diferidas
+              and F.normalizar(l[0]) not in tela
               and not _molde_vivo(F.normalizar(l[0]), tela)]
     checar(u"nenhuma chave morta", not mortas,
            u"\n         · " + u"\n         · ".join(m[:70] for m in mortas[:8]))
@@ -2029,6 +2229,7 @@ def main():
     teste_tabela()
     teste_construir()
     teste_chave_viva()
+    teste_neuro_opcional()
     teste_rotas_medidas()
     teste_toda_frase_tem_chave()
     teste_frase_que_chega_por_json()

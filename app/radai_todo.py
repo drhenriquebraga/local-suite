@@ -441,7 +441,7 @@ var RADAI_FILA_TIPO = {
  serie:     {icone:'\u25A6', tag:'',                      cls:''}
 };
 var RADAI_FILA_ORIGEM = {vigia: 'Vigia', dicombridge: 'DicomBridge',
-                         nidus: 'Nidus RT'};
+                         nidus: 'Nidus RT', neuro: 'NEURO RT'};
 var RADAI_FILA_TAG_DO_ESTADO = {pronto: 'feito', falhou: 'falhou',
                                 cancelado: 'cancelado'};
 
@@ -687,7 +687,8 @@ function radaiPipePintar(d){
  var lote = (d && d.lote) || null;
  var vez = (d && d.vez) || {};
  var vigia = (vez.dono === 'vigia');
- var rodando = lote ? !!lote.rodando : ((r.rodando || 0) > 0);
+ var neuro = (vez.dono === 'neuro');
+ var rodando = neuro || (lote ? !!lote.rodando : ((r.rodando || 0) > 0));
  var espera  = (r.manuais_esperando != null) ? r.manuais_esperando
                                              : (r.esperando || 0);
  var cards   = (r.total || 0);
@@ -768,7 +769,12 @@ function radaiPipeMandar(acao){
  var bts = ['radai_pipe_ini','radai_pipe_pau','radai_pipe_lim','radai_pipe_can'];
  bts.forEach(function(id){ var b = document.getElementById(id);
                            if(b) b.disabled = true });
- var rota = (acao === 'iniciar') ? '/api/pipeline/iniciar'
+ var D = window.RADAI_FILA_D || {};
+ var neuro = ((D.vez || {}).dono === 'neuro');
+ if(acao === 'iniciar') fetch('/api/fila/neuro/iniciar', {method:'POST'});
+ var rota = (neuro && acao === 'cancelar') ? '/api/fila/neuro/cancelar'
+          : (neuro && acao === 'pausar') ? '/api/fila/neuro/pausar'
+          : (acao === 'iniciar') ? '/api/pipeline/iniciar'
           : (acao === 'cancelar') ? '/api/pipeline/cancelar'
           : (acao === 'limpar') ? '/api/fila/limpar'
           : '/api/pipeline/pausar';

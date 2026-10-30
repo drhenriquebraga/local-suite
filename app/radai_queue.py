@@ -28,12 +28,13 @@ RODAR_AGORA = "rodar_agora"
 DICOMBRIDGE = "dicombridge"
 NIDUS = "nidus"
 VIGIA = "vigia"
+NEURO = "neuro"
 
-ORIGENS = (RODAR_AGORA, DICOMBRIDGE, NIDUS, VIGIA)
-MANUAIS = (RODAR_AGORA, DICOMBRIDGE, NIDUS)
+ORIGENS = (RODAR_AGORA, DICOMBRIDGE, NIDUS, NEURO, VIGIA)
+MANUAIS = (RODAR_AGORA, DICOMBRIDGE, NIDUS, NEURO)
 
 LOTE = "lote"
-EXECUTORES = (LOTE, VIGIA)
+EXECUTORES = (LOTE, VIGIA, NEURO)
 
 FAIXA_RODANDO = 0
 FAIXA_MANUAL = 1
@@ -58,7 +59,7 @@ def novo_card(tipo, rotulo=u"", uid=u"", pasta=u"", extra=None,
               origem=RODAR_AGORA):
     origem = origem if origem in ORIGENS else RODAR_AGORA
     d = {"id": novo_id(), "tipo": tipo, "origem": origem,
-         "executor": VIGIA if origem == VIGIA else LOTE,
+         "executor": origem if origem in (VIGIA, NEURO) else LOTE,
          "rotulo": rotulo or u"", "uid": uid or u"", "pasta": pasta or u"",
          "estado": ESPERANDO, "dono": u"", "segundos": None,
          "mensagem": u"", "fim": 0}
@@ -72,7 +73,7 @@ def executor(c):
     e = c.get("executor")
     if e in EXECUTORES:
         return e
-    return VIGIA if c.get("origem") == VIGIA else LOTE
+    return c.get("origem") if c.get("origem") in (VIGIA, NEURO) else LOTE
 
 
 def e_do_vigia(c):
@@ -130,7 +131,7 @@ def acrescentar(cards, novos):
 
 
 def pode_mover(c):
-    return e_do_lote(c) and (c or {}).get("estado") in NA_ESPERA
+    return e_manual(c) and (c or {}).get("estado") in NA_ESPERA
 
 
 def mover(cards, indice, direcao):
@@ -164,7 +165,7 @@ def pode_tirar(c):
 
 def pode_repor(c):
     c = c or {}
-    return (c.get("tipo") == SERIE and c.get("estado") in SEM_SUCESSO
+    return (executor(c) != NEURO and c.get("tipo") == SERIE and c.get("estado") in SEM_SUCESSO
             and bool(c.get("uid")))
 
 
@@ -259,7 +260,7 @@ def resumo(cards):
     for c in cards:
         e = c.get("estado") or ESPERANDO
         por[e] = por.get(e, 0) + 1
-    manuais = [c for c in cards if e_do_lote(c)]
+    manuais = [c for c in cards if e_manual(c)]
     return {"total": len(cards),
             "esperando": por.get(ESPERANDO, 0),
             "pulado": por.get(PULADO, 0),
@@ -290,3 +291,8 @@ def conferir_ordem(cards):
                    c.get("origem")))
         ultima = f
     return True
+
+
+def e_manual(c):
+    return ((c or {}).get("tipo") == SERIE
+            and executor(c) in (LOTE, NEURO))
