@@ -3871,10 +3871,19 @@ def checar_getattr_de_nome_inventado():
            "; ".join(achados[:3]))
 
 
+def _rotas_fetch_estaticas(texto):
+    rx = r'''fetch\(\s*(['"])(/api/[a-zA-Z0-9_/-]+)\1(?!\s*\+)'''
+    return [m.group(2) for m in re.finditer(rx, texto)]
+
+
 def checar_rotas_vivas():
     import re as _re
     print("")
     print("[32] Toda rota que a tela chama existe depois de montada")
+
+    amostra = "fetch('/api/real'); fetch(\"/api/outra\",{}); fetch('/api/prefixo/' + acao)"
+    checar("rotas completas continuam verificadas e prefixos dinâmicos não viram rotas fictícias",
+           _rotas_fetch_estaticas(amostra) == ['/api/real', '/api/outra'])
 
     app_dir = os.path.join(RAIZ, "app")
     if not os.path.isdir(app_dir):
@@ -3926,12 +3935,7 @@ def checar_rotas_vivas():
         if not nome.endswith(".py"):
             continue
         t = _io_ler(_componentes.fonte("app/" + nome))
-        for m in _re.finditer(r"fetch\(\s*'(/api/[a-zA-Z0-9_/-]+)'", t):
-            alvo = m.group(1)
-            if alvo not in vivas:
-                ruins.append((nome, alvo))
-        for m in _re.finditer(r'fetch\(\s*"(/api/[a-zA-Z0-9_/-]+)"', t):
-            alvo = m.group(1)
+        for alvo in _rotas_fetch_estaticas(t):
             if alvo not in vivas:
                 ruins.append((nome, alvo))
     vistos = set()

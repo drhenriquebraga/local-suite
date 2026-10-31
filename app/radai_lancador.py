@@ -599,7 +599,7 @@ def _uri(caminho):
 
 def comando_do_motor(python=None, pasta=None, motor=None):
     pasta = pasta or os.path.dirname(os.path.abspath(__file__))
-    return [python or sys.executable, motor or os.path.join(pasta, NOME_DO_MOTOR)]
+    return [python or sys.executable, "-B", motor or os.path.join(pasta, NOME_DO_MOTOR)]
 
 
 def ambiente_do_motor(base=None, console=None):

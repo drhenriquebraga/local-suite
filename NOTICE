@@ -689,7 +689,7 @@ The Nidus UI belongs to the optional Neuro RT plugin.
 Trusted Neuro RT bootstrap
 
 app/radai_neuro_install.py embeds the reviewed standard-library installer
-from Neuro RT v1.0.1, under the following license.
+from Neuro RT v1.1.0, under the following license.
 
 MIT License
 

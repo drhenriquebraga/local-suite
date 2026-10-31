@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import re
+import stat
 import sys
 import threading
 import time
@@ -23,7 +24,7 @@ def preparo_em_andamento():
         return True
     value = provider.status()
     return (value.get('state') in ('waiting', 'downloading', 'preparing', 'verifying',
-                                  'activating', 'restarting') or
+                                  'activating', 'restarting', 'external_install') or
             value.get('error_code') == 'ROLLBACK_INCOMPLETE')
 
 
@@ -49,8 +50,20 @@ def _inside(root, relative):
             or p.split('.')[0].upper() in reserved for p in parts)
             or any(ord(c) < 32 or c in '<>:"|?*' for c in relative)):
         raise ValueError('Caminho fora do contrato de instalação.')
-    root = Path(root).resolve()
-    path = root.joinpath(*parts).resolve()
+    root = Path(root).absolute()
+    raw_path = root.joinpath(*parts)
+    for parent in (raw_path, *raw_path.parents):
+        try:
+            info = parent.lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
+                raise ValueError('A instalação do plugin não permite links ou redirecionamentos.')
+        if parent == root:
+            break
+    root = root.resolve()
+    path = raw_path.resolve()
     if not path.is_relative_to(root):
         raise ValueError('Caminho escapa da instalação.')
     return path
@@ -179,9 +192,17 @@ def discover_plugin(suite_root, plugin_id=PLUGIN_ID, host_info=None, *, cancelle
         if (adapter_file not in covered or 'module.json' not in covered
                 or not re.fullmatch('[A-Za-z_]\\w*', function)):
             raise ValueError('Adaptador não protegido pelo inventário.')
-        for file in code.rglob('*.py'):
-            if file.relative_to(code).as_posix() not in covered:
-                raise ValueError('Código Python não previsto na release.')
+        allowed_receipts = {'release-manifest.json', 'install-receipt.json'}
+        actual = set()
+        for file in code.rglob('*'):
+            relative = file.relative_to(code).as_posix()
+            _inside(code, relative)
+            if '__pycache__' in file.relative_to(code).parts or file.suffix.lower() in ('.pyc', '.pyo'):
+                raise ValueError('Bytecode não é permitido no código instalado do plugin.')
+            if file.is_file():
+                actual.add(relative)
+        if actual - allowed_receipts != covered:
+            raise ValueError('A instalação contém arquivos não previstos no inventário.')
         result.update(state='ready', reason='', active_version=version,
                       code_dir=str(code), manifest=manifest, adapter_file=adapter_file,
                       adapter_function=function)
@@ -302,7 +323,8 @@ def montar(app, cfg=None):
     entry.update(load_lock=threading.RLock(), load_complete=threading.Event(),
                  closed=threading.Event(), load_thread=None, release_thread=None,
                  load_started=False, verification={}, release_checked_at=0.0,
-                 release_check={'state': 'checking', 'reason': 'Consultando a versão disponível.'})
+                 release_check={'state': 'checking', 'reason': 'Consultando a versão disponível.'},
+                 local_sources={}, external_installer=None)
     app.state.neuro_plugin_entry = entry
     import radai_neuro_install
     def restart():
@@ -310,6 +332,16 @@ def montar(app, cfg=None):
         port = int((cfg.get('arranque') or {}).get('PORT'))
         return radai_shutdown.reabrir_para_plugin(app, port)
     cfg.setdefault('neuro_restart', restart)
+    def external_install(plan):
+        import radai_plugin_setup
+        state = getattr(app.state, 'radai_reabertura', None)
+        if not state or not callable(state.get('encerrar')):
+            raise ValueError('O encerramento controlado da suíte está indisponível.')
+        if entry['external_installer'] is None:
+            port = int((cfg.get('arranque') or {}).get('PORT'))
+            entry['external_installer'] = radai_plugin_setup.ExternalInstaller(suite_root, port, state['encerrar'])
+        return entry['external_installer'].launch(plan)
+    cfg.setdefault('neuro_external_install', external_install)
     provider = radai_neuro_install.build_provider(suite_root, info, cfg)
     entry['update_provider'] = provider
     provider.verification_in_progress = lambda: entry['load_started'] and not entry['load_complete'].is_set()
@@ -436,15 +468,10 @@ def montar(app, cfg=None):
         message = states.get(status['state'], 'O plugin aguarda ativação.')
         content = ('<section class="md-pg"><h1>NEURO RT</h1><p role="status">' +
                    html.escape(message) + '</p><p>' + html.escape(status['reason']) + '</p>')
-        content += ('<section id="neuro-update" data-neuro-install="1">'
-                    '<p id="neuro-update-message" role="status"></p>'
-                    '<progress id="neuro-update-progress" max="100" hidden></progress>'
-                    '<div id="neuro-update-actions"></div></section>'
-                    '<p>O preparo instala o código do plugin e reutiliza os recursos do Local Suite. Confirme para iniciar.</p>'
+        import radai_plugin_setup_ui
+        content += (radai_plugin_setup_ui.controls() +
                     '<p><a href="/">Voltar à suíte</a></p></section>')
-        script = ('<script>window.NEURO_INSTALL_CATALOG=' +
-                  json.dumps(radai_neuro_install.INSTALL_UI_CATALOG, ensure_ascii=True).replace('<', '\\u003c') +
-                  ';' + radai_neuro_install.INSTALL_UI_SCRIPT + '</script>')
+        script = radai_plugin_setup_ui.scripts()
         page = ('<!doctype html><html><head><meta charset="utf-8">'
                 '<meta name="viewport" content="width=device-width,initial-scale=1">'
                 '<title>NEURO RT · Local Suite</title><style>' + radai_modules.CSS +
@@ -468,6 +495,83 @@ def montar(app, cfg=None):
         except (ValueError, TypeError, OSError):
             raise HTTPException(400, 'Leia e aceite a versão atual do termo do plugin NEURO RT.')
 
+    def authorize(request):
+        local(request)
+        if (request.headers.get('origin') not in (None, str(request.base_url).rstrip('/')) or
+                not secrets.compare_digest(request.headers.get('x-neuro-plugin-token', ''), entry['token'])):
+            raise HTTPException(403, 'Origem ou token inválido.')
+
+    async def read_payload(request):
+        raw = await request.body()
+        if not 0 < len(raw) <= 8192:
+            raise HTTPException(400, 'Pedido inválido.')
+        try:
+            payload = json.loads(raw)
+        except (ValueError, UnicodeError):
+            raise HTTPException(400, 'Pedido inválido.')
+        if not isinstance(payload, dict):
+            raise HTTPException(400, 'Pedido inválido.')
+        return payload
+
+    async def selected_plan(source_id, operation):
+        if not isinstance(source_id, str) or not 1 <= len(source_id) <= 96:
+            raise ValueError('Fonte local inválida.')
+        source = entry['local_sources'].get(source_id)
+        if not source or time.monotonic() - source['checked_at'] > 900:
+            raise ValueError('Confira novamente o pacote local.')
+        payload = dict(source['description'], action=operation)
+        plan = await run_in_threadpool(radai_neuro_install.prepare_external_plan,
+                                      payload, source_folder=source['folder'])
+        if not isinstance(plan, dict) or plan.get('version') != source['description']['version']:
+            raise ValueError('O pacote local mudou; confira novamente.')
+        return plan
+
+    @app.post('/api/plugins/neuro-rt/refresh')
+    async def refresh(request: Request):
+        authorize(request)
+        payload = await read_payload(request)
+        if payload:
+            raise HTTPException(400, 'Pedido inválido.')
+        callback = getattr(provider, 'refresh_plugin_release', None)
+        if not callable(callback):
+            raise HTTPException(503, 'Atualize a suíte para verificar o plugin novamente.')
+        result = await run_in_threadpool(callback, PLUGIN_ID, entry['installation'].get('active_version'))
+        if not isinstance(result, dict):
+            raise HTTPException(502, 'Não foi possível consultar a versão disponível.')
+        entry.update(release_check=result, release_checked_at=time.monotonic())
+        return JSONResponse(result, headers={'Cache-Control': 'no-store'})
+
+    @app.post('/api/plugins/neuro-rt/local/inspect')
+    async def inspect_local(request: Request):
+        authorize(request)
+        payload = await read_payload(request)
+        folder = payload.get('folder')
+        if (set(payload) != {'folder'} or not isinstance(folder, str) or not folder or
+                len(folder) > 4096 or not Path(folder).is_absolute()):
+            raise HTTPException(400, 'Escolha a pasta completa do instalador ou pacote offline.')
+        callback = getattr(radai_neuro_install, 'inspect_local_source', None)
+        if not callable(callback):
+            raise HTTPException(503, 'Atualize a suíte para usar o pacote local.')
+        try:
+            description = await run_in_threadpool(callback, folder)
+            if not isinstance(description, dict):
+                raise ValueError()
+            _version(description.get('version'))
+        except (OSError, ValueError, TypeError) as error:
+            hint = getattr(error, 'source_hint', None)
+            if hint not in ('extract_setup', 'update_suite', 'prepare_again'):
+                hint = 'prepare_again'
+            raise HTTPException(400, {'source_hint': hint,
+                'message': 'O pacote local não pôde ser confirmado. Selecione a pasta completa de um instalador ou bundle compatível do NEURO RT.'})
+        now = time.monotonic()
+        entry['local_sources'] = {k: v for k, v in entry['local_sources'].items() if now - v['checked_at'] <= 900}
+        if len(entry['local_sources']) >= 8:
+            entry['local_sources'].pop(next(iter(entry['local_sources'])))
+        source_id = secrets.token_urlsafe(24)
+        entry['local_sources'][source_id] = {'folder': folder, 'description': description, 'checked_at': now}
+        visible = {k: description[k] for k in ('version', 'kind', 'size', 'offline_ready', 'summary') if k in description}
+        return JSONResponse(dict(visible, source_id=source_id), headers={'Cache-Control': 'no-store'})
+
     @app.post('/api/plugins/neuro-rt/install')
     async def install(request: Request):
         local(request)
@@ -482,14 +586,21 @@ def montar(app, cfg=None):
             payload = json.loads(body)
         except (ValueError, UnicodeError):
             raise HTTPException(400, 'Pedido inválido.')
-        if (not isinstance(payload, dict) or set(payload) not in ({'confirm'}, {'confirm', 'consent'})
-                or payload['confirm'] is not True):
+        if (not isinstance(payload, dict) or not {'confirm'} <= set(payload) or
+                set(payload) - {'confirm', 'consent', 'source_id'} or payload['confirm'] is not True):
             raise HTTPException(400, 'Confirmação explícita obrigatória.')
         callback = cfg.get('neuro_install')
         if not callable(callback):
             raise HTTPException(501, 'Instalação ainda não conectada nesta versão do Local Suite.')
         await accept_installation_terms(payload)
-        result = await run_in_threadpool(callback)
+        try:
+            if 'source_id' in payload:
+                plan = await selected_plan(payload['source_id'], 'install')
+                result = await run_in_threadpool(provider.request_plugin_update, PLUGIN_ID, 'comecar', plan=plan)
+            else:
+                result = await run_in_threadpool(callback)
+        except (ValueError, TypeError, OSError):
+            raise HTTPException(400, 'Não foi possível iniciar o preparo. Confira a fonte local e o estado da instalação.')
         if not isinstance(result, dict):
             raise HTTPException(500, 'O instalador não devolveu um estado válido.')
         return JSONResponse(result, status_code=202, headers={'Cache-Control': 'no-store'})
@@ -505,11 +616,17 @@ def montar(app, cfg=None):
             raise HTTPException(400, 'Pedido inválido.')
         try:
             payload = json.loads(body)
-            if (not isinstance(payload, dict) or set(payload) not in ({'action'}, {'action', 'consent'})
+            if (not isinstance(payload, dict) or not {'action'} <= set(payload) or
+                    set(payload) - {'action', 'consent', 'source_id'}
                     or payload.get('action') not in ('comecar', 'esperar', 'interromper')):
                 raise ValueError()
             await accept_installation_terms(payload)
-            result = await run_in_threadpool(provider.request_plugin_update, PLUGIN_ID, payload['action'])
+            if 'source_id' in payload:
+                operation = 'interrupt_then_update' if payload['action'] == 'interromper' else 'update'
+                plan = await selected_plan(payload['source_id'], operation)
+                result = await run_in_threadpool(provider.request_plugin_update, PLUGIN_ID, payload['action'], plan=plan)
+            else:
+                result = await run_in_threadpool(provider.request_plugin_update, PLUGIN_ID, payload['action'])
         except (ValueError, TypeError, UnicodeError):
             raise HTTPException(400, 'Ação de atualização inválida.')
         return JSONResponse(result, status_code=202, headers={'Cache-Control': 'no-store'})

@@ -1945,7 +1945,8 @@ def montar(app, ler_vigia=None, config=None):
 
     @app.get("/config", response_class=HTMLResponse)
     def _tela_config():
-        p = PAGINA_CONFIG
+        import radai_plugin_setup_ui
+        p = radai_plugin_setup_ui.config_page(PAGINA_CONFIG)
 
         url, desligada = u"", False
         try:

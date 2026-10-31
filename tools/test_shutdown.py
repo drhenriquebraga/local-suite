@@ -1410,10 +1410,10 @@ def teste_o_lancador():
     cmd = L.comando_do_motor(u"py.exe")
     checar(u"o comando e o radai_watcher.py ao lado do lancador",
            cmd[0] == u"py.exe"
-           and os.path.normcase(cmd[1]) == os.path.normcase(os.path.join(
+           and cmd[1] == "-B" and os.path.normcase(cmd[-1]) == os.path.normcase(os.path.join(
                os.path.dirname(os.path.abspath(L.__file__)), "radai_watcher.py")))
     checar(u"  ou o motor que o sucessor recebeu",
-           L.comando_do_motor(u"py.exe", motor=u"C:\\m\\radai_watcher.py")[1]
+           L.comando_do_motor(u"py.exe", motor=u"C:\\m\\radai_watcher.py")[-1]
            == u"C:\\m\\radai_watcher.py")
     checar(u"o console do motor vai para o temporario local",
            L.arquivo_do_console(8803).startswith(tempfile.gettempdir()))
