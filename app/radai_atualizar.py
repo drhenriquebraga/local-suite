@@ -33,6 +33,7 @@ ERRO = u"erro"
 EM_ANDAMENTO = (ESPERANDO, BAIXANDO, PREPARANDO, FECHANDO)
 
 SEGURA_NEURO = u"O NEURO RT está processando. Caso a atualização interrompa, o item deve ser solicitado novamente."
+SEGURA_LUNG = u"O LUNG RT está processando uma série. Encerre o rastreio antes de atualizar."
 SEGURA_VIGIA = u"A série do vigia está rodando."
 SEGURA_LOTE = u"O lote do «Rodar agora» está rodando."
 SEGURA_TURNO = u"O turno da noite está aberto."
@@ -78,8 +79,11 @@ def etapa():
 def o_que_segura(status):
     try:
         import radai_queue_state as Q
-        if Q.quem_tem_a_vez().get("dono") == "neuro":
+        dono = Q.quem_tem_a_vez().get("dono")
+        if dono == "neuro":
             return SEGURA_NEURO
+        if dono == "lung":
+            return SEGURA_LUNG
     except ImportError:
         pass
     s = status if isinstance(status, dict) else {}
@@ -359,7 +363,7 @@ def _falhar(chave, detalhe=u""):
     _log(u"nao aconteceu: %s %s" % (chave, detalhe or u""))
 
 
-def _fluxo(interromper):
+def _fluxo(interromper, apenas_codigo=False):
     import radai_version as V
     programa = pasta_do_programa()
     if not e_instalacao(programa):
@@ -384,12 +388,21 @@ def _fluxo(interromper):
     except Exception as e:
         return _falhar(M_PASTA, u"%s: %s" % (type(e).__name__, str(e)[:120]))
     _CTX["pasta"] = pasta
-    _log(u"baixando o instalador da v%s" % versao)
+    _log(u"baixando o instalador da v%s (%s)" % (versao, info.get("fonte") or u"fonte configurada"))
 
     def _prog(n, total):
         _mudar(progresso=int(100.0 * n / total) if total else 0)
     r = V.baixar_instalador(inst, os.path.join(pasta, u"baixado"),
                             progresso=_prog)
+    if not r.get("ok") and not _CTX.get("cancelar") and info.get("fonte") == "github":
+        espelho = V.consultar_espelho(forcar=True)
+        outro = espelho.get("instalador") or {}
+        if (V._maior(versao, V._entrega_txt()) and mesma_versao(espelho.get("versao"), versao)
+                and inst.get("sha256") and outro.get("sha256") == inst.get("sha256")
+                and outro.get("tamanho") == inst.get("tamanho")):
+            _log(u"download do GitHub indisponível; tentando cópia idêntica no site")
+            r = V.baixar_instalador(outro, os.path.join(pasta, u"baixado"),
+                                    progresso=_prog)
     if _CTX.get("cancelar"):
         _limpar_pasta()
         return None
@@ -421,12 +434,20 @@ def _fluxo(interromper):
     if decisao is None:
         return _falhar(M_DECISAO, saida)
     if decisao == u"pacote":
+        if apenas_codigo:
+            return _falhar(M_DECISAO, u"Esta versão requer um ambiente novo. "
+                           u"A instalação atual foi preservada. "
+                           u"Use o instalador em uma estação com acesso aos recursos.")
         dl, disco = tamanho_do_pacote(raiz)
         _mudar(etapa=BUNDLE, tamanho_gib=dl, disco_gib=disco,
                tempo_min=tempo_estimado_min(dl, _CTX.get("bps")))
         _soltar_se_segurei()
         _log(u"a v%s precisa de pacote novo: espera a segunda confirmacao"
              % versao)
+        return None
+    if interromper and o_que_segura(_status()) == SEGURA_LUNG:
+        _soltar_se_segurei()
+        _mudar(etapa=OCUPADO, motivo_chave=SEGURA_LUNG)
         return None
     if interromper and not _interromper_neuro():
         return None
@@ -476,20 +497,52 @@ def _interromper_neuro():
     return True
 
 
-def _rodar_fluxo(interromper):
+def _rodar_fluxo(interromper, apenas_codigo=False):
     try:
-        _fluxo(interromper)
+        _fluxo(interromper, apenas_codigo=True) if apenas_codigo else _fluxo(interromper)
     except Exception as e:
         _falhar(M_DECISAO, u"%s: %s" % (type(e).__name__, str(e)[:160]))
 
 
-def _iniciar(interromper):
+def _iniciar(interromper, apenas_codigo=False):
     _CTX["cancelar"] = False
     _mudar(etapa=BAIXANDO, motivo_chave=u"", detalhe=u"", progresso=0,
            tamanho_gib=None, disco_gib=None, tempo_min=None)
     _segurar_a_fila(True)
-    threading.Thread(target=_rodar_fluxo, args=(bool(interromper),),
+    args = (bool(interromper), True) if apenas_codigo else (bool(interromper),)
+    threading.Thread(target=_rodar_fluxo, args=args,
                      name="radai-atualizar", daemon=True).start()
+
+
+def _registrar_tentativa_no_arranque(programa, versao):
+    import re
+    if not re.fullmatch(r"[0-9]{1,4}(?:\.[0-9]{1,4}){1,3}", versao):
+        return False
+    try:
+        pasta = os.path.join(programa, "_instalacao")
+        os.makedirs(pasta, exist_ok=True)
+        with io.open(os.path.join(pasta, "atualizacao-automatica-v%s.txt" % versao),
+                     "x", encoding="ascii") as f:
+            f.write(versao + "\n")
+        return True
+    except FileExistsError:
+        return False
+    except OSError:
+        _log(u"não foi possível reservar a tentativa; atualização manual disponível")
+        return False
+
+
+def iniciar_no_arranque(info, porta):
+    if info.get("estado") != "nova" or info.get("fonte") != "espelho" or not porta:
+        return
+    with _TRAVA:
+        programa = pasta_do_programa()
+        if etapa() != LIVRE or not e_instalacao(programa) or o_que_segura(_status()):
+            return
+        if not _registrar_tentativa_no_arranque(programa, str(info.get("versao") or "")):
+            return
+        _CTX["porta"] = int(porta)
+        _iniciar(False, apenas_codigo=True)
 
 
 def _esperar():

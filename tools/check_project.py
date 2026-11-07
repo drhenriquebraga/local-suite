@@ -3211,8 +3211,13 @@ def checar_cadeia_do_full():
     checar("  e todo plugin e de uma task do catalogo", not fora_do_catalogo,
            ", ".join(fora_do_catalogo))
     achados = sorted(set(getattr(E, "TASKS_DE_ACHADO", ())))
-    checar("REGRA A: nenhuma task de ACHADO alimenta o FULL",
-           not [t for t in achados if RS.task_do_full(t)],
+    checar("Só nódulos explicitamente pedidos podem alimentar o FULL",
+           [t for t in achados if RS.task_do_full(t)] == ["lung_nodules"]
+           and RS.rotulo_vai_ao_full("lung_nodules", "lung_nodules")
+           and not RS.rotulo_vai_ao_full("lung_nodules", "lung")
+           and RS.rotulo_vai_ao_plugin("lung_nodules", "lung_nodules")
+           and "lung_nodules" not in RS.PERMITIDOS_NO_OAR
+           and "lung_nodules" not in RS.PERMITIDOS_NO_OAR_FAST,
            ", ".join(t for t in achados if RS.task_do_full(t)))
     checar("  e todo plugin de ACHADO se declara achado",
            all(RS.PLUGIN_DA_TASK[t].get("achado") for t in achados

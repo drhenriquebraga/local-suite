@@ -7,8 +7,8 @@ import radai_archive
 import radai_menu
 import radai_web
 
-VERSAO_DOCS = "2.3"
-DATA_DOCS = "2026-10-30"
+VERSAO_DOCS = "2.4"
+DATA_DOCS = "2026-11-06"
 ARQUIVO_ACEITE = "aceite.json"
 
 IMPRESSOES_PUBLICADAS = {
@@ -22,6 +22,7 @@ IMPRESSOES_PUBLICADAS = {
     "2.1": "5ec308c786f4495cd965ec6a5b6acda89853731f5415eacf9556cf2ea6f28013",
     "2.2": "1e1647d8af01d4fc904b17fe3386a4ca2016eb23a47392ab0499c5c37f288ab1",
     "2.3": "e3aadaa481fdbf73d4741f2517449c665d56bd3f156a285330bc8062f5d266e9",
+    "2.4": "a551a58c0157d3bcf48e15b6a68835a5fae36593d814188ad6bd64903c8e21b4",
 }
 
 # GUARDA: versao publicada nao se retoca (mudou o texto, versao nova); so a
@@ -29,7 +30,7 @@ IMPRESSOES_PUBLICADAS = {
 # abaixo, com o que entrou no texto.
 RESSELAGENS_ANTES_DA_PUBLICACAO = {"1.4": 2, "1.5": 3, "1.6": 4, "1.7": 3,
                                    "1.8": 6, "1.9": 2,
-                                   "2.0": 2, "2.1": 2, "2.2": 0, "2.3": 0}
+                                   "2.0": 2, "2.1": 2, "2.2": 0, "2.3": 0, "2.4": 0}
 
 IMPRESSOES_TROCADAS_ANTES_DA_PUBLICACAO = {
     "2.1": (("fedb3e1174c9",
@@ -245,11 +246,14 @@ PONTOS = [
      u"PERSONALIZADO liga uma delas. Ligar uma é ligar a chave dela no "
      u"PERSONALIZADO — e então o que ela devolve sai num arquivo próprio e, "
      u"cru, também no conjunto do TotalSegmentator (RadAI_TS) quando ele é "
-     u"pedido, nunca no conjunto completo nem no entregue —, escolher ali um "
+     u"pedido. Nódulos explicitamente solicitados no ContourLab também saem "
+     u"no FULL, sem entrar no STUDY. As outras tarefas de achado ficam fora: "
+     u"nunca no conjunto completo nem no entregue. Você também pode escolher ali um "
      u"protocolo próprio da estação que inclua achado, que pede a declaração "
      u"a cada envio à fila, ou pedir ali um "
      u"protocolo de estudo das Reconstruções 3D, que não grava RTSTRUCT, só "
-     u"um mapa de rótulos na subpasta _RadAI da série. Nos três casos o "
+     u"um mapa de rótulos na subpasta _RadAI da série. O LUNG RT roda nódulos "
+     u"após pedido explícito de execução, rastreio de pasta ou estudo 4D. O "
      u"programa varre a imagem procurando, o log anuncia com a palavra "
      u"ACHADO, e o registro do caso guarda quais rodaram. O derrame pleural e "
      u"o pericárdico são anatomia do tórax: saem no conjunto completo, e no "
@@ -376,7 +380,7 @@ except Exception:
 
 CONEXOES_AUTOMATICAS = (
     {"nome": u"Consulta de versão",
-     "destinos": ("api.github.com",),
+     "destinos": ("api.github.com", "drhenriquebraga.com.br"),
      "texto": (u"Destino: <code>api.github.com</code>, a página de versões do "
                u"projeto, num endereço escrito no código do programa. A "
                u"variável de ambiente <code>RADAI_URL_VERSOES</code> o troca "
@@ -385,10 +389,12 @@ CONEXOES_AUTOMATICAS = (
                u"arranque, em segundo plano. Leva: um <code>GET</code> sem "
                u"corpo e sem parâmetro, com o cabeçalho <code>User-Agent: "
                u"radioterapia-ai-local-suite</code> — nada da estação, nada "
-               u"de paciente. Sozinha, ela não baixa nada: se houver versão "
-               u"nova, avisa no log e na porta da suíte, com um aviso e um "
-               u"ponto na engrenagem; baixar o instalador é um ato seu, no "
-               u"«Atualizar agora» (abaixo).")},
+               u"de paciente. Se o GitHub não responder corretamente, o "
+               u"programa consulta <code>drhenriquebraga.com.br</code>. Nesse "
+               u"endereço pode baixar o instalador leve e atualizar somente "
+               u"o código, com a fila livre e o ambiente compatível. Se houver "
+               u"versão nova, avisa no log e na porta da suíte, com um aviso e um "
+               u"ponto na engrenagem. O botão «Atualizar agora» também está disponível.")},
     {"nome": u"Teste de internet do registro de casos",
      "destinos": ("pypi.org", "github.com"),
      "texto": (u"Destino: <code>pypi.org</code> e <code>github.com</code>. "
@@ -856,9 +862,10 @@ parágrafo acima. Se está, ele consulta a release mais
 nova do projeto em <code>api.github.com</code> — um GET sem corpo, com o
 cabeçalho <code>User-Agent: radioterapia-ai-preparador</code>, no mesmo
 endereço que a variável <code>RADAI_URL_VERSOES</code> troca ou desliga. Se
-houver instalador mais novo, ele o baixa da release (o
-<code>_SETUP_LATEST.zip</code>, de cerca de 2 MB), confere o tamanho e o
-SHA-256 quando a release os publica, recusa o arquivo que grave fora da pasta
+o endereço padrão não responder corretamente, tenta o espelho
+<code>drhenriquebraga.com.br</code>. Se houver instalador mais novo,
+ele baixa apenas o <code>_SETUP_LATEST.zip</code> e exige o tamanho e o
+SHA-256 publicados, recusa o arquivo que grave fora da pasta
 ou que diga outra versão, e segue a atualização por ele; se a estação precisar
 de um pacote novo e houver rede, ele segue para o preparo do pacote, com os
 pedidos do parágrafo acima. Quando a release não responde, ele testa a
@@ -1860,7 +1867,7 @@ completo ou o nome padrão.</p>
  AUTO —, e o FAST também não. <b>Um protocolo próprio pode incluir
  achado</b> (seção 4.1): então a declaração é pedida a cada envio à fila, o
  log anuncia com a palavra <b data-radai-t="1">ACHADO</b>, e o resultado sai no arquivo próprio
- do achado, nunca no entregue; sem a declaração, a tarefa de achado não
+ do achado (nódulos explicitamente pedidos também vão ao FULL); sem a declaração, a tarefa de achado não
  roda.</li>
 </ul>
 <p>Os nomes próprios e os protocolos moram ao lado do arquivo de
@@ -2111,14 +2118,14 @@ confirmado pela anatomia, e o log diz quando ela fica de fora. Tarefa avulsa, ac
 comparação de modelos se pedem série a série, no PERSONALIZADO do «Rodar
 agora».</p>
 
-<p><b>Ligar é um ato, e os três que existem estão no PERSONALIZADO do «Rodar
-agora».</b> O primeiro é ligar a chave da tarefa no PERSONALIZADO — ela nasce
+<p><b>Ligar exige pedido explícito.</b> No PERSONALIZADO do «Rodar agora», o primeiro é ligar a chave da tarefa no PERSONALIZADO — ela nasce
 desligada, com o selo ACHADO, e nenhum protocolo RT a liga. Ligada assim, o
 log anuncia com a palavra <b data-radai-t="1">ACHADO</b>, o que ela devolve sai num arquivo próprio
 (rótulo <code>RadAI_</code> e o código dela) e, cru, também no conjunto do
 TotalSegmentator (<code>RadAI_TS</code>) quando ele é pedido, como toda saída
-do modelo — nunca no
-conjunto completo nem no entregue —, e o registro do caso guarda quais rodaram, para que a resposta a "o que estava ligado naquela
+do modelo. Nódulos explicitamente pedidos também entram no FULL; ficam
+fora do STUDY e do FAST. Os demais achados nunca no conjunto completo nem
+no entregue. O registro do caso guarda quais rodaram, para que a resposta a "o que estava ligado naquela
 série?" não dependa da memória de ninguém. O segundo é escolher um
 protocolo próprio da estação que inclua achado (seção 1.6): a declaração é
 pedida a cada envio à fila, e o que a tarefa devolve segue a regra da chave.
@@ -2131,8 +2138,13 @@ e o marcador de conclusão da série guarda os protocolos pedidos; mas o estudo
 não grava RTSTRUCT nenhum: o que ele roda vai a um mapa de rótulos, na
 subpasta <code>_RadAI</code> da série (a Política de Privacidade diz o que o
 mapa leva), e uma tarefa que só ele pediu não chega ao entregue nem a arquivo
-de estudo nenhum. O vigia não liga tarefa de achado, e, fora desses
-protocolos de estudo, não há botão que ligue tudo.</p>
+de estudo nenhum. O vigia padrão não liga tarefa de achado.</p>
+
+<p>No LUNG RT, o usuário declara o pedido ao iniciar um caso, o rastreio de uma
+pasta ou as fases de uma TC 4D. O resultado é uma sugestão não aprovada; uma
+fase sem contorno não exclui nódulos. O ITV sugerido é a união geométrica dos
+contornos das fases selecionadas. Ele não confirma que os achados pertencem à
+mesma lesão e não constitui um alvo de tratamento validado.</p>
 
 <p><b>Os cistos renais são a exceção, e ela é da anatomia.</b> O modelo de
 anatomia do TotalSegmentator, que roda de fábrica, desenha os cistos renais

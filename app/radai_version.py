@@ -142,6 +142,9 @@ TIMEOUT_S = 8.0
 
 URL_VERSOES = u"https://github.com/drhenriquebraga/local-suite/releases"
 
+ESPELHO = "https://drhenriquebraga.com.br/_distribuicao/radioterapia-ai/local-suite/atualizacoes"
+ESPELHO_LATEST = ESPELHO + "/latest.json"
+
 VARIAVEL_URL_VERSOES = "RADAI_URL_VERSOES"
 _DESLIGADA = ("0", "off", "desligado", "desligada", "nao", "no", "false")
 
@@ -227,13 +230,65 @@ def link_do_instalador(url_pagina=None, nome=None):
             % (dono, repo, nome))
 
 
+def consultar_espelho(timeout=None, forcar=False):
+    import re
+    import time
+    import urllib.request
+
+    d = {"estado": "erro", "versao": u"", "erro": u"", "url": ESPELHO_LATEST,
+         "fonte": "espelho", "instalador": {}}
+    try:
+        url = ESPELHO_LATEST + ("?consulta=" + str(time.time_ns()) if forcar else "")
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT,
+                                      "Accept": "application/json", "Cache-Control": "no-cache"})
+        with urllib.request.urlopen(req, timeout=float(timeout or TIMEOUT_S)) as r:
+            if r.geturl() != url:
+                raise ValueError("o espelho redirecionou a consulta")
+            corpo = r.read(4097)
+        if len(corpo) > 4096:
+            raise ValueError("metadados acima do limite")
+        m = json.loads(corpo.decode("utf-8"))
+        tag = m["version"]
+        sha = m["sha256"]
+        tam = m["size"]
+        nome = nome_do_instalador_latest()
+        aqui = _entrega_txt()
+        if (m["schema"] != "local-suite-update/1" or not nome or not aqui
+                or not re.fullmatch(r"[0-9]{1,4}(?:\.[0-9]{1,4}){1,3}", tag)
+                or not re.fullmatch(r"[0-9a-f]{64}", sha)
+                or type(tam) is not int or not 0 < tam <= TETO_DO_INSTALADOR_BYTES):
+            raise ValueError("metadados da distribuição fora do formato")
+        d.update(estado="nova" if _maior(tag, aqui) else "atual", versao=tag,
+                 instalador={"nome": nome, "url": "%s/v%s/%s" % (ESPELHO, tag, nome),
+                             "tamanho": tam, "sha256": sha, "fonte": "espelho"})
+    except Exception as e:
+        d["erro"] = u"espelho: %s: %s" % (type(e).__name__, str(e)[:120])
+    return d
+
+
 def consultar(url_pagina=None, timeout=None, forcar=False):
-    import json
+    url = _url(url_pagina)
+    r = _consultar_primario(url, timeout, forcar=forcar)
+    if url != URL_VERSOES:
+        return r
+    r["fonte"] = "github"
+    if r["estado"] not in ("erro", "nao_achada"):
+        return r
+    espelho = consultar_espelho(timeout, forcar=forcar)
+    if espelho["estado"] in ("nova", "atual"):
+        return espelho
+    r["erro"] = "%s; %s" % (r.get("erro") or "GitHub indisponível", espelho["erro"])
+    return r
+
+
+def _consultar_primario(url_pagina=None, timeout=None, forcar=False):
+    import re
     import urllib.error
     import urllib.request
 
     url_pagina = _url(url_pagina)
-    fora = {"estado": "erro", "versao": u"", "erro": u"", "url": url_pagina}
+    fora = {"estado": "erro", "versao": u"", "erro": u"", "url": url_pagina,
+            "instalador": {}, "fonte": ""}
     api = _api_de(url_pagina)
     if not api:
         fora["estado"] = "sem_endereco"
@@ -261,8 +316,8 @@ def consultar(url_pagina=None, timeout=None, forcar=False):
                 req, timeout=float(timeout or TIMEOUT_S)) as r:
             d = json.loads(r.read().decode("utf-8", "replace"))
         tag = str(d.get("tag_name") or "").lstrip("vV")
-        if not tag:
-            fora["erro"] = u"a resposta nao trouxe tag_name"
+        if not re.fullmatch(r"[0-9]{1,4}(?:\.[0-9]{1,4}){0,3}", tag):
+            fora["erro"] = u"a resposta não trouxe uma versão estável válida"
             return fora
         fora["versao"] = tag
         fora["instalador"] = instalador_da_release(d)
@@ -362,6 +417,8 @@ def baixar_instalador(inst, pasta, timeout=None, progresso=None,
         with urllib.request.urlopen(
                 req, timeout=float(timeout or 30.0)) as resp, \
                 io.open(destino, "wb") as f:
+            if inst.get("fonte") == "espelho" and resp.geturl() != url:
+                raise ValueError(u"o espelho redirecionou o download")
             while True:
                 bloco = resp.read(256 * 1024)
                 if not bloco:
@@ -430,7 +487,8 @@ def iniciar_consulta(url_pagina=None, timeout=None, ao_terminar=None, forcar=Fal
         try:
             r = consultar(url_pagina, timeout, forcar=True) if forcar else consultar(url_pagina, timeout)
         except Exception as e:
-            r = {"estado": "erro", "erro": type(e).__name__}
+            r = {"estado": "erro", "erro": type(e).__name__,
+                 "versao": "", "fonte": "", "instalador": {}}
         with _TRAVA_CONSULTA:
             _CONSULTA.update(r)
             _CONSULTA["quando"] = datetime.datetime.now()
@@ -507,7 +565,10 @@ def para_a_tela():
         if fora["estado"] == "nova":
             fora["nova"] = True
             fora["publicada"] = str(d.get("versao") or u"")
-            fora["link"] = link_do_instalador(d.get("url") or None) or u""
+            if d.get("fonte") == "espelho":
+                fora["link"] = (d.get("instalador") or {}).get("url") or u""
+            else:
+                fora["link"] = link_do_instalador(d.get("url") or None) or u""
     except Exception:
         pass
     return fora

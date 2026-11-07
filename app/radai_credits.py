@@ -129,8 +129,9 @@ a restrição dita, antes de alguém instalar.</p>
  arquivo próprio de cada tarefa e, cru,
  também no conjunto do TotalSegmentator (<code>RadAI_TS</code>) quando ele é
  pedido, como toda
- saída do modelo — nunca no conjunto completo (<code>RadAI_FULL</code>) nem no
- entregue ao TPS (<code>RadAI_STUDY</code>); pelo estudo, só no mapa de rótulos
+ saída do modelo. Nódulos pedidos também entram no conjunto completo
+ (<code>RadAI_FULL</code>); os demais achados nunca no conjunto completo.
+ Nenhum deles entra no entregue (<code>RadAI_STUDY</code>); pelo estudo, só no mapa de rótulos
  dele, que não vai ao TPS.</li>
  <li><b>O derrame pleural e pericárdico é anatomia do tórax</b>
  (<code>pleural_pericard_effusion</code>) neste pacote: roda no FAST e no

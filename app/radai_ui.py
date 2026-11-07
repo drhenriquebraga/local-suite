@@ -3972,6 +3972,7 @@ _COR_DO_MODULO = {
     u"recon3d": (u"--mod-recon", u"--mod-recon-fraco"),
     u"nidus": (u"--mod-nidus", u"--mod-nidus-fraco"),
     u"elastic": (u"--mod-elastic", u"--mod-elastic-fraco"),
+    u"lung": (u"--mod-recon", u"--mod-recon-fraco"),
     u"bolus": (u"--mod-bolus", u"--mod-bolus-fraco"),
 }
 

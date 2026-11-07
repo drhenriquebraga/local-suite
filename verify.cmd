@@ -315,6 +315,9 @@ set "RC92=%ERRORLEVEL%"
 echo.>> "%LOG%"
 "%PY%" "%R%tools\test_plugin_setup.py" >> "%LOG%" 2>&1
 set "RC93=%ERRORLEVEL%"
+echo.>> "%LOG%"
+"%PY%" "%R%tools\test_v813_lung_update.py" >> "%LOG%" 2>&1
+set "RC94=%ERRORLEVEL%"
 
 type "%LOG%"
 
@@ -413,6 +416,7 @@ if not "%RC90%"=="0" goto :falhou
 if not "%RC91%"=="0" goto :falhou
 if not "%RC92%"=="0" goto :falhou
 if not "%RC93%"=="0" goto :falhou
+if not "%RC94%"=="0" goto :falhou
 echo   TUDO OK.  Log: verify_log.txt
 echo ============================================================
 echo.
@@ -514,6 +518,7 @@ echo     test_neuro_integrity=%RC90%
 echo     test_neuro_restart=%RC91%
 echo     test_plugin_management=%RC92%
 echo     test_plugin_setup=%RC93%
+echo     test_v813_lung_update=%RC94%
 echo   O veredito e a soma dos rodapes OK: e FALHOU: do log.
 echo   Log completo: %LOG%
 echo ============================================================

@@ -944,6 +944,7 @@ function PedirPastaInstalada {
 
 $script:URL_REPOSITORIO = 'https://github.com/drhenriquebraga/local-suite'
 $script:URL_PAGINA_VERSOES = $script:URL_REPOSITORIO + '/releases'
+$script:URL_ESPELHO = 'https://drhenriquebraga.com.br/_distribuicao/radioterapia-ai/local-suite/atualizacoes'
 
 function UrlDaConsultaDeVersao {
     # GUARDA: a mesma regra de radai_version.url_em_vigor e _api_de: RADAI_URL_VERSOES troca o endereco, e 0 desliga.
@@ -1062,6 +1063,51 @@ function BaixarSemTravar {
     }
 }
 
+function VersaoDoEspelho {
+    $padrao = 'https://api.github.com/repos/drhenriquebraga/local-suite/releases/latest'
+    if ($script:URL_RELEASES -ne $padrao) { return $null }
+    $resp = $null
+    $leitor = $null
+    $req = $null
+    try {
+        LigarTls12
+        $req = [System.Net.HttpWebRequest]::Create($script:URL_ESPELHO + '/latest.json')
+        $req.AllowAutoRedirect = $false
+        $req.UserAgent = 'radioterapia-ai-preparador'
+        $req.Accept = 'application/json'
+        $req.Headers['Cache-Control'] = 'no-cache'
+        $tt = $req.GetResponseAsync()
+        EsperarSemTravar $tt 8000
+        $resp = $tt.Result
+        if ([int]$resp.StatusCode -ne 200 -or $resp.ContentLength -gt 4096) { return $null }
+        $leitor = [System.IO.StreamReader]::new($resp.GetResponseStream())
+        $buf = New-Object char[] 4097
+        $tl = $leitor.ReadBlockAsync($buf, 0, $buf.Length)
+        EsperarSemTravar $tl 8000
+        if ($tl.Result -lt 1 -or $tl.Result -gt 4096) { return $null }
+        $d = (-join $buf[0..($tl.Result - 1)]) | ConvertFrom-Json -ErrorAction Stop
+        $tag = [string]$d.version
+        $sha = [string]$d.sha256
+        $tam = [int64]0
+        $nome = NomeDoInstaladorLatest
+        if ($d.schema -cne 'local-suite-update/1' -or -not $nome -or
+            $tag -notmatch '^[0-9]{1,4}(\.[0-9]{1,4}){1,3}$' -or
+            $sha -cnotmatch '^[0-9a-f]{64}$' -or
+            -not [int64]::TryParse([string]$d.size, [ref]$tam) -or
+            $tam -le 0 -or $tam -gt 268435456) { return $null }
+        $url = $script:URL_ESPELHO + '/v' + $tag + '/' + $nome
+        return @{ ok = $true; versao = $tag; url = $url; erro = ''; respondeu = $true
+                  fonte = 'espelho'
+                  instalador = @{ nome = $nome; url = $url; tamanho = $tam; sha256 = $sha.ToUpperInvariant() } }
+    } catch {
+        return $null
+    } finally {
+        if ($leitor) { $leitor.Dispose() }
+        if ($resp) { $resp.Dispose() }
+        if ($req) { $req.Abort() }
+    }
+}
+
 function VersaoPublicada {
     if ($null -ne $script:VersaoLa) { return $script:VersaoLa }
     $conf = @{ ok = $false; versao = ''; url = ''; erro = ''; respondeu = $false
@@ -1086,8 +1132,9 @@ function VersaoPublicada {
         }
         $conf.respondeu = $true
         $tag = [string]$d.tag_name
-        if ($tag) {
+        if ($tag -match '^[vV]?[0-9]{1,4}(\.[0-9]{1,4}){0,3}$') {
             $conf.ok = $true
+            $conf.fonte = 'github'
             $conf.versao = ($tag -replace '^[vV]', '')
             $conf.url = LinkDoInstalador
             $conf.instalador = InstaladorDaRelease $d
@@ -1103,6 +1150,13 @@ function VersaoPublicada {
                 $conf.erro = ((T 'o endereco das versoes respondeu 404: ou ele esta errado, ou nao existe release publicada nele. Isto nao e problema de internet. O instalador mais recente fica sempre em {0}') -f (LinkDoInstalador))
             }
         } catch { }
+    }
+    if (-not $conf.ok) {
+        $espelho = VersaoDoEspelho
+        if ($espelho) {
+            Registrar '  GitHub indisponivel. Consultei a copia do instalador no site do autor.'
+            $conf = $espelho
+        }
     }
     $script:VersaoLa = $conf
     return $conf
@@ -1418,6 +1472,11 @@ function BaixarInstaladorNovo {
         $r.motivo = 'a release nao diz de onde baixar o instalador'
         return $r
     }
+    if ([string]$ins.url -notmatch '^https://' -or [string]$ins.sha256 -notmatch '^[0-9a-f]{64}$' -or
+        [int64]$ins.tamanho -le 0 -or [int64]$ins.tamanho -gt 268435456) {
+        $r.motivo = 'a origem nao publicou URL HTTPS, tamanho e SHA-256 validos; nada foi executado'
+        return $r
+    }
     $nome = 'RadioterapiaAI_instalador_v' + (([string]$La.versao) -replace '[^0-9A-Za-z.]', '_')
     $dir = Join-Path $env:TEMP $nome
     $zip = $dir + '.zip'
@@ -1428,7 +1487,17 @@ function BaixarInstaladorNovo {
             }
         }
         Registrar ('  baixando ' + $ins.url)
-        BaixarSemTravar ([string]$ins.url) $zip 900000
+        try {
+            BaixarSemTravar ([string]$ins.url) $zip 900000
+        } catch {
+            if ($La.fonte -ne 'github') { throw }
+            $espelho = VersaoDoEspelho
+            if (-not $espelho -or -not (MesmaVersao $espelho.versao $La.versao) -or
+                $espelho.instalador.sha256 -ne $ins.sha256 -or
+                $espelho.instalador.tamanho -ne $ins.tamanho) { throw }
+            Registrar '  Download do GitHub falhou; tentando a copia identica no site.'
+            BaixarSemTravar ([string]$espelho.instalador.url) $zip 900000
+        }
         $tam = (Get-Item -LiteralPath $zip).Length
         $conf = @()
         if ([int64]$ins.tamanho -gt 0) {

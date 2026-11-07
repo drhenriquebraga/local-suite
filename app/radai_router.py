@@ -196,7 +196,7 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
 
 
 MINI_PAGINAS = (("bridge", "/bridge"), ("recon3d", "/recon3d"),
-                ("elastic", "/elastic"),
+                ("elastic", "/elastic"), ("lung", "/lung"),
                 ("bolus", "/bolus"))
 
 

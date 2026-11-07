@@ -8,6 +8,7 @@ CORES = {
     "neuro": ("--mod-nidus", "--mod-nidus-fraco"),
     "nidus": ("--mod-nidus", "--mod-nidus-fraco"),
     "elastic": ("--mod-elastic", "--mod-elastic-fraco"),
+    "lung": ("--mod-recon", "--mod-recon-fraco"),
     "bolus": ("--mod-bolus", "--mod-bolus-fraco"),
 }
 
@@ -51,6 +52,11 @@ MODULOS = {
                   u"desenho do usu&aacute;rio &mdash; <b>n&atilde;o &eacute; "
                   u"um volume de tratamento</b>"),
     },
+    "lung": {
+        "icone": u"pulmoes", "titulo": u"LUNG ", "destaque": u"RT",
+        "frase": u"Anatomia torácica, rastreio de nódulos e estudo do movimento na TC 4D.",
+        "linha": u"Processamento local. Os contornos são sugestões para revisão.",
+    },
     "elastic": {
         "icone": u"malha",
         "titulo": u"Elastic ", "destaque": u"RT",
@@ -92,6 +98,8 @@ FERRAMENTAS = {
          u"pronta numa pasta nova.", u"",
          (u"várias séries", u"diagnóstico", u"segmentação na fila",
           u"JPEG e PNG", u"CD")),
+        ("elastic", u"malha", u"Elastic RT", "/elastic",
+         u"Registre duas séries e avalie a qualidade do campo deformável.", u""),
     ],
     "autocontorno": [
         # GUARDA: o cartão não nomeia modo; os três (FAST, AUTO,
@@ -105,6 +113,17 @@ FERRAMENTAS = {
          u"Avalie os resultados comparando diferentes processamentos em "
          u"cortes axiais lado a lado, e veja como eles se comportam.", u""),
     ],
+    "lung": [
+        ("recon_torax", u"pulmoes", u"Anatomia torácica", "/recon3d/toracica",
+         u"Reconstrua os lobos, mediastino, vasos e vias aéreas a partir das segmentações.", u"",
+         (u"3D", u"estudo torácico")),
+        ("lung_nodulos", u"olho", u"Rastreio de nódulos pulmonares", "/lung/nodulos",
+         u"Processe uma TC ou vigie uma pasta, usando só a tarefa de nódulos pulmonares.", u"",
+         (u"ACHADO", u"RTSTRUCT")),
+        ("lung_4d", u"camadas", u"4D CT & ITV", "/lung/4d",
+         u"Segmente as fases selecionadas e exporte sugestões de contorno e de ITV na série escolhida.", u"",
+         (u"TC 4D", u"SBRT", u"RTSTRUCT")),
+    ],
     "recon3d": [
         ("recon_anatomia", u"cubo", u"Anatomia geral", "/recon3d/anatomia",
          u"Visualize cada órgão, com ajuste de transparências no visor 3D, "
@@ -113,11 +132,6 @@ FERRAMENTAS = {
          (u"3D", u"MIP", u"MinIP", u"laje 1-100 mm"),
          u"Carrega a série inteira em memória, uma vez. Numa estação com o "
          u"vigia rodando, espere alguns segundos e alguns GB."),
-        ("recon_torax", u"pulmoes", u"Anatomia torácica", "/recon3d/toracica",
-         u"Reconstrução das tarefas geradas pelo protocolo do ContourLab: "
-         u"Lobos, mediastino, vascularização, algoritmo de nódulos pulmonares "
-         u"e muito mais.", u"",
-         (u"3D", u"estudo torácico", u"desenho no axial")),
         ("recon_vascular", u"vaso", u"Vascular", "/recon3d/vascular",
          u"Superfície, trajeto dos vasos e projeções bidimensionais "
          u"sintéticas a partir da segmentação de vasos", u"",

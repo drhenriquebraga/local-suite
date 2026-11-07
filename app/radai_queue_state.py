@@ -1745,7 +1745,7 @@ def _primeiro_manual():
 
 
 def _pode_conceder(quem):
-    if quem not in (Q.LOTE, Q.VIGIA):
+    if quem not in (Q.LOTE, Q.VIGIA, "lung"):
         return False
     if _FECHAR_AO_FIM["pedido"] or _NEURO_PAUSA:
         return False
@@ -1754,11 +1754,11 @@ def _pode_conceder(quem):
     if _VEZ["dono"] == quem:
         return True
     primeiro = _primeiro_manual()
-    if quem == Q.VIGIA and (primeiro or _VEZ["lote_quer"]):
+    if quem in (Q.VIGIA, "lung") and (primeiro or _VEZ["lote_quer"]):
         return False
     if quem == Q.LOTE and primeiro and Q.executor(primeiro) == Q.NEURO:
         return False
-    return quem in (Q.LOTE, Q.VIGIA)
+    return True
 
 
 def bind_neuro_cancel(cid, callback):

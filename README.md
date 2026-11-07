@@ -213,7 +213,7 @@ declared act, and the ways to do it live in the CUSTOM panel of a series. One is
 turning on its own switch, where it starts off and marked as a finding: what
 it returns goes to a file of its own and — when the raw set is requested
 too — raw, to the TotalSegmentator set (`RadAI_TS`), like every output of the
-model; never to the complete set nor to the delivered one. Another is a
+model. Explicitly requested lung nodules also go to the complete set; other findings never to the complete set. None goes to the delivered set. Another is a
 custom protocol of the workstation that includes a finding: it asks for the
 declaration every time the series is sent to the queue, the start dialog
 shows it as an alert, and without it the finding does not run. The last is
@@ -566,7 +566,7 @@ patient data:
 
 | | destination | when | what it sends |
 |---|---|---|---|
-| version check | `api.github.com` | once, at start‑up | a bodiless `GET` with the `User-Agent` header only; the address is written in the code, and `RADAI_URL_VERSOES=0` in the environment turns it off |
+| version check | `api.github.com`, then `drhenriquebraga.com.br` if the default source fails | at start-up and on request | metadata and the verified light installer only. The fallback can update code on an idle, compatible installation. `RADAI_URL_VERSOES=0` disables the check |
 | internet test of the case registry | `pypi.org`, `github.com` | at most every 30 min, between series | nothing — DNS lookup and a TCP connection on 443, then closed |
 
 One more happens only by a declared act: **Update now** downloads the light

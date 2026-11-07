@@ -985,7 +985,8 @@ def teste_conexoes_da_politica():
         if _velho_env is not None:
             os.environ["RADAI_URL_VERSOES"] = _velho_env
     if linhas is not None:
-        arr = _destinos(u" ".join(linhas))
+        import radai_version
+        arr = _destinos(u" ".join(linhas)) | _destinos(radai_version.ESPELHO)
         checar(u"o codigo declara destinos", bool(arr), u" | ".join(linhas)[:160])
         faltam, sobram = _divergencia(pol, arr)
         checar(u"todo destino do codigo esta na Politica", not faltam,
@@ -3992,6 +3993,11 @@ def teste_o_que_a_v82_mudou_nos_documentos():
     checar(u"li as tasks de achado do fonte do motor (%d)" % len(achados),
            len(achados) >= 1, u", ".join(achados))
     if RO is not None and RS is not None and achados:
+        checar(u"nódulos pedidos: exceção ao FULL, sem classe auxiliar ou STUDY",
+               RS.rotulo_vai_ao_full("lung_nodules", "lung_nodules")
+               and not RS.rotulo_vai_ao_full("lung_nodules", "lung")
+               and "lung_nodules" not in RS.PERMITIDOS_NO_OAR)
+        achados = [t for t in achados if t != "lung_nodules"]
         src_out = ler("app/radai_output.py")
         fatos = _onde_sai_o_achado(RO.Saida, RS.task_do_full, src_out,
                                    achados)
@@ -7404,7 +7410,7 @@ def teste_o_que_a_v85_muda_na_18():
     pontos = dict((c, t + u" " + d) for (c, t, d) in CS.PONTOS)
     checar(u"a versao dos documentos e a 1.8 ou posterior, de outubro de 2026",
            tuple(int(x) for x in CS.VERSAO_DOCS.split(u".")) >= (1, 8)
-           and CS.DATA_DOCS.startswith(u"2026-10"),
+           and CS.DATA_DOCS >= u"2026-10-01",
            u"%s %s" % (CS.VERSAO_DOCS, CS.DATA_DOCS))
 
     un = ler(u"installer/UNINSTALL.ps1")
@@ -8528,7 +8534,7 @@ def teste_o_que_a_v86_muda_na_19():
     politica = _plano(CS.POLITICA)
     checar(u"a versao dos documentos e a 1.9 ou posterior, de outubro de 2026",
            tuple(int(x) for x in CS.VERSAO_DOCS.split(u".")) >= (1, 9)
-           and CS.DATA_DOCS.startswith(u"2026-10"),
+           and CS.DATA_DOCS >= u"2026-10-01",
            u"%s %s" % (CS.VERSAO_DOCS, CS.DATA_DOCS))
     checar(u"  e a 1.8 continua em IMPRESSOES_PUBLICADAS como foi publicada",
            CS.IMPRESSOES_PUBLICADAS.get(u"1.8", u"").startswith(u"3d4a4f87")
@@ -8594,8 +8600,8 @@ _MARCAS_DA_20 = {
         (u"termos", u"(rótulo RadAI_ e o código dele, como RadAI_ORB )"),
         (u"politica", u"a do RadAI_STUDY, que sai logo depois de gravada"),
         (u"creditos", u"conjunto do TotalSegmentator ( RadAI_TS )"),
-        (u"creditos", u"nunca no conjunto completo ( RadAI_FULL )"),
-        (u"creditos", u"entregue ao TPS ( RadAI_STUDY )"),
+        (u"creditos", u"entram no conjunto completo ( RadAI_FULL )"),
+        (u"creditos", u"entregue ( RadAI_STUDY )"),
         (u"notice", u"conjunto completo (RadAI_FULL)"),
         (u"pontos", u"conjunto do TotalSegmentator (RadAI_TS)")),
     "rotulos_antigos": (
@@ -8621,7 +8627,7 @@ _MARCAS_DA_20 = {
         (u"politica", u"os nomes próprios e os protocolos próprios, o "
                       u"acervo")),
     "protocolo_proprio": (
-        (u"termos", u"Ligar é um ato, e os três que existem"),
+        (u"termos", u"Ligar exige pedido explícito"),
         (u"termos", u"Um protocolo próprio pode incluir achado"),
         (u"termos", u"a declaração é pedida a cada envio à fila"),
         (u"termos", u"os protocolos RT e a seleção livre se desligam"),
@@ -8662,7 +8668,7 @@ _MARCAS_DA_20 = {
         (u"termos", u"O F11 só é enviado por pedido explícito")),
     "atualizar_um_clique": (
         (u"termos", u"A atualização com um clique."),
-        (u"politica", u"Sozinha, ela não baixa nada"),
+        (u"politica", u"atualizar somente o código"),
         (u"politica", u"recusa a release que não publica a soma SHA-256 do "
                       u"arquivo"),
         (u"politica", u"a pasta radai_atualizar"),
@@ -9069,8 +9075,8 @@ def teste_o_que_a_v87_muda_na_20():
           u"Otimizar que saiu, o primeiro acesso, a janela, a atualizacao "
           u"com um clique, a varredura, o motor, o Nidus RT e o pacote)")
     import radai_consent as CS
-    checar(u"a versao dos documentos e a 2.3, de 30/10/2026",
-           CS.VERSAO_DOCS == u"2.3" and CS.DATA_DOCS == u"2026-10-30",
+    checar(u"a versao dos documentos e a 2.4, de 06/11/2026",
+           CS.VERSAO_DOCS == u"2.4" and CS.DATA_DOCS == u"2026-11-06",
            u"%s %s" % (CS.VERSAO_DOCS, CS.DATA_DOCS))
     checar(u"  e a 1.9 continua em IMPRESSOES_PUBLICADAS como foi publicada",
            CS.IMPRESSOES_PUBLICADAS.get(u"1.9", u"").startswith(u"087a47ba")
@@ -9693,7 +9699,7 @@ def teste_o_que_o_retorno_de_campo_muda_na_21():
     docs, src = _docs_da_20(), _fontes_da_21()
     f = _fatos_da_21(src)
     checar(u"a 2.2 e de 28/10/2026; a 2.0 publicada permanece intacta",
-           CS.VERSAO_DOCS == "2.3" and CS.DATA_DOCS == "2026-10-30"
+           CS.VERSAO_DOCS == "2.4" and CS.DATA_DOCS == "2026-11-06"
            and CS.IMPRESSOES_PUBLICADAS.get("2.0") ==
                "c6b3c126af07cd56a14230008af944a09824c7d7f9ed51b834dcfdca4728aa97"
            and CS.RESSELAGENS_ANTES_DA_PUBLICACAO.get("2.0") == 2)
@@ -9878,8 +9884,8 @@ def _divergencias_da_22(fatos, termos, politica):
 def teste_o_que_a_v89_muda_na_22():
     secao(u"documentos 2.2: regras da 8.9 e tabelas publicadas ate 2.1 intactas")
     import radai_consent as CS
-    checar(u"versao 2.3 pede novo aceite com data 30/10/2026",
-           CS.VERSAO_DOCS == "2.3" and CS.DATA_DOCS == "2026-10-30")
+    checar(u"versao 2.4 pede novo aceite com data 06/11/2026",
+           CS.VERSAO_DOCS == "2.4" and CS.DATA_DOCS == "2026-11-06")
     for nome, esperado in sorted(_HASHES_DAS_TABELAS_ATE_21.items()):
         tabela = getattr(CS, nome)
         checar(u"%s: todas as entradas publicadas ate 2.1 permanecem intactas" % nome,

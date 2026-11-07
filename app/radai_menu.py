@@ -10,6 +10,7 @@ ITENS = [
     ("neuro",       "/neuro",       u"cruzamento", u"NEURO RT", u"ferramentas de estudo do sistema nervoso central"),
     ("nidus",       "/nidus",       u"cruzamento",      u"Nidus RT",      u"projeção vascular: a mesma lesão em duas incidências"),
     ("nidus_projecao", "/nidus/projecao", u"cruzamento", u"Projeção Vascular", u"circular na projeção, ver onde as duas se cruzam"),
+    ("lung",        "/lung",        u"pulmoes",    u"LUNG RT",       u"anatomia torácica, nódulos e TC 4D"),
     ("elastic",     "/elastic",     u"malha",      u"Elastic RT",    u"fusão elástica: o que a deformação fez, e se ela é possível"),
     ("elastic_fusao", "/elastic/fusao", u"malha",  u"Fusão elástica", u"registrar duas séries e medir o campo"),
     ("bolus",       "/bolus",       u"bolus",      u"3D Printed Bolus", u"bólus impresso em 3D: a camada sobre a pele, em STL"),
@@ -23,7 +24,7 @@ ITENS = [
     ("config",      "/config",      u"engrenagem",      u"Configurações", u"o vigia, os modelos e o diagnóstico"),
 ]
 
-MODULOS_HOME = ("bridge", "autocontorno", "recon3d", "neuro", "elastic",
+MODULOS_HOME = ("bridge", "autocontorno", "recon3d", "neuro", "lung",
                 "bolus")
 
 SEM_ITEM_NO_MENU = ("diagnostico",)
@@ -135,7 +136,7 @@ ALIAS = {
     "creditos": "bibliografia",
 }
 
-MODULOS = ("bridge", "autocontorno", "recon3d", "neuro", "elastic", "bolus")
+MODULOS = ("bridge", "autocontorno", "recon3d", "neuro", "lung", "bolus")
 NO_PE = ("bibliografia", "config")
 
 GRUPOS = [(u"", MODULOS), (u"", NO_PE)]

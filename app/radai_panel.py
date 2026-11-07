@@ -1908,7 +1908,7 @@ def montar(app, ler_vigia=None, config=None):
     for nome in ("radai_todo", "radai_models",
                  "radai_consent", "radai_batch",
                  "radai_viewseg", "radai_view", "radai_bibliography",
-                 "radai_router",
+                 "radai_router", "radai_lung_screen",
                  "radai_bridge", "radai_recon3d_screen",
                  "radai_elastic_screen",
                  "radai_bolus_screen",
@@ -1922,7 +1922,7 @@ def montar(app, ler_vigia=None, config=None):
         try:
             mod = __import__(nome)
             if hasattr(mod, "montar"):
-                if nome == "radai_batch":
+                if nome in ("radai_batch", "radai_lung_screen"):
                     mod.montar(app, cfg.get("lote"))
                 elif nome == "radai_todo":
                     mod.montar(app, ler_vigia)
@@ -1972,8 +1972,8 @@ def montar(app, ler_vigia=None, config=None):
         link = u""
         try:
             import radai_version
-            link = (radai_version.link_do_instalador()
-                    if url != u"#" else u"") or u""
+            link = (radai_version.para_a_tela().get("link")
+                    or radai_version.link_do_instalador()) if url != u"#" else u""
         except Exception:
             link = u""
         try:
