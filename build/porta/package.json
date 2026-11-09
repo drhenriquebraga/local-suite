@@ -1,0 +1,13 @@
+{
+  "name": "local-suite-visual-preview",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Preparo do script da porta da Local Suite (app/porta/porta.js). Nao viaja para a estacao.",
+  "scripts": {
+    "build": "node construir.cjs"
+  },
+  "dependencies": {
+    "esbuild": "0.28.2",
+    "motion": "14.1.0"
+  }
+}

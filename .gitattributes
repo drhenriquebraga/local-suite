@@ -1,0 +1,17 @@
+* text=auto
+
+# cmd.exe reads a batch file by byte offset: with LF line endings it loses
+# its place and runs the rest as prompt commands.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Git for Windows runs hooks with its own sh, and a CR at the end of a line
+# becomes part of the command.
+.githooks/* text eol=lf
+*.sh text eol=lf
+
+# The entrance page travels byte for byte: build/porta/carimbo.json checks
+# its hash.
+app/porta/** -text
+build/porta/** -text
