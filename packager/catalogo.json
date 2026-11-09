@@ -1,0 +1,280 @@
+{
+ "_gerado_por": "build/gerar_catalogo.py",
+ "_leia": "Copia verificada de radai_tasks.CATALOGO e radai_models.MODELOS. Nao editar a mao: tools/test_packager.py recompara contra o Python vivo.",
+ "tasks": [
+  {
+   "task": "total_v3",
+   "rotulo": "Corpo inteiro (117 estruturas)",
+   "mb": 1773,
+   "classes": 117,
+   "modalidade": "CT",
+   "nucleo": true,
+   "achado": false
+  },
+  {
+   "task": "head_glands_cavities",
+   "rotulo": "Glândulas e cavidades da cabeça",
+   "mb": 231,
+   "classes": 19,
+   "modalidade": "CT",
+   "nucleo": true,
+   "achado": false
+  },
+  {
+   "task": "headneck_muscles",
+   "rotulo": "Músculos de cabeça e pescoço",
+   "mb": 461,
+   "classes": 23,
+   "modalidade": "CT",
+   "nucleo": true,
+   "achado": false
+  },
+  {
+   "task": "headneck_bones_vessels",
+   "rotulo": "Ossos e vasos de cabeça e pescoço",
+   "mb": 231,
+   "classes": 12,
+   "modalidade": "CT",
+   "nucleo": true,
+   "achado": false
+  },
+  {
+   "task": "total_mr",
+   "rotulo": "Corpo inteiro em RM (50 estruturas)",
+   "mb": 464,
+   "classes": 50,
+   "modalidade": "MR",
+   "nucleo": true,
+   "achado": false
+  },
+  {
+   "task": "head_muscles",
+   "rotulo": "Músculos da cabeça",
+   "mb": 230,
+   "classes": 11,
+   "modalidade": "CT",
+   "nucleo": true,
+   "achado": false
+  },
+  {
+   "task": "lung_vessels",
+   "rotulo": "Vasos e vias aéreas do pulmão (novo)",
+   "mb": 230,
+   "classes": 4,
+   "modalidade": "CT",
+   "nucleo": false,
+   "achado": false
+  },
+  {
+   "task": "lung_vessels_LEGACY",
+   "rotulo": "Vasos e vias aéreas (modelo clássico)",
+   "mb": 231,
+   "classes": 2,
+   "modalidade": "CT",
+   "nucleo": false,
+   "achado": false
+  },
+  {
+   "task": "trunk_cavities",
+   "rotulo": "Cavidades do tronco e mediastino",
+   "mb": 233,
+   "classes": 4,
+   "modalidade": "CT",
+   "nucleo": true,
+   "achado": false
+  },
+  {
+   "task": "pleural_pericard_effusion",
+   "rotulo": "Derrame pleural e pericárdico",
+   "mb": 234,
+   "classes": 3,
+   "modalidade": "CT",
+   "nucleo": true,
+   "achado": false
+  },
+  {
+   "task": "hip_implant",
+   "rotulo": "Prótese de quadril",
+   "mb": 233,
+   "classes": 1,
+   "modalidade": "CT",
+   "nucleo": false,
+   "achado": false
+  },
+  {
+   "task": "craniofacial_structures",
+   "rotulo": "Estruturas craniofaciais (mandíbula, crânio, seios)",
+   "mb": 230,
+   "classes": 7,
+   "modalidade": "CT",
+   "nucleo": true,
+   "achado": false
+  },
+  {
+   "task": "oculomotor_muscles",
+   "rotulo": "Órbita: músculos extraoculares e nervos ópticos",
+   "mb": 231,
+   "classes": 19,
+   "modalidade": "CT",
+   "nucleo": true,
+   "achado": false
+  },
+  {
+   "task": "breasts",
+   "rotulo": "Mamas (parênquima mamário)",
+   "mb": 234,
+   "classes": 1,
+   "modalidade": "CT",
+   "nucleo": false,
+   "achado": false
+  },
+  {
+   "task": "vertebrae_body",
+   "rotulo": "Corpo vertebral e discos",
+   "mb": 234,
+   "classes": 2,
+   "modalidade": "CT",
+   "nucleo": false,
+   "achado": false
+  },
+  {
+   "task": "lung_nodules",
+   "rotulo": "Nódulos pulmonares",
+   "mb": 765,
+   "classes": 2,
+   "modalidade": "CT",
+   "nucleo": false,
+   "achado": false
+  },
+  {
+   "task": "abdominal_muscles",
+   "rotulo": "Musculatura da parede abdominal e do dorso",
+   "mb": 124,
+   "classes": 22,
+   "modalidade": "CT",
+   "nucleo": false,
+   "achado": false
+  },
+  {
+   "task": "liver_segments",
+   "rotulo": "Segmentos hepáticos de Couinaud (I-VIII)",
+   "mb": 230,
+   "classes": 8,
+   "modalidade": "CT",
+   "nucleo": false,
+   "achado": false
+  },
+  {
+   "task": "liver_segments_mr",
+   "rotulo": "Segmentos hepáticos de Couinaud em RM (I-VIII)",
+   "mb": 230,
+   "classes": 8,
+   "modalidade": "MR",
+   "nucleo": false,
+   "achado": false
+  },
+  {
+   "task": "vertebrae_mr",
+   "rotulo": "Vértebras C1-L5 em RM",
+   "mb": 231,
+   "classes": 25,
+   "modalidade": "MR",
+   "nucleo": false,
+   "achado": false
+  },
+  {
+   "task": "teeth",
+   "rotulo": "Dentes, polpas e canais (numeração FDI)",
+   "mb": 232,
+   "classes": 77,
+   "modalidade": "CT",
+   "nucleo": false,
+   "achado": false
+  },
+  {
+   "task": "liver_lesions",
+   "rotulo": "Lesões hepáticas — ACHADO",
+   "mb": 231,
+   "classes": 1,
+   "modalidade": "CT",
+   "nucleo": false,
+   "achado": true
+  },
+  {
+   "task": "liver_lesions_mr",
+   "rotulo": "Lesões hepáticas em RM — ACHADO",
+   "mb": 231,
+   "classes": 1,
+   "modalidade": "MR",
+   "nucleo": false,
+   "achado": true
+  }
+ ],
+ "modelos": [
+  {
+   "id": "cads_open",
+   "nome": "CADS (variante open) — tarefa de radioterapia",
+   "licenca": "código Apache 2.0 · PESOS da variante `open` sob CC BY-SA 4.0 — permite uso comercial, com ShareAlike",
+   "nucleo": false,
+   "gpu_min_gb": 8,
+   "mb": 726,
+   "sha256_conferidos": 0
+  },
+  {
+   "id": "cranio_buti",
+   "nome": "Buti et al. — estruturas do encéfalo em TC",
+   "licenca": "PESOS sob MIT — permite uso comercial",
+   "nucleo": false,
+   "gpu_min_gb": 6,
+   "mb": 235,
+   "sha256_conferidos": 4
+  },
+  {
+   "id": "hnlnl",
+   "nome": "Níveis linfonodais de cabeça e pescoço (Weissmann et al.)",
+   "licenca": "CC0-1.0 (domínio público) — código E pesos",
+   "nucleo": false,
+   "gpu_min_gb": 8,
+   "mb": 2158,
+   "sha256_conferidos": 15
+  },
+  {
+   "id": "moose",
+   "nome": "MOOSE — câmaras cardíacas e composição corporal",
+   "licenca": "código Apache 2.0 · PESOS sob CC BY 4.0 — permite uso comercial, SEM ShareAlike, e EXIGE atribuição",
+   "nucleo": false,
+   "gpu_min_gb": 8,
+   "mb": 1079,
+   "sha256_conferidos": 2
+  },
+  {
+   "id": "nv_segment_ct",
+   "nome": "NV-Segment-CT (NVIDIA) — o VISTA-3D com licença comercial",
+   "licenca": "código Apache 2.0 · PESOS sob NVIDIA Open Model License Agreement: «Models are commercially usable» (LICENSE, linha 224)",
+   "nucleo": false,
+   "gpu_min_gb": 16,
+   "mb": 832,
+   "sha256_conferidos": 3
+  },
+  {
+   "id": "totalsegmentator",
+   "nome": "TotalSegmentator (o que já roda)",
+   "licenca": "Apache 2.0 (código) · pesos do TotalSegmentator, uso livre",
+   "nucleo": true,
+   "gpu_min_gb": 6,
+   "mb": 0,
+   "sha256_conferidos": 0
+  }
+ ],
+ "pacote": {
+  "tarefas": 23,
+  "modelos": 5,
+  "download_gib": 12.5,
+  "pacote_gib": 19.5,
+  "disco_gib": 41.0,
+  "folga_gib": 2,
+  "base_gib": 5.72,
+  "fator_disco": 1.1,
+  "_leia": "pacote = base + fator x download, em GiB (o que o Explorer mostra). base e fator medidos numa montagem completa do pacote; download = soma do catalogo. disco = teto(2 x pacote) + folga (montagem e .zip convivem; a folga e nossa). Ver build/gerar_catalogo.py."
+ }
+}

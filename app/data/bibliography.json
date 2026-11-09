@@ -1,0 +1,588 @@
+{
+  "_nota": "A chave `modelos` lista os COMPONENTES creditados, e `registro` diz o identificador deles em `app/radai_models.MODELOS`. Ela tem UMA entrada a mais que o registro, de propósito: o nnU-Net é ARQUITETURA e não tem pesos próprios — os autores pedem que seja citado junto do modelo que a usa, e tirá-lo daqui apagaria a única atribuição dele nesta tela. Quem responde «quantas licenças restritivas» sem depender de ninguém lembrar é `build/artefatos.restritivas()`. Modelo que entra no registro e não entra aqui vira crédito que não existe na tela. `artigos` segue duas condições: (1) `lido` diz ONDE está a evidência de que o TEXTO foi lido — o PDF ou o texto integral, com o trecho citado conferido, ou o trecho citado no código conferido na origem; título plausível, resumo e DOI conferido NÃO são leitura. (2) `influencia` lista o que existe HOJE no programa por causa dela: `arquivo::símbolo` (a bateria confere que o símbolo existe e que ele, ou o comentário logo acima dele, cita a referência) ou `modelo:<registro>` — a ficha do componente cita a referência em `citar`, que é o artigo do próprio componente, ou em `citar_tambem`, e aí a `nota` da ficha tem de citá-la também: o ponteiro sozinho não é influência, a frase da ficha é. Etapa futura não é influência: ela descreve o que ainda não existe. Fila de leitura não mora aqui: ela é o que AINDA NÃO foi lido. `mudou` é o texto que a tela mostra; `doi_lido_em` diz onde o NÚMERO do DOI foi lido, na FONTE — o PDF, o texto integral, o CrossRef ou o DataCite —, e nunca uma linha do nosso próprio código, que é circular e envelhece com a numeração. DOI de memória não falha como link quebrado: ele resolve, abre um artigo plausível, e entra com o nome errado. `cita_como` acrescenta o nome pelo qual o código cita a obra quando não é o sobrenome do primeiro autor nem o DOI: TG-132, DoseRAD2026. `categoria: \"diretriz\"` põe a entrada na seção de Diretrizes de contorno.",
+  "artigos": [
+    {
+      "id": "wasserthal2023",
+      "titulo": "TotalSegmentator: Robust Segmentation of 104 Anatomic Structures in CT Images",
+      "autores": "Wasserthal J, Breit HC, Meyer MT, Pradella M, Hinck D, Sauter AW, Heye T, Boll DT, Cyriac J, Yang S, Bach M, Segeroth M",
+      "revista": "Radiology: Artificial Intelligence",
+      "ano": "2023",
+      "doi": "10.1148/ryai.230024",
+      "peso": "fundamental",
+      "mudou": "É o modelo do fluxo principal. Os dois modos de falha que ele nomeia — cólon partido e vértebra trocada — viraram os guardas da derivação do reto.",
+      "lido": "PDF da revista lido, 9 páginas, sem o suplemento — é de lá a lista de «Typical failure cases» que `_marco_confiavel` cita na letra",
+      "influencia": [
+        "app/engine.py::_marco_confiavel",
+        "modelo:totalsegmentator"
+      ],
+      "doi_lido_em": "no próprio PDF"
+    },
+    {
+      "id": "wasserthal2022pre",
+      "titulo": "TotalSegmentator: robust segmentation of 104 anatomical structures in CT images (preprint)",
+      "autores": "Wasserthal J, et al.",
+      "revista": "arXiv:2208.05868",
+      "ano": "2022",
+      "doi": "10.48550/arXiv.2208.05868",
+      "peso": "contexto",
+      "mudou": "Os pisos de volume por estrutura. A Tabela S1 (pp. 42-44), que o artigo da revista remete ao suplemento, virou `engine.VOLUME_MINIMO_CM3` — extraída do PDF por código, e não digitada. São pisos de COLAPSO, não faixa de normalidade: o próprio artigo põe 1 mL no cérebro e na adrenal. E o guarda MARCA a estrutura suspeita e nunca a apaga.",
+      "lido": "preprint arXiv 2208.05868v2 lido, inclusive a Tabela S1 (pp. 42-44)",
+      "influencia": [
+        "app/engine.py::VOLUME_MINIMO_CM3"
+      ],
+      "doi_lido_em": "arXiv 2208.05868v2; DOI de arXiv é registrado no DataCite, e não resolve no CrossRef"
+    },
+    {
+      "id": "wasserthal2026v3",
+      "titulo": "Dataset with segmentations of 117 important anatomical structures in 1939 CT images (TotalSegmentator, versão 3.0.0)",
+      "autores": "Wasserthal J",
+      "revista": "Zenodo, conjunto de dados, versão 3.0.0",
+      "ano": "2026",
+      "doi": "10.5281/zenodo.22688904",
+      "peso": "fundamental",
+      "mudou": "É a versão 3 do TotalSegmentator, a da tarefa `total_v3` — a base de TC que a estação elege. Não há artigo da versão 3: o próprio registro diz que o artigo descreve a versão 1 do conjunto e pede que se cite esse artigo (Wasserthal et al., 2023). O identificador persistente da versão 3 é o DOI deste conjunto, em que os pesos v3.0.0 foram treinados: de 1228 para 1939 TCs, com 291 pediátricas acrescentadas, os rótulos de osso refinados e a troca de rótulo entre vértebras corrigida. Os pesos estão no pré-lançamento v3.0.0-weights do repositório oficial (07/09/2026), que não tem DOI. O que mudou no programa: a base de TC é a `total_v3` (`radai_modes.BASE_DA_MODALIDADE`), e o índice 26, que nela se chama vertebrae_L6, entra no sacro (`engine.INDICE_26`).",
+      "lido": "a descrição inteira do registro do Zenodo (versão 3.0.0, publicada em 10/09/2026, CC BY 4.0) e o lançamento v3.0.0-weights do repositório wasserth/TotalSegmentator (pré-lançamento de 07/09/2026, 15 arquivos de pesos, pela API do GitHub), lidos em 20/10/2026; e o map_tasks_config.py da TotalSegmentator 2.18.0 da montagem do pacote, que aponta as tarefas 831 a 837 da total_v3 para esse lançamento",
+      "influencia": [
+        "app/radai_modes.py::BASE_DA_MODALIDADE",
+        "app/engine.py::INDICE_26"
+      ],
+      "doi_lido_em": "no registro do Zenodo e no DataCite (api.datacite.org), em 20/10/2026, e resolvido por doi.org; DOI do Zenodo é registrado no DataCite, e não resolve no CrossRef"
+    },
+    {
+      "id": "vaassen2020",
+      "titulo": "Evaluation of measures for assessing time-saving of automatic organ-at-risk segmentation in radiotherapy",
+      "autores": "Vaassen F, Hazelaar C, Vaniqui A, Gooding M, van der Heyden B, Canters R, van Elmpt W",
+      "revista": "Physics and Imaging in Radiation Oncology",
+      "ano": "2020",
+      "doi": "10.1016/j.phro.2019.12.001",
+      "peso": "fundamental",
+      "mudou": "O added path length entrou nas métricas. Entre as métricas geométricas usuais, é a de maior correlação com o tempo de correção (R = 0,87) — DSC e Hausdorff medem semelhança, não trabalho. E o DSC penaliza demais estrutura pequena: medido aqui, a mesma expansão de 2 mm dá DSC 0,62 numa bola de 0,5 cm³ e 0,88 numa de 33 cm³.",
+      "lido": "texto aberto (CC BY) e o PDF da revista, lidos inteiros; o R = 0,87 do added path length contra o tempo de correção conferido no texto em 27/09/2026",
+      "influencia": [
+        "app/radai_geom.py::_apl_de"
+      ],
+      "doi_lido_em": "no próprio artigo"
+    },
+    {
+      "id": "taubin1995a",
+      "titulo": "A signal processing approach to fair surface design",
+      "autores": "Taubin G",
+      "revista": "Proceedings of SIGGRAPH '95",
+      "ano": "1995",
+      "doi": "10.1145/218380.218473",
+      "peso": "fundamental",
+      "mudou": "O contorno entregue deixou de ser escada de voxel. `radai_geom.suavizar_poligono` é o método λ|μ deste artigo: λ alisa e encolhe, μ — negativo, com |μ| > λ — devolve o tamanho, e o par vira um passa-baixa em vez do laplaciano que encolhe sem parar. É o mesmo princípio de processamento de sinal do `vtkWindowedSincPolyDataFilter`, o filtro da suavização de superfície do 3D Slicer, mas NÃO o mesmo método: o do VTK é a versão de janela sinc aproximada por polinômios de Chebyshev (Taubin, Zhang e Golub, 1996), conforme a documentação dele, conferida em 22/09/2026.",
+      "lido": "lido integralmente, 8 páginas com o apêndice",
+      "influencia": [
+        "app/radai_geom.py::suavizar_poligono"
+      ],
+      "doi_lido_em": "CrossRef, 22/09/2026 (api.crossref.org/works/10.1145/218380.218473 — SIGGRAPH '95, pp. 351-358)"
+    },
+    {
+      "id": "taubin1995b",
+      "titulo": "Curve and surface smoothing without shrinkage",
+      "autores": "Taubin G",
+      "revista": "Proceedings of the Fifth International Conference on Computer Vision (ICCV)",
+      "ano": "1995",
+      "doi": "10.1109/ICCV.1995.466848",
+      "peso": "importante",
+      "mudou": "O artigo irmão do anterior, com a formulação para curva — que é o nosso caso: o contorno do RTSTRUCT é uma poligonal fechada por corte.",
+      "lido": "lido integralmente, 6 páginas (ICCV'95, pp. 852-857)",
+      "influencia": [
+        "app/radai_geom.py::suavizar_poligono"
+      ],
+      "doi_lido_em": "CrossRef, 22/09/2026 (api.crossref.org/works/10.1109/ICCV.1995.466848 — pp. 852-857)"
+    },
+    {
+      "id": "mlynarski2020",
+      "titulo": "Anatomically consistent CNN-based segmentation of organs-at-risk in cranial radiotherapy",
+      "autores": "Mlynarski P, Delingette H, Alghamdi H, Bondiau PY, Ayache N",
+      "revista": "Journal of Medical Imaging",
+      "ano": "2020",
+      "doi": "10.1117/1.JMI.7.1.014502",
+      "peso": "importante",
+      "mudou": "Duas operações de `radai_geom`. A abertura morfológica ANTES de escolher o maior componente (`abrir_pontes`), porque o falso positivo grudado por um fio fino é o MESMO componente e sobrevive à escolha; e o preenchimento de buracos TRIPLANAR (`preencher_buracos(triplanar=True)`), porque o túnel que atravessa a estrutura toca a borda em todo corte axial e só o coronal ou o sagital o fecham. E a contenção anatômica: o cristalino recortado para dentro do olho, antes da suavização.",
+      "lido": "preprint HAL hal-02181181v2, lido inteiro; a frase do falso positivo grudado por um fio fino está citada na letra em `tools/test_geom.py`",
+      "influencia": [
+        "app/radai_geom.py::abrir_pontes",
+        "app/radai_geom.py::preencher_buracos"
+      ],
+      "doi_lido_em": "no próprio artigo"
+    },
+    {
+      "id": "moller2026",
+      "titulo": "Automated Thoracolumbar Stump Rib Detection and Analysis in a Large CT Cohort",
+      "autores": "Möller H, Dima A, Keinert-Weth B, Graf R, Atad M, Paetzold J, Jungmann F, Braren R, Kofler F, Menze B, Rueckert D, Kirschke JS, Schön H",
+      "revista": "AI (MDPI)",
+      "ano": "2026",
+      "doi": "10.3390/ai7060224",
+      "peso": "fundamental",
+      "mudou": "Resolveu a queixa das pontas de costela, e a resposta não era a que se supunha. Os autores apontam DUAS causas: «Both the RibSeg annotation and the one from TotalSegmentator fail to annotate the rib part close to the vertebra» — a extremidade POSTERIOR não está arredondada, está AUSENTE, porque o modelo não a anota — e a resolução («lacks detail because it segments at an isotropic resolution of 1.5 mm»). A legenda da Tabela 2 diz que a primeira aparece nos números: «The TotalSegmentator cannot segment the rib's beginning, as reflected in these metrics». Dice 0,751 contra 0,997 do modelo deles a 0,8 mm, em 45 casos corrigidos à mão (Tabela 2); o resumo junta esse 0,997 com o 0,779 da Tabela 3, que é outro conjunto de teste (20 casos, 0,779 contra 0,999). Antes disto o projeto media a própria suavização procurando um defeito que não estava lá: medimos DSC 1,0000 no alisamento 3D e −0,1 mm de perda por corte na reamostragem, e a queixa continuava de pé. Consequência: a extremidade posterior é limitação declarada do insumo, e não coisa a consertar em pós-processamento.",
+      "lido": "versão publicada, em PDF; a frase da p. 4 («fail to annotate the rib part close to the vertebra»), a legenda da Tabela 2 e os Dice das Tabelas 2 (0,751 contra 0,997) e 3 (0,779 contra 0,999) conferidos no texto em 22/09/2026",
+      "influencia": [
+        "modelo:totalsegmentator"
+      ],
+      "doi_lido_em": "no CrossRef (o título devolvido pela consulta do DOI)"
+    },
+    {
+      "id": "boukerroui2023",
+      "titulo": "Analytic calculations and synthetic shapes for validation of quantitative contour comparison software",
+      "autores": "Boukerroui D, Vasquez Osorio E, Brunenberg E, Gooding MJ",
+      "revista": "Physics and Imaging in Radiation Oncology",
+      "ano": "2023",
+      "doi": "10.1016/j.phro.2023.100436",
+      "peso": "fundamental",
+      "mudou": "Mostrou o que a bateria do ciclo NÃO provava. Ela comparava a máscara que volta com a máscara que entrou — e um par coerente com a convenção errada dos dois lados passa com DSC 1,0. Foi assim que o meio pixel viveu meses dentro de bateria verde. O artigo cita justamente isto: «the greatest variations in implementation choices were found in the method of conversion from RTSS to a voxel mask, the method of sampling the surface». A resposta deles é valor de ouro ANALÍTICO, e virou `teste_ciclo_contra_valor_analitico`: um cilindro fino, com volume πr²h e área πr² fechados, medidos contra o que sai. Duas lições vieram de escrevê-lo: a esfera grande passava com a correção ligada E desligada (forma robusta demais não guarda nada), e o volume da volta é CEGO ao meio pixel — porque `radai_rt` amostra centros de pixel de propósito, para ler as duas convenções. O meio pixel não muda o que o nosso leitor devolve; muda o que o Eclipse calcula. Por isso o teste mede a ÁREA DO POLÍGONO: medido, +2,43% com a correção e −24,40% sem.",
+      "lido": "PDF da revista; a frase citada é deles citando Gooding et al. [12], conferida no texto em 22/09/2026",
+      "influencia": [
+        "tools/test_rt.py::teste_ciclo_contra_valor_analitico"
+      ],
+      "doi_lido_em": "no CrossRef (o título devolvido pela consulta do DOI)"
+    },
+    {
+      "id": "huang2021",
+      "titulo": "Impact of slice thickness, pixel size, and CT dose on the performance of automatic contouring algorithms",
+      "autores": "Huang K, Rhee DJ, Ger R, Layman R, Yang J, Cardenas CE, Court LE",
+      "revista": "Journal of Applied Clinical Medical Physics",
+      "ano": "2021",
+      "doi": "10.1002/acm2.13207",
+      "peso": "fundamental",
+      "mudou": "Virou `radai_dicom.laudo_de_espessura`. Eles reconstruiram as MESMAS aquisicoes variando espessura, pixel e dose: «Increasing the slice thickness from baseline value of 3 mm gave a progressive reduction in DSC», com o efeito «amplified in slice thicknesses larger than 3 mm», e «small structures had larger deviations». Pixel fica dentro de 0,07 de DSC e dose tem efeito minimo -- a espessura e' a variavel que manda. A TC de planejamento deste servico tem 3,75 a 5 mm e a costela e' estrutura pequena: e' o pior caso do artigo, e e' onde a queixa mora. A frase da tela e' sobre a FERRAMENTA, nao sobre a serie: ela nao julga a rotina do servico por um protocolo que nao e' o dela.",
+      "lido": "PDF da revista; as três frases citadas em `radai_dicom` conferidas no texto em 22/09/2026",
+      "influencia": [
+        "app/radai_dicom.py::laudo_de_espessura",
+        "app/radai_dicom.py::ESPESSURA_REFERENCIA_MM"
+      ],
+      "doi_lido_em": "no CrossRef (o título devolvido pela consulta do DOI)"
+    },
+    {
+      "id": "isensee2021",
+      "titulo": "nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation",
+      "autores": "Isensee F, Jaeger PF, Kohl SAA, Petersen J, Maier-Hein KH",
+      "revista": "Nature Methods",
+      "ano": "2021",
+      "doi": "10.1038/s41592-020-01008-z",
+      "peso": "importante",
+      "mudou": "É o princípio da regra R2 das ilhas (`engine.PODA`): a poda «só o maior componente» é decidida POR CLASSE, e não aplicada a tudo. O nnU-Net não a aplica por padrão — mede o efeito na validação cruzada do treino: primeiro com todas as classes como uma só (adota se o Dice médio sobe e o de nenhuma classe cai), e depois decide classe a classe se a repete. Aqui não há validação cruzada, e a decisão é DECLARADA pela anatomia: a ilha pequena (menos de 5% do volume da estrutura e menos de 10 cm³) sai só das estruturas que são normalmente uma peça — pulmões e lobos, fígado, encéfalo, rins, fêmures, músculos da pelve —; vasos, costelas, vértebras, dentes, achados e as estruturas pequenas de cabeça e pescoço nunca perdem ilha (`engine.NUNCA_PODA_PALAVRAS`); nas que não estão em nenhuma das duas listas a ilha fica, e o log diz que ela foi mantida para revisão. Toda ilha que sai vai ao log, com o volume. É também a arquitetura sobre a qual os modelos do pacote foram treinados — a ficha do nnU-Net, em Modelos, aponta para este artigo.",
+      "lido": "PDF da revista, 14 p., inclusive o Methods on-line; o parágrafo «Post-processing» dos Methods (p. 11 do PDF) conferido no texto em 27/09/2026",
+      "influencia": [
+        "app/engine.py::PODA"
+      ],
+      "doi_lido_em": "impresso na página 1 do PDF (https://doi.org/10.1038/s41592-020-01008-z), e CrossRef em 26/09/2026 (Nat Methods 18(2):203-211; o CrossRef data a versão on-line em 2020, a impressa é de fevereiro de 2021)"
+    },
+    {
+      "id": "gay2012",
+      "titulo": "Pelvic Normal Tissue Contouring Guidelines for Radiation Therapy: an RTOG Consensus Panel Atlas",
+      "autores": "Gay HA, Barthold HJ, O'Meara E, et al.",
+      "revista": "International Journal of Radiation Oncology Biology Physics",
+      "ano": "2012",
+      "doi": "10.1016/j.ijrobp.2012.01.023",
+      "peso": "fundamental",
+      "mudou": "Decide dois recortes do conjunto entregue, e os dois cortam o OAR a partir do orgao inteiro que o modelo devolve. O femur passa por um plano so, na tuberosidade isquiatica mais baixa das duas -- o atlas nomeia os erros dos DOIS lados, e o nosso seria contornar abaixo dela. E o marco cranial do reto saiu do promontorio para o fim da juncao sacroiliaca. Sem o marco, nao corta: plano em lugar arbitrario entrega femur truncado onde ninguem pediu.",
+      "categoria": "diretriz",
+      "doi_lido_em": "no próprio PDF (primeira página), e conferido no CrossRef",
+      "precisa_conferir": false,
+      "lido": "PDF do atlas de órgãos normais da pelve do RTOG (texto); a definição GU do reto e a do fêmur citadas em `engine` conferidas no texto em 22/09/2026",
+      "influencia": [
+        "app/engine.py::RECORTE_DE_OAR",
+        "app/engine.py::desenhar_juncao_sacroiliaca"
+      ]
+    },
+    {
+      "id": "kong2011",
+      "titulo": "Consideration of Dose Limits for Organs at Risk of Thoracic Radiotherapy: Atlas",
+      "autores": "Kong FM, Ritter T, Quint DJ, Senan S, et al.",
+      "revista": "International Journal of Radiation Oncology Biology Physics",
+      "ano": "2011",
+      "doi": "10.1016/j.ijrobp.2010.07.1977",
+      "peso": "importante",
+      "mudou": "E a fonte da AUSENCIA de margem no esofago, que e decisao tao real quanto aplicar uma. A margem de parede existe para devolver o que o modelo nao ve, e o atlas manda contornar ate a adventicia: numa TC de planejamento, sem lumen contrastado, a borda que o modelo ja ve E a externa. Margem ali nao recupera parede -- invade o que esta em volta. A tabela tem tres entradas e o esofago nao e uma delas.",
+      "categoria": "diretriz",
+      "doi_lido_em": "CrossRef, 15/09/2026",
+      "lido": "PDF do atlas (Atlas for Lung, Proximal Bronchial Tree, Esophagus, Spinal Cord, Ribs, and Brachial Plexus); «out to the fatty adventitia» conferido no texto em 22/09/2026",
+      "influencia": [
+        "app/engine.py::MARGEM_OAR_MM"
+      ]
+    },
+    {
+      "id": "gregoire2014",
+      "titulo": "Delineation of the neck node levels for head and neck tumors: a 2013 update. DAHANCA, EORTC, HKNPCSG, NCIC CTG, NCRI, RTOG, TROG consensus guidelines",
+      "autores": "Grégoire V, Ang K, Budach W, et al.",
+      "revista": "Radiotherapy and Oncology",
+      "ano": "2014",
+      "doi": "10.1016/j.radonc.2013.10.010",
+      "peso": "importante",
+      "mudou": "Dá os NOMES e os LIMITES dos níveis cervicais: as Tabelas 2 a 7 definem, nível a nível, as bordas cranial, caudal, anterior, posterior, lateral e medial de Ia a VIII. O modelo do conjunto `hnl` foi treinado sobre contornos desenhados «following the guideline by Grégoire et al.» (Weissmann et al., 2023), e os 20 rótulos dele são níveis deste consenso, na ordem do mapa publicado pelos autores (`radai_hnlnl.MAPA_DOS_PESOS`, preso à versão dos pesos). Daqui vêm os nomes de Grégoire, e cada ROI leva no `ROIObservationDescription` o dela (IVa jugular inferior, IVb supraclavicular medial, VIa jugular anterior, VIb pré-laríngeo/pré-traqueal/paratraqueal, VIIa retrofaríngeo, VIII parotídeo) e o limite medial de II, III e IVa na carótida, que põe os vasos dentro do compartimento — é o que sustenta preencher a cavidade vascular só nesses níveis. A divisão 4 + 8, com o VIIa na linha média, é do artigo do modelo: a Tabela 6 põe o VIIa lateral. A ordem crânio-caudal dos oito bilaterais (VIIb, VIII, II, Ib, III, V, IVa, IVb) é nossa (`ORDEM_BILATERAL`), pela extensão dos limites das Tabelas 2 a 7, e não nomeia nada: o nome vem do mapa dos autores.",
+      "categoria": "diretriz",
+      "doi_lido_em": "no próprio PDF (p. 172, rodapé da primeira página), e conferido no CrossRef em 22/09/2026 (Radiother Oncol 110(1):172-181)",
+      "precisa_conferir": false,
+      "lido": "PDF do consenso (drenagem linfática cervical, 2014, RTOG/EORTC/TROG): as Tabelas 2 a 7 (limites de Ia a VIII) e o texto do nível VIIa conferidos no texto em 22/09/2026",
+      "influencia": [
+        "app/radai_hnlnl.py::ORDEM_BILATERAL"
+      ]
+    },
+    {
+      "id": "mir2020",
+      "titulo": "Organ at risk delineation for radiation therapy clinical trials: Global Harmonization Group consensus guidelines",
+      "autores": "Mir R, Kelly SM, Xiao Y, Moore A, Clark CH, Clementel E, Corning C, Ebert M, Hoskin P, Hurkmans CW, Ishikura S, Kristensen I, Kry SF, Lehmann J, Michalski JM, Monti AF, Nakamura M, Thompson K, Yang H, Zubizarreta E, Andratschke N, Miles E",
+      "revista": "Radiotherapy and Oncology",
+      "ano": "2020",
+      "doi": "10.1016/j.radonc.2020.05.038",
+      "peso": "importante",
+      "mudou": "É a fonte da espessura da pele: a casca tem 5 mm (`radai_skin.ESPESSURA_PELE_MM`), e o consenso do GHG é a definição publicada da MESMA construção — «a 5 mm inner rind automatically created from the external contour» —, com a ressalva que ele mesmo faz: a pele real tem de 1,5 a 5 mm conforme a região, e os protocolos revisados pediam de 3 a 6 mm. A face externa da parede torácica usa a mesma constante. O resto do consenso NÃO entrou no código: as duas definições de coração (Heart e Heart+A_Pulm), o nome Spc_Bowel no lugar de Bag_Bowel e o marco caudal do reto pelo levantador e pelo puborretal. Os limites dos 73 OAR estão no Apêndice A (suplemento on-line), que não foi lido.",
+      "categoria": "diretriz",
+      "doi_lido_em": "impresso na página 1 do PDF, e CrossRef em 26/09/2026 (Radiother Oncol 150:30-39, 22 autores)",
+      "precisa_conferir": false,
+      "lido": "texto integral (10 p.), em PDF; a frase da pele (p. 6) conferida no texto em 27/09/2026. O Apêndice A (suplemento on-line) NÃO foi lido — não está no PDF",
+      "influencia": [
+        "app/radai_skin.py::ESPESSURA_PELE_MM"
+      ]
+    },
+    {
+      "id": "brock2017",
+      "titulo": "Use of image registration and fusion algorithms and techniques in radiotherapy: Report of the AAPM Radiation Therapy Committee Task Group No. 132",
+      "autores": "Brock KK, Mutic S, McNutt TR, Li H, Kessler ML",
+      "revista": "Medical Physics",
+      "ano": "2017",
+      "doi": "10.1002/mp.12256",
+      "peso": "fundamental",
+      "mudou": "Define o QUE se mede num campo deformavel -- jacobiano voxel a voxel, ida-e-volta em milimetros, deslocamento -- e a exigencia de QA por caso. Dessa exigencia sai a trava de arquitetura: o laudo e conferido DENTRO da rota que serve a imagem, e ela recusa com 409 sem ele. E o motor e B-spline porque ele PODE dobrar: Demons difeomorfico tem jacobiano positivo por construcao e deixaria a guarda satisfeita sem nunca ter medido nada. Os limiares sao declarados como NOSSOS: o TG-132 nao publica limiar universal, e atribuir um a ele seria inventar fonte.",
+      "categoria": "",
+      "doi_lido_em": "no próprio relatório, e conferido no CrossRef em 22/09/2026 (Med Phys 44(7):e43-e76)",
+      "precisa_conferir": false,
+      "lido": "relatório do TG-132 da AAPM, texto integral em PDF",
+      "influencia": [
+        "app/radai_elastic.py::laudo",
+        "app/radai_elastic.py::LIMIAR_E_NOSSO"
+      ],
+      "cita_como": [
+        "TG-132"
+      ]
+    },
+    {
+      "id": "weissmann2023",
+      "titulo": "Deep learning for automatic head and neck lymph node level delineation provides expert-level accuracy",
+      "autores": "Weissmann T, Huang Y, Fischer S, Roesch J, Mansoorian S, Ayala Gaona H, Gostian AO, Hecht M, Lettmaier S, Deloch L, Frey B, Gaipl US, Distel LV, Maier A, Iro H, Semrau S, Bert C, Fietkau R, Putz F",
+      "revista": "Frontiers in Oncology",
+      "ano": "2023",
+      "doi": "10.3389/fonc.2023.1115258",
+      "peso": "fundamental",
+      "mudou": "E o modelo do conjunto `hnl`, e mais que os pesos: a entrada nao e a TC crua. O artigo recorta por base do cranio, carina, mesa e umeros, e os quatro marcos saem da propria saida da base de TC que a estacao elegeu (`engine.base_eleita`: o `total_v3` quando o peso dele esta no disco, senao o `total`), entao o recorte nao custa um clique. Os pesos sao CC0-1.0, o componente mais permissivo do projeto. E a divisão dos 20 — Ia, VIa, VIb e VIIa na linha média, oito bilaterais — é a do ARTIGO, na letra («level Ia, VIa, VIb and VIIa as well as the bilateral levels Ib, II, III, IVa, IVb, V, VIIb, and VIII»), e não a do consenso de Grégoire 2014, cuja Tabela 6 põe o VIIa lateral e par.",
+      "categoria": "",
+      "doi_lido_em": "no próprio texto integral (PMC9978473, Europe PMC, identificador `doi` do artigo), e conferido no CrossRef em 22/09/2026 (Front Oncol 13:1115258)",
+      "precisa_conferir": false,
+      "lido": "texto integral (PMC9978473, Europe PMC): a frase do recorte citada em `radai_hnlnl_engine`, a lista dos 20 níveis e a lista de autores conferidas na origem em 22/09/2026",
+      "influencia": [
+        "app/radai_hnlnl_engine.py::TAREFA",
+        "modelo:hnlnl"
+      ]
+    },
+    {
+      "id": "buti2025",
+      "titulo": "Clinical target volumes for glioma – Automated delineation to improve neuroanatomic consistency",
+      "autores": "Buti G, Giovenco M, Yilmaz T, Ajdari A, Bridge CP, Sharp GC, Löfman F, Shih HA, Bortfeld T",
+      "revista": "Physics and Imaging in Radiation Oncology",
+      "ano": "2025",
+      "doi": "10.1016/j.phro.2025.100865",
+      "peso": "fundamental",
+      "mudou": "É o modelo do encéfalo em TC: tronco encefálico e quiasma entram no FULL e no OAR, cerebelo, ventrículos e linha média só no FULL. A entrada é a TC sozinha («The CT image was set as input»), e por isso ele roda sem RM. O quiasma tem Dice de 63,9 ± 12,2% no teste do artigo (o tronco, 92,5 ± 2,8%), e a descrição da ROI diz isso.",
+      "categoria": "",
+      "doi_lido_em": "no CrossRef (Phys Imaging Radiat Oncol 36:100865), conferido em 04/10/2026",
+      "precisa_conferir": false,
+      "lido": "texto integral (PMC12664807, Europe PMC): seções 2.1, 2.3, 2.4 e 2.6 e a Tabela 1, lidas em 04/10/2026 — a entrada só de TC, os 79 casos de treino do GLIS-RT, a lista de estruturas e o Dice do tronco e do quiasma",
+      "influencia": [
+        "app/radai_cranio_engine.py::ROTULOS_CONFERIDOS",
+        "modelo:cranio_buti"
+      ]
+    },
+    {
+      "id": "orton2022",
+      "titulo": "A Contouring Strategy and Reference Atlases for the Full Abdominopelvic Bowel Bag on Treatment Planning and Cone Beam Computed Tomography Images",
+      "autores": "Orton E, Ali E, Mayorov K, Brown C, Usmani N, Lefresne S, Peacock M, Dennis K",
+      "revista": "Advances in Radiation Oncology",
+      "ano": "2022",
+      "doi": "10.1016/j.adro.2022.101031",
+      "peso": "importante",
+      "mudou": "É a referência da Bag_Bowel_OAR_ai, a cavidade intestinal que vai ao entregue (no completo ela fica ao lado da Bag_Bowel_ai): a bolsa é a cavidade peritoneal com as alças, e exclui os órgãos sólidos, os músculos (o psoas inclusive), os grandes vasos, a gordura retroperitoneal e perirrenal e o compartimento mesorretal; o limite caudal é a alça mais inferior. A receita segue essas exclusões e DIFERE do atlas num ponto, escrito na descrição da ROI: depois da suavização, devolve inteiros o estômago, o duodeno, o pâncreas e o delgado — o atlas exclui o estômago e o pâncreas, e a convenção do serviço os mantém. As margens não são do atlas: os 5 mm em volta das grandes veias, das grandes artérias, do iliopsoas e do baço, a suavização de 20 mm, o corte caudal pela borda inferior da sacroilíaca e a veia porta fora de toda conta são escolha do projeto; o psoas, a loja perirrenal, o retroperitônio dos vasos e o mesorreto seguem a leitura do atlas, ainda sem medida em série.",
+      "categoria": "diretriz",
+      "doi_lido_em": "CrossRef em 11/10/2026 (Adv Radiat Oncol 7(6):101031, oito autores)",
+      "precisa_conferir": false,
+      "lido": "texto integral no PubMed Central (PMC9450071), lido em 11/10/2026",
+      "influencia": [
+        "app/radai_constructs.py::DESCRICAO_DA_BAG_OAR"
+      ]
+    },
+    {
+      "id": "xiao2026",
+      "titulo": "DoseRAD2026 Challenge dataset: AI accelerated photon and proton dose calculation for radiotherapy",
+      "autores": "Xiao F, Delopoulos N, Wahl N, Volz L, Bucher L, Maspero M, Palacios M, Li M, Schulz S, Rogowski V, Zhang Y, Perko Z, Kurz C, Dedes G, Landry G, Thummerer A",
+      "revista": "arXiv (preprint)",
+      "ano": "2026",
+      "doi": "10.48550/arXiv.2604.12778",
+      "peso": "importante",
+      "mudou": "É de onde vem o alerta de ar contra tecido do laudo do Elastic RT (`radai_elastic.ar_contra_tecido`). No preparo do DoseRAD2026, depois do registro deformável entre a TC e a RM, as cavidades de ar que não coincidem entre as duas séries são corrigidas — o ar da TC registrada é preenchido com o tecido vizinho, e o ar segmentado na RM é levado para a TC —, porque nenhuma deformação põe gás onde a outra série tem tecido. Aqui nada é corrigido: o laudo diz onde uma série tem gás e a outra tecido, com o volume e os cortes de cada região. O código e os dados do desafio não entram no programa.",
+      "categoria": "",
+      "doi_lido_em": "no arXiv (2604.12778v1, de 14/04/2026) e na DataCite (10.48550/arXiv.2604.12778, dezesseis autores), conferidos em 14/10/2026",
+      "precisa_conferir": false,
+      "lido": "texto do arXiv (2604.12778v1, versão HTML): a seção de pré-processamento, com a correção das cavidades de ar depois do registro deformável, conferida em 14/10/2026",
+      "influencia": [
+        "app/radai_elastic.py::ar_contra_tecido"
+      ],
+      "cita_como": [
+        "DoseRAD2026",
+        "DoseRad2026"
+      ]
+    },
+    {
+      "id": "poltorak2024",
+      "titulo": "Brachytherapy and 3D printing for skin cancer: A review paper",
+      "autores": "Poltorak M, Banatkiewicz P, Poltorak L, Sobolewski P, Zimon D, Szwast M, Walecka I",
+      "revista": "Journal of Contemporary Brachytherapy",
+      "ano": "2024",
+      "doi": "10.5114/jcb.2024.137357",
+      "peso": "importante",
+      "mudou": "Uma das seis publicações de aplicador de superfície impresso em que o aplicador do 3D Printed Bolus se apoia: o corpo sobre a pele com canais paralelos que guiam o cateter (`radai_bolus_aplicador.gerar`). Desta revisão vêm duas frases do material (`radai_bolus_aplicador.MATERIAL`): o material sem certificado pede um filme entre a pele e a peça, e a esterilização a quente não é recomendada, porque danifica a peça.",
+      "categoria": "",
+      "doi_lido_em": "no CrossRef, conferido em 14/10/2026 (J Contemp Brachytherapy 16(2):156-169, sete autores)",
+      "precisa_conferir": false,
+      "lido": "texto integral, lido inteiro, com o DOI tirado do PDF, em 14/10/2026; as frases do material conferidas no texto integral (PMC11129648) em 14/10/2026",
+      "influencia": [
+        "app/radai_bolus_aplicador.py::MATERIAL",
+        "app/radai_bolus_aplicador.py::gerar"
+      ]
+    },
+    {
+      "id": "bellis2021",
+      "titulo": "Additive manufacturing (3D printing) in superficial brachytherapy",
+      "autores": "Bellis R, Rembielak A, Barnes EA, Paudel M, Ravi A",
+      "revista": "Journal of Contemporary Brachytherapy",
+      "ano": "2021",
+      "doi": "10.5114/jcb.2021.108602",
+      "peso": "importante",
+      "mudou": "A revisão das publicações de impressão 3D em braquiterapia superficial. Dela vêm: os 5 mm do eixo do canal à pele (`radai_bolus_aplicador.DISTANCIA_PADRAO_MM`, a recomendação do GEC-ESTRO que ela cita) e os 10 mm entre canais do aplicador de Freiburg, o comercial contra o qual os estudos comparam (`radai_bolus_aplicador.ESPACAMENTO_PADRAO_MM`); a boca do canal afunilada (`radai_bolus_aplicador.FUNIL_MM`), porque o estudo de Harris que ela cita achou o desvio maior na abertura do canal; a janela da TC, que muda a pele percebida em 1 a 2 mm (o «?» da distância); PLA e ABS equivalentes à água no Ir-192 e o autoclave que empena a peça (`radai_bolus_aplicador.MATERIAL`); e a TC com a peça posta e o filme radiocrômico (`radai_bolus_aplicador.EXIGENCIAS`).",
+      "categoria": "",
+      "doi_lido_em": "no CrossRef, conferido em 14/10/2026 (J Contemp Brachytherapy 13(4):468-482, cinco autores)",
+      "precisa_conferir": false,
+      "lido": "texto integral, lido inteiro, com o DOI tirado do PDF, em 14/10/2026; os trechos que o código usa conferidos no texto integral (PMC8407265) em 14/10/2026",
+      "influencia": [
+        "app/radai_bolus_aplicador.py::DISTANCIA_PADRAO_MM",
+        "app/radai_bolus_aplicador.py::ESPACAMENTO_PADRAO_MM",
+        "app/radai_bolus_aplicador.py::FUNIL_MM",
+        "app/radai_bolus_aplicador.py::MATERIAL",
+        "app/radai_bolus_aplicador.py::EXIGENCIAS",
+        "app/radai_bolus_aplicador.py::gerar"
+      ]
+    },
+    {
+      "id": "bieleda2022",
+      "titulo": "3D printing of individual skin brachytherapy applicator: design, manufacturing, and early clinical results",
+      "autores": "Bielęda G, Chicheł A, Boehlke M, Zwierzchowski G, Chyrek A, Burchardt W, Stefaniak P, Wiśniewska N, Czereba K, Malicki J",
+      "revista": "Journal of Contemporary Brachytherapy",
+      "ano": "2022",
+      "doi": "10.5114/jcb.2022.114353",
+      "peso": "importante",
+      "mudou": "O relato clínico que dá a maior parte dos padrões do aplicador: o corpo de 1 cm sobre a pele (`radai_bolus_aplicador.CORPO_PADRAO_MM`), o caminho da fonte a cerca de 5 mm da pele (`radai_bolus_aplicador.DISTANCIA_PADRAO_MM`), o cateter 6F num canal de 3 mm (`radai_bolus_aplicador.CATETERES`, `radai_bolus_aplicador.CANAL_PADRAO_MM`) e o canal aberto nas duas pontas, «not blind-ended» (`radai_bolus_aplicador.TRAJETOS`, e o alerta do fundo cego). A pele foi desenhada na janela de pulmão, porque na de partes moles o aplicador saiu apertado; e a pele foi coberta com campo, porque o PLA não é certificado (`radai_bolus_aplicador.MATERIAL`). Os canais dele ficaram a 5 a 7 mm um do outro; o padrão daqui é 10 mm.",
+      "categoria": "",
+      "doi_lido_em": "no CrossRef, conferido em 14/10/2026 (J Contemp Brachytherapy 14(2):205-214, dez autores)",
+      "precisa_conferir": false,
+      "lido": "texto integral, lido inteiro, com o DOI tirado do PDF, em 14/10/2026; os trechos que o código usa conferidos no texto integral (PMC9044311) em 14/10/2026",
+      "influencia": [
+        "app/radai_bolus_aplicador.py::CORPO_PADRAO_MM",
+        "app/radai_bolus_aplicador.py::DISTANCIA_PADRAO_MM",
+        "app/radai_bolus_aplicador.py::CATETERES",
+        "app/radai_bolus_aplicador.py::CANAL_PADRAO_MM",
+        "app/radai_bolus_aplicador.py::TRAJETOS",
+        "app/radai_bolus_aplicador.py::MATERIAL",
+        "app/radai_bolus_aplicador.py::gerar"
+      ]
+    },
+    {
+      "id": "ricotti2016",
+      "titulo": "3D-printed applicators for high dose rate brachytherapy: Dosimetric assessment at different infill percentage",
+      "autores": "Ricotti R, Vavassori A, Bazani A, Ciardo D, Pansini F, Spoto R, Sammarco V, Cattani F, Baroni G, Orecchia R, Jereczek-Fossa BA",
+      "revista": "Physica Medica",
+      "ano": "2016",
+      "doi": "10.1016/j.ejmp.2016.08.016",
+      "peso": "importante",
+      "mudou": "Mediu com filme aplicadores de ABS impressos com preenchimento parcial: a atenuação da dose não dependeu da densidade do material, e o aplicador plano impresso concordou com o comercial de Freiburg. Daí a frase do material (`radai_bolus_aplicador.MATERIAL`): o plástico impresso se comporta como água no Ir-192 inclusive com preenchimento baixo, e o paciente é tratado com o mesmo padrão de preenchimento do controle de qualidade. Os 10 mm entre canais (`radai_bolus_aplicador.ESPACAMENTO_PADRAO_MM`) são os do aplicador de Freiburg que ele tomou como referência.",
+      "categoria": "",
+      "doi_lido_em": "no CrossRef, conferido em 14/10/2026 (Phys Med 32(12):1698-1706, onze autores)",
+      "precisa_conferir": false,
+      "lido": "texto integral, lido inteiro, com o DOI tirado do PDF, em 14/10/2026; o que o código usa conferido no resumo (PubMed 27592531) e na descrição do estudo na revisão de Bellis 2021 (PMC8407265), em 14/10/2026",
+      "influencia": [
+        "app/radai_bolus_aplicador.py::MATERIAL",
+        "app/radai_bolus_aplicador.py::ESPACAMENTO_PADRAO_MM",
+        "app/radai_bolus_aplicador.py::gerar"
+      ]
+    },
+    {
+      "id": "douglass2019",
+      "titulo": "Application of optical photogrammetry in radiation oncology: HDR surface mold brachytherapy",
+      "autores": "Douglass MJJ, Caraça Santos AM",
+      "revista": "Brachytherapy",
+      "ano": "2019",
+      "doi": "10.1016/j.brachy.2019.05.006",
+      "peso": "contexto",
+      "mudou": "Uma das seis publicações de aplicador de superfície impresso em que o aplicador do 3D Printed Bolus se apoia (`radai_bolus_aplicador.gerar`). Ela conferiu, numa TC, a peça impressa posta no molde de gesso do braço do paciente — 1,2 mm de deslocamento máximo e cerca de 0,05 cm³ de ar entre os dois —: a peça vale pelo que a TC mostra, e não pelo desenho, e a segunda TC com o aplicador posto é a primeira exigência da ficha (`radai_bolus_aplicador.EXIGENCIAS`).",
+      "categoria": "",
+      "doi_lido_em": "no CrossRef, conferido em 14/10/2026 (Brachytherapy 18(5):689-700, dois autores)",
+      "precisa_conferir": false,
+      "lido": "texto integral, lido inteiro, com o DOI tirado do PDF, em 14/10/2026; o que o código usa conferido no resumo (PubMed 31230942) em 14/10/2026",
+      "influencia": [
+        "app/radai_bolus_aplicador.py::EXIGENCIAS",
+        "app/radai_bolus_aplicador.py::gerar"
+      ]
+    },
+    {
+      "id": "jones2017",
+      "titulo": "Introduction of novel 3D-printed superficial applicators for high-dose-rate skin brachytherapy",
+      "autores": "Jones EL, Tonino Baldion A, Thomas C, Burrows T, Byrne N, Newton V, Aldridge S",
+      "revista": "Brachytherapy",
+      "ano": "2017",
+      "doi": "10.1016/j.brachy.2016.11.003",
+      "peso": "contexto",
+      "mudou": "O relato do pré-plano: o arranjo dos cateteres — a altura, a orientação e a curva de cada um — é planejado antes, e a peça é impressa na medida dele. É a forma que `radai_bolus_aplicador.gerar` monta, com os canais que acompanham a pele a uma distância fixa; e o pré-plano rodado no afterloader, antes da fonte, está entre as exigências da ficha (`radai_bolus_aplicador.EXIGENCIAS`).",
+      "categoria": "",
+      "doi_lido_em": "no CrossRef, conferido em 14/10/2026 (Brachytherapy 16(2):409-414, sete autores)",
+      "precisa_conferir": false,
+      "lido": "texto integral, lido inteiro, com o DOI tirado do PDF, em 14/10/2026; o que o código usa conferido no resumo (PubMed 27965116) em 14/10/2026",
+      "influencia": [
+        "app/radai_bolus_aplicador.py::gerar",
+        "app/radai_bolus_aplicador.py::EXIGENCIAS"
+      ]
+    },
+    {
+      "id": "laan2019",
+      "titulo": "MRI-driven design of customised 3D printed gynaecological brachytherapy applicators with curved needle channels",
+      "autores": "Laan RC, Nout RA, Dankelman J, van de Berg NJ",
+      "revista": "3D Printing in Medicine",
+      "ano": "2019",
+      "doi": "10.1186/s41205-019-0047-x",
+      "peso": "importante",
+      "mudou": "Mediu a força de inserção de agulhas em canais curvos impressos, de 20 a 75 mm de raio: abaixo de 35 mm as agulhas flambaram e a inserção foi abortada, e acima de 50 mm não houve diferença de força. Daí o raio padrão de 35 mm, para todo equipamento (`radai_bolus_aplicador.RAIO_PADRAO_MM`), o piso de 35 mm da agulha 6F com obturador (`radai_bolus_aplicador.CATETERES`) e os 50 mm a partir dos quais a força deixa de mudar (`radai_bolus_aplicador.RAIO_FORCA_ESTAVEL_MM`), que o código atribui a Straathof 2024 e que estão, com esses números, no resumo e nos resultados deste artigo.",
+      "categoria": "",
+      "doi_lido_em": "no CrossRef, conferido em 14/10/2026 (3D Print Med 5:8, quatro autores)",
+      "precisa_conferir": false,
+      "lido": "lido em 14/10/2026, na pesquisa da curvatura do aplicador; os trechos que o código usa (a inserção abortada abaixo de 35 mm, a força igual acima de 50 mm, a agulha 6F com obturador) conferidos no texto integral (PMC6743135) em 14/10/2026",
+      "influencia": [
+        "app/radai_bolus_aplicador.py::RAIO_PADRAO_MM",
+        "app/radai_bolus_aplicador.py::RAIO_FORCA_ESTAVEL_MM",
+        "app/radai_bolus_aplicador.py::CATETERES"
+      ]
+    },
+    {
+      "id": "licher2025",
+      "titulo": "Advantages of 3D printed patient-individual moulds in brachytherapy for facial skin cancer",
+      "autores": "Licher J, Achenbach J, Köhn J, Diefenhardt M, Fleischmann M, Rödel C, Tselis N, Ramm U, Scherf C",
+      "revista": "Strahlentherapie und Onkologie",
+      "ano": "2025",
+      "doi": "10.1007/s00066-025-02372-5",
+      "peso": "importante",
+      "mudou": "Moldes impressos para HDR em câncer de pele da face, com tubos flexíveis 6F nos canais. O tubo 6F que o 3D Printed Bolus toma como padrão é esse, com o raio mínimo de dobra de 15 mm que o artigo dá para ele — o piso do tubo 6F (`radai_bolus_aplicador.CATETERES`) —; e o canal de 1,5 mm de raio em volta do caminho, 3 mm de diâmetro para um tubo de 2 mm, é a folga de 1 mm do padrão (`radai_bolus_aplicador.CANAL_PADRAO_MM`).",
+      "categoria": "",
+      "doi_lido_em": "no CrossRef, conferido em 14/10/2026 (Strahlenther Onkol 201(9):940-952, nove autores)",
+      "precisa_conferir": false,
+      "lido": "lido em 14/10/2026, na pesquisa da curvatura do aplicador; os trechos que o código usa (o tubo 6F, o raio mínimo de 15 mm, o canal de 1,5 mm de raio) conferidos no texto integral (PMC12373695) em 14/10/2026",
+      "influencia": [
+        "app/radai_bolus_aplicador.py::CATETERES",
+        "app/radai_bolus_aplicador.py::CANAL_PADRAO_MM"
+      ]
+    },
+    {
+      "id": "stern2010",
+      "titulo": "Dwell position inaccuracy in the Varian GammaMed HDR ring applicator",
+      "autores": "Stern RL, Liu T",
+      "revista": "Journal of Applied Clinical Medical Physics",
+      "ano": "2010",
+      "doi": "10.1120/jacmp.v11i4.3158",
+      "peso": "contexto",
+      "mudou": "Mediu por autorradiografia as posições de parada da fonte num aplicador curvo, o anel ginecológico: as reais caíram, em média, 3,4 mm além das programadas, e cada anel tem de ser caracterizado por radiografia, e de novo com o tempo. Daí a primeira exigência da curva amarela (`radai_bolus_aplicador.EXIGENCIAS_DA_CURVA`): no trecho curvo, a posição de parada se confere por radiografia, em vez de se presumir pelo desenho.",
+      "categoria": "",
+      "doi_lido_em": "no CrossRef, conferido em 14/10/2026 (J Appl Clin Med Phys 11(4):291-296, dois autores)",
+      "precisa_conferir": false,
+      "lido": "lido em 14/10/2026, na pesquisa da curvatura do aplicador; o deslocamento medido e a recomendação de radiografia conferidos no texto integral (PMC5720406) em 14/10/2026",
+      "influencia": [
+        "app/radai_bolus_aplicador.py::EXIGENCIAS_DA_CURVA"
+      ]
+    }
+  ],
+  "modelos": [
+    {
+      "nome": "TotalSegmentator 2.18",
+      "papel": "o motor do fluxo principal — a base de TC que a estação elege (`total_v3`, os pesos v3.0.0 do TotalSegmentator, quando o peso dele está no disco, senão `total`) e as tasks do catálogo do pacote",
+      "licenca_codigo": "Apache-2.0",
+      "licenca_pesos": "Apache-2.0",
+      "uso": "livre",
+      "url": "https://github.com/wasserth/TotalSegmentator",
+      "citar": "wasserthal2023",
+      "nota": "O próprio autor declara que NÃO é dispositivo médico. E ele NÃO anota a cabeça da costela — a extremidade posterior, junto à vértebra: Möller et al. (2026) mediram Dice 0,751 contra 0,997 de um modelo a 0,8 mm (45 casos corrigidos à mão), e atribuem a diferença a isso e à resolução de 1,5 mm. Não é defeito do nosso pós-processamento, e não se conserta nele.\n\nA versão do nome é a do pino do pacote (`build/requirements-demo.txt`). As tasks que o pacote traz saem de `radai_tasks.CATALOGO`, e não desta nota: lista copiada para cá envelhece calada.",
+      "citar_tambem": "moller2026",
+      "registro": "totalsegmentator"
+    },
+    {
+      "nome": "nnU-Net",
+      "papel": "a arquitetura sobre a qual o TotalSegmentator, o CADS, os dois modelos do MOOSE e os níveis cervicais (estes em nnU-Net v1) foram treinados",
+      "licenca_codigo": "Apache-2.0",
+      "licenca_pesos": "—",
+      "uso": "livre",
+      "url": "https://github.com/MIC-DKFZ/nnUNet",
+      "citar": "isensee2021",
+      "nota": "Os autores pedem que seja citada junto do modelo que a usa. O artigo dela (Isensee et al., Nature Methods 2021) está nas Referências porque o princípio da regra R2 das ilhas — a poda decidida por classe — vem dele."
+    },
+    {
+      "nome": "NV-Segment-CT (NVIDIA)",
+      "registro": "nv_segment_ct",
+      "papel": "segundo motor, para comparação — 117 classes de anatomia no conjunto de entrega",
+      "licenca_codigo": "Apache-2.0",
+      "licenca_pesos": "NVIDIA Open Model License Agreement",
+      "uso": "livre",
+      "url": "https://catalog.ngc.nvidia.com/models",
+      "citar": "",
+      "nota": "É O MESMO PESO DO MONAI VISTA-3D — sha256 idêntico, byte a byte — sob OUTRO contrato: a NVIDIA License 3.3 do VISTA-3D diz «research or evaluation purposes only», e a Open Model License declara «Models are commercially usable». O peso é o mesmo; a permissão é outra, e é ela que decide se um serviço pode instalar."
+    },
+    {
+      "nome": "CADS (variante open) — tarefa 556",
+      "papel": "terceiro motor — reto, próstata, vesícula seminal, sigmoide",
+      "licenca_codigo": "Apache-2.0",
+      "licenca_pesos": "CC BY-SA 4.0",
+      "uso": "livre",
+      "url": "https://github.com/murong-xu/CADS",
+      "citar": "",
+      "nota": "A variante `open` de propósito: a `reference` tem licença customizada cujo texto não está publicado, e a `research` é CC BY-NC-SA (não comercial E viral). O ShareAlike tem cauda: rodar o modelo e usar a saída não é obra derivada, mas fine-tune com dado da casa produz peso derivado, que teria de sair sob CC BY-SA.",
+      "registro": "cads_open"
+    },
+    {
+      "nome": "MOOSE — câmaras cardíacas e composição corporal",
+      "registro": "moose",
+      "papel": "o conjunto `mse` — 16 estruturas, e NOVE delas não existem em task nenhuma do TotalSegmentator que o pacote traga",
+      "licenca_codigo": "Apache-2.0",
+      "licenca_pesos": "CC BY 4.0",
+      "uso": "livre",
+      "url": "https://github.com/ENHANCE-PET/MOOSE",
+      "citar": "",
+      "nota": "A CC BY 4.0 permite uso comercial e EXIGE atribuição — o `NOTICE` o cita, e `test_moose` confere. Dos 29 modelos que o MOOSE publica entram DOIS: o cardíaco e o de composição corporal. A gordura visceral não existe em task nenhuma do TotalSegmentator, e as outras duas exigiriam chave comercial."
+    },
+    {
+      "nome": "Níveis linfonodais de cabeça e pescoço (Weissmann et al.)",
+      "registro": "hnlnl",
+      "papel": "o conjunto `hnl` — 20 níveis cervicais e a união, por nnU-Net v1",
+      "licenca_codigo": "CC0-1.0",
+      "licenca_pesos": "CC0-1.0",
+      "uso": "livre",
+      "url": "https://github.com/putzfn/HNLNL_autosegmentation_trained_models",
+      "citar": "weissmann2023",
+      "nota": "Domínio público — a licença mais permissiva do pacote, mais que a Apache-2.0 do TotalSegmentator: não exige sequer atribuição, que damos assim mesmo. DSC 0,78 por nível e 0,86 na união no artigo. O nome de cada nível vem do mapa publicado pelos autores (o script de revisão do material suplementar), preso à versão dos pesos: saem `Lvl_Ia`…`Lvl_VIIb` e a união dos 18 primeiros (`LNL_UNION`), e o nível VIII vira a parótida. Com outros pesos os nomes voltam ao neutro, `LNL01`…`LNL20`. O artigo é de Weissmann et al. (2023); o repositório dos pesos, de Putz F, último autor do artigo, não traz seção de citação."
+    },
+    {
+      "nome": "CT Brain Segmentation Radiotherapy (Buti et al.)",
+      "registro": "cranio_buti",
+      "papel": "o encéfalo em TC — tronco encefálico e quiasma (FULL e OAR), cerebelo, ventrículos e linha média (só FULL), por nnU-Net v2",
+      "licenca_codigo": "—",
+      "licenca_pesos": "MIT",
+      "uso": "livre",
+      "url": "https://huggingface.co/GregoryButi/CT_Brain_Segmentation_Radiotherapy",
+      "citar": "buti2025",
+      "nota": "Treinado em 79 TCs do GLIS-RT (Shusharina N, Bortfeld T, The Cancer Imaging Archive 2021, doi:10.7937/TCIA.T905-ZQ20; Shusharina N et al., LNCS 2021, pp. 3–15, doi:10.1007/978-3-030-71827-5_1), que a TCIA pede para citar junto. O GLIS-RT está hoje sob a política de acesso controlado do NIH, e nenhuma cláusula sobre modelo derivado foi achada. O encéfalo e os nervos ópticos do pacote continuam os do TotalSegmentator."
+    }
+  ]
+}

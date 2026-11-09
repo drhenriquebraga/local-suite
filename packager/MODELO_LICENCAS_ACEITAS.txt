@@ -1,0 +1,74 @@
+MODELO - LICENCAS ACEITAS
+================================================================
+
+ESTE ARQUIVO E UM MODELO. Ele existe para o caminho excepcional descrito no
+LEIA-ME.txt: a maquina tem diretiva de dominio bloqueando PowerShell, a tela
+de licencas nao abre, e o preparo precisa ser disparado por linha de comando.
+
+Normalmente voce NAO usa este arquivo: o preparador grava a versao real
+sozinho, com o que voce marcou na tela.
+
+COMO USAR
+
+  1. Copie este arquivo para a sua pasta de trabalho
+  2. Renomeie para  LICENCAS_ACEITAS.txt
+  3. Preencha os campos e marque [ACEITA] ou [RECUSADA] em cada componente
+  4. Rode:  python build\configurar_ambiente.py --preparo <sua pasta>
+
+Sem este arquivo o preparo se recusa a rodar, e isso e proposital: o aceite
+e a evidencia juridica, e pular a tela nao pode virar pular o aceite.
+
+E TUDO OU NADA: TODAS as linhas precisam ficar [ACEITA]. Uma unica [RECUSADA]
+derruba o preparo -- este programa nao tem versao reduzida. Recusar nao produz
+um pacote menor; produz nao poder usar o aplicativo.
+
+----------------------------------------------------------------
+
+Preparado por ....: <SEU NOME>
+Maquina ..........: <NOME DA MAQUINA>
+Data e hora ......: <AAAA-MM-DD HH:MM:SS>
+Preparador versao : 1.0 (linha de comando)
+
+----------------------------------------------------------------
+
+[ACEITA]   Python
+           versao ..: 3.10.11
+           licenca .: PSF License
+           origem ..: https://www.python.org
+
+[ACEITA]   TotalSegmentator
+           versao ..: 2.4.0
+           licenca .: Apache-2.0
+           origem ..: https://github.com/wasserth/TotalSegmentator
+
+[ACEITA]   nnU-Net
+           versao ..: 2.5.2
+           licenca .: Apache-2.0
+           origem ..: https://github.com/MIC-DKFZ/nnUNet
+
+[ACEITA]   PyTorch e bibliotecas de apoio
+           versao ..: 2.5.1
+           licenca .: BSD-3-Clause, MIT, Apache-2.0
+           origem ..: https://pypi.org
+
+[ACEITA]   MONAI VISTA-3D (codigo)
+           versao ..: 1.4.0
+           licenca .: Apache-2.0
+           origem ..: https://github.com/Project-MONAI/VISTA
+
+[ACEITA]   MONAI VISTA-3D - PESOS DO MODELO
+           versao ..: 1.4.0
+           licenca .: NVIDIA License, clausula 3.3
+           origem ..: https://huggingface.co/MONAI/vista3d
+           ATENCAO .: licenca com RESTRICAO DE USO
+                      Uso NAO COMERCIAL: pesquisa ou avaliacao, apenas.
+                      Mais estreito que "sem fins lucrativos" - servico
+                      publico em atendimento de rotina NAO esta coberto
+                      por ser publico.
+                      Leia antes de aceitar. Se for impeditiva para o
+                      seu servico, o caminho nao e um pacote menor: e nao
+                      usar este aplicativo.
+
+----------------------------------------------------------------
+
+Nao ha componente opcional: ou o pacote e montado inteiro, ou nao e montado.

@@ -1,0 +1,28 @@
+#!/bin/sh
+# GUARDA: liga-se uma vez por clone (git config core.hooksPath .githooks); roda so a varredura [5b] do tools/check_project.py, sobre o conteudo do stage.
+# GUARDA: na duvida recusa: sem Python ou sem ler o stage, o commit nao passa.
+# GUARDA: cada Python tem de responder antes de ser usado; o python3 do PATH pode ser o atalho da loja do Windows, que abre a loja em vez de rodar.
+# GUARDA: sh, LF e ASCII puro: o Git for Windows roda ganchos com o sh dele, e um CR no fim da linha quebra o interpretador.
+
+raiz=$(git rev-parse --show-toplevel) || exit 1
+varredura="$raiz/tools/check_project.py"
+teste='import sys; sys.exit(0 if sys.version_info >= (3, 6) else 1)'
+
+for c in "$raiz/.venv/Scripts/python.exe" "$raiz/.venv/bin/python"; do
+  if [ -x "$c" ] && "$c" -c "$teste" >/dev/null 2>&1; then
+    exec "$c" "$varredura" --paciente-no-stage
+  fi
+done
+if command -v py >/dev/null 2>&1 && py -3 -c "$teste" >/dev/null 2>&1; then
+  exec py -3 "$varredura" --paciente-no-stage
+fi
+for c in python python3; do
+  if command -v "$c" >/dev/null 2>&1 && "$c" -c "$teste" >/dev/null 2>&1; then
+    exec "$c" "$varredura" --paciente-no-stage
+  fi
+done
+
+echo "pre-commit: nao achei um Python 3 que responda (tentei o .venv do" >&2
+echo "clone, py -3, python e python3). O commit foi RECUSADO porque a" >&2
+echo "checagem de dado de paciente nao rodou." >&2
+exit 1
