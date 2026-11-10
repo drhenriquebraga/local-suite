@@ -456,6 +456,8 @@ def montar(app, cfg=None):
             raise HTTPException(403, 'Origem não permitida.')
 
     def public_status():
+        from radai_plugin_setup import last_result
+
         current = entry['installation']
         consent = provider.consent_status()
         return {'plugin_id': PLUGIN_ID, 'host_pid': os.getpid(), 'state': current['state'],
@@ -467,35 +469,14 @@ def montar(app, cfg=None):
                 'release_check': entry.get('release_check'),
                 'verification': dict(entry.get('verification') or {}),
                 'update': provider.status(),
+                'last_result': last_result(suite_root, PLUGIN_ID),
                 'consent': {'policy': provider.consent_policy(),
                             'installation_accepted': consent.get('installation_accepted') is True,
                             'first_use_accepted': consent.get('first_use_accepted') is True}}
 
     def landing():
-        import html
-        import radai_menu
-        import radai_modules
-        status = public_status()
-        states = {'absent': 'O plugin NEURO RT ainda não está instalado.',
-                  'failed': 'O plugin não pôde ser carregado.',
-                  'incompatible': 'Esta versão requer outro Local Suite.',
-                  'checking': 'Verificando a instalação do NEURO RT.',
-                  'loading': 'Conectando o NEURO RT à suíte.',
-                  'downloading': 'Baixando os arquivos do plugin.',
-                  'preparing': 'Preparando o plugin.',
-                  'activating': 'Ativando o plugin.'}
-        message = states.get(status['state'], 'O plugin aguarda ativação.')
-        content = ('<section class="md-pg"><h1>NEURO RT</h1><p role="status">' +
-                   html.escape(message) + '</p><p>' + html.escape(status['reason']) + '</p>')
         import radai_plugin_setup_ui
-        content += (radai_plugin_setup_ui.controls() +
-                    '<p><a href="/">Voltar à suíte</a></p></section>')
-        script = radai_plugin_setup_ui.scripts()
-        page = ('<!doctype html><html><head><meta charset="utf-8">'
-                '<meta name="viewport" content="width=device-width,initial-scale=1">'
-                '<title>NEURO RT · Local Suite</title><style>' + radai_modules.CSS +
-                '</style></head><body>' + content + script + '</body></html>')
-        return radai_menu.aplicar(page, 'neuro')
+        return radai_plugin_setup_ui.landing('neuro')
 
     @app.get('/api/plugins/neuro-rt')
     def status(request: Request):
@@ -560,6 +541,40 @@ def montar(app, cfg=None):
         entry.update(release_check=result, release_checked_at=time.monotonic())
         return JSONResponse(result, headers={'Cache-Control': 'no-store'})
 
+    def remember_source(folder, description, source_format):
+        now = time.monotonic()
+        entry['local_sources'] = {k: v for k, v in entry['local_sources'].items() if now - v['checked_at'] <= 900}
+        if len(entry['local_sources']) >= 8:
+            entry['local_sources'].pop(next(iter(entry['local_sources'])))
+        source_id = secrets.token_urlsafe(24)
+        entry['local_sources'][source_id] = {'folder': folder, 'description': description, 'checked_at': now}
+        visible = {k: description[k] for k in ('version', 'kind', 'size', 'offline_ready', 'summary') if k in description}
+        return JSONResponse(dict(visible, source_id=source_id, format=source_format), headers={'Cache-Control': 'no-store'})
+
+    @app.post('/api/plugins/neuro-rt/connectivity')
+    async def connectivity(request: Request):
+        from radai_plugin_sources import connectivity as probe
+
+        authorize(request)
+        return await probe(radai_neuro_install.lookup_origin)
+
+    @app.post('/api/plugins/neuro-rt/local/upload')
+    async def upload_setup(request: Request):
+        import zipfile
+        from radai_plugin_sources import SetupUploadError, receive_setup
+
+        authorize(request)
+        try:
+            description = await receive_setup(request, suite_root, PLUGIN_ID, radai_neuro_install.inspect_local_zip,
+                                              radai_neuro_install._load_private_installer().MAX_SETUP_SIZE)
+            _version(description.get('version'))
+        except SetupUploadError as error:
+            raise HTTPException(error.status, {'code': error.code, 'message': str(error)}) from None
+        except (OSError, ValueError, TypeError, KeyError, UnicodeError, zipfile.BadZipFile) as error:
+            code = 'PACKAGE_UNTRUSTED' if getattr(error, 'source_hint', '') == 'update_suite' else 'PACKAGE_INVALID'
+            raise HTTPException(400, {'code': code, 'message': 'Selecione o ZIP autorizado do SETUP do NEURO RT.'}) from None
+        return remember_source(description['source_folder'], description, 'setup_zip')
+
     @app.post('/api/plugins/neuro-rt/local/inspect')
     async def inspect_local(request: Request):
         authorize(request)
@@ -582,14 +597,8 @@ def montar(app, cfg=None):
                 hint = 'prepare_again'
             raise HTTPException(400, {'source_hint': hint,
                 'message': 'O pacote local não pôde ser confirmado. Selecione a pasta completa de um instalador ou bundle compatível do NEURO RT.'})
-        now = time.monotonic()
-        entry['local_sources'] = {k: v for k, v in entry['local_sources'].items() if now - v['checked_at'] <= 900}
-        if len(entry['local_sources']) >= 8:
-            entry['local_sources'].pop(next(iter(entry['local_sources'])))
-        source_id = secrets.token_urlsafe(24)
-        entry['local_sources'][source_id] = {'folder': folder, 'description': description, 'checked_at': now}
-        visible = {k: description[k] for k in ('version', 'kind', 'size', 'offline_ready', 'summary') if k in description}
-        return JSONResponse(dict(visible, source_id=source_id), headers={'Cache-Control': 'no-store'})
+        source_format = 'offline_bundle' if description.get('kind') == 'offline_bundle' else 'setup_folder'
+        return remember_source(folder, description, source_format)
 
     @app.post('/api/plugins/neuro-rt/install')
     async def install(request: Request):

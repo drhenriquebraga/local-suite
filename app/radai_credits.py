@@ -32,11 +32,11 @@ except Exception:
 
 _CABECA = u"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <title>Créditos e licenças · Radioterapia.AI</title><style>""" + _FOLHA + u"""
-</style></head><body><header class="rc-topo"><a class="rc-marca" href="/" title="Radioterapia.AI Local"><span class="rc-nome">radioterapia<span class="g">.ai</span></span><span class="rc-sub" data-radai-frase>Local Suite</span></a><span class="rc-seta">&#8594;</span><span class="rc-tela">Créditos e licenças</span><div class="dir"><a class="rc-voltar" href="/">&#8592; Voltar ao menu</a></div></header>
+</style></head><body><header class="rc-topo"><a class="rc-marca" href="/" title="Radioterapia.AI Local"><span class="rc-nome">radioterapia<span class="g">.ai</span></span><span class="rc-sub" data-radai-frase>Local Suite</span></a><span class="rc-seta">&#8594;</span><span class="rc-tela" data-radai-frase>Créditos e licenças</span><div class="dir"><a class="rc-voltar" href="/">&#8592; Voltar ao menu</a></div></header>
 <div class="env">
 <div class="rc-capa">
  <span class="rc-chip"><i>§</i> Atribuição</span>
- <h1>Créditos e <span>licenças</span></h1>
+ <h1>Créditos e licenças</h1>
  <p class="rc-frase">Quem reconhece o órgão é software de terceiro. Aqui está quem.</p>
  <div class="rc-risca"></div>
 </div>
@@ -57,7 +57,7 @@ responsabilidade nossa por causa disso.</p>
 _RODAPE = u"""</div>
 <footer class="decl"><span class="m"></span>
 <span><b>Ferramenta de apoio. Não validada para uso clínico.</b>
-Toda saída é rascunho sujeito a revisão médica.</span></footer>
+<span data-radai-frase>Toda saída é rascunho sujeito a revisão médica.</span></span></footer>
 </body></html>"""
 
 _SEM_NOTICE = u"""<div class="cx falta">

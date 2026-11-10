@@ -214,6 +214,18 @@ CHAVES_OPCIONAIS_NEURO = frozenset((
 CHAVES_OPCIONAIS_NEURO = CHAVES_OPCIONAIS_NEURO | frozenset(('Resolução da projeção', 'A resolução da projeção muda a amostragem da imagem. As marcações mantêm a mesma posição física.', 'A sugestão geométrica exige revisão.', 'Material de estudo · 100% local. Nenhuma imagem sai desta rede.'))
 CHAVES_OPCIONAIS_LUNG = frozenset(('Rastreio populacional de nódulos', 'Processamento local · revisão humana', 'O modelo local int4 pode omitir ou inventar achados. A quantização reduz o tamanho e pode alterar o texto. Versões menos comprimidas existem; superioridade clínica não foi medida aqui.', 'GPU com pelo menos 6 GB e WebGPU são requisitos do piloto. Sem nuvem nem fallback CPU. Cada tentativa termina em até uma hora; pode falhar ou ser truncada.', 'Os arquivos são rascunhos novos: PDF DICOM e SR PRELIMINARY/UNVERIFIED. Os contornos continuam UNAPPROVED. O NLP lê somente o próprio rascunho.', 'Pré-laudo experimental — exige revisão médica.'))
 
+CHAVES_OPCIONAIS_APLICADOR = frozenset((
+    'a caixa no MPR, os canais sobre a pele, e a ficha de conferência',
+    'Escolha a TC que contém a região de contato do aplicador.',
+    'paciente, caixa e aplicador',
+    'só o aplicador',
+    'Desnível alternado (mm)',
+    'Zero mantém um nível. Um valor positivo afasta da pele os canais pares.',
+    'Revisar bloqueio do aplicador',
+    'Manter o desenho',
+    'Aplicar ajuste',
+))
+
 
 def _texto_de_tela():
     import radai_phrases as F
@@ -288,7 +300,7 @@ NAO_TRADUZ = (
     u"3D Printed Bolus", u"3D Printed", u"Bolus", u"STL", u"LPS",
     u"Radioterapia.AI Local Suite", u"Henrique Braga",
     u"LAO 0°", u"CRA 0°", u"REC 00:00",
-    u"Eclipse / Monaco", u"Xio / Focal",
+    u"Eclipse / Monaco", u"Xio / Focal", u"← LUNG RT", u"☢ radioterapia",
 )
 
 INLINE = u"b|em|strong|code|small|sup|sub|u|kbd|abbr|mark"
@@ -307,7 +319,7 @@ def _frases_visiveis(pagina):
         f = F.normalizar(pedaco)
         if len(f) < 4 or not re.search(u"[A-Za-zÀ-ÿ]", f):
             continue
-        if f in NAO_TRADUZ:
+        if f in NAO_TRADUZ or re.fullmatch(r"(?:RAO|LAO|CRA|CAU) \d+°?|\d+ mm", f):
             continue
         if len(f.split()) < 2 and f.lower() not in _UMA_PALAVRA:
             continue
@@ -327,7 +339,7 @@ TELAS_DA_MAO = (
     ("/vigia", "radai_watcher", "PAGE", "vigia"),
     ("/bridge/laudo", "radai_bridge", "pagina", "bridge_laudo"),
     ("/bridge/elastic", "radai_elastic_screen", "pagina", "elastic_fusao"),
-    ("/bolus/aplicador", "radai_bolus_screen", "pagina", "bolus_aplicador", {"peca": "aplicador"}),
+    ("/bolus/aplicador", "radai_bolus_screen", "@route", "bolus_aplicador"),
     ("/lung/nodulos", "radai_lung_screen", "@route", "lung_nodulos"),
     ("/lung/4d", "radai_lung_screen", "@route", "lung_4d"),
     ("/bolus/gerar", "radai_bolus_screen", "pagina", "bolus_gerar"),
@@ -345,16 +357,14 @@ TELAS_DA_MAO = (
 )
 
 ROTAS_MONTADAS = ("/", "/suite", "/autocontorno", "/config",
-                  "/bridge", "/recon3d", "/neuro", "/elastic", "/bolus")
+                  "/bridge", "/recon3d", "/neuro", "/elastic", "/bolus",
+                  "/diagnostico", "/creditos")
 
 FORA_DA_MEDIDA = {
     "/termos": u"documento legal — não se traduz por dicionário",
     "/politica-privacidade": u"documento legal — idem",
     "/bibliografia": u"229 frases, 225 delas citação bibliográfica",
     "/torax": u"responde 410 — o módulo saiu para projeto próprio",
-    "/diagnostico": u"montada dentro da rota, e ainda depende do parâmetro "
-                    u"`nu`",
-    "/creditos": u"monta, mas 30 de 43 frases sem chave — dívida declarada",
 }
 
 
@@ -457,6 +467,8 @@ def _telas():
         saida.append((u"config",
                       radai_menu.aplicar(radai_panel.PAGINA_CONFIG, "config",
                                          com_tarefas=False)))
+        saida.append((u"diagnostico",
+                      radai_menu.aplicar(radai_panel.PAGINA_LOG, "diagnostico")))
     except Exception as e:
         checar(u"as telas do painel montam", False, str(e)[:70])
     try:
@@ -479,7 +491,11 @@ def _telas():
             if alvo == "@route":
                 from fastapi import FastAPI
                 app = FastAPI()
-                m.montar(app, {})
+                if _rota == "/bolus/aplicador":
+                    from radai_panel import _montar_bolus
+                    _montar_bolus(app, m, None)
+                else:
+                    m.montar(app, {})
                 bruto = next(r.endpoint() for r in app.routes if r.path == _rota)
             else:
                 bruto = getattr(m, alvo)
@@ -603,10 +619,9 @@ def teste_toda_frase_tem_chave():
         faltando += len(sem)
         if not frases:
             continue
-        parte = len(sem) / float(len(frases))
-        checar(u"[%s] a maioria das frases tem chave (%d de %d)"
+        checar(u"[%s] cobertura das frases da tela (%d de %d)"
                % (chave, len(frases) - len(sem), len(frases)),
-               parte <= 0.25,
+               not sem,
                u"sem chave: " + u" | ".join(f[:44] for f in sem[:4]))
     checar(u"a checagem viu frase de verdade", total > 120, str(total))
     print(u"         · %d de %d frases com chave" % (total - faltando, total))
@@ -625,6 +640,33 @@ PAYLOADS = (
      ("nome", "rotulo", "rotulo_curto", "ajuda"), "todas"),
     ("json:aceite", "radai_consent", "PONTOS", (1, 2), "todas"),
 )
+
+
+def teste_textos_do_diagnostico_e_creditos():
+    from fastapi import FastAPI
+    import radai_credits
+    import radai_panel
+    import radai_phrases as F
+
+    secao(u"diagnóstico independente, diagnóstico embutido e moldura dos créditos")
+    app = FastAPI()
+    radai_panel.montar(app)
+    pagina = next(r.endpoint(nu=1) for r in app.routes if r.path == "/diagnostico")
+    checar(u"o diagnóstico embutido carrega o tradutor",
+           'src="/radai-idiomas.js"' in pagina)
+    chaves = (
+        u"atualizar sozinho",
+        u"{0} linha(s) em memória · arquivo: {1}",
+        u"Créditos e licenças",
+        u"O arquivo NOTICE não foi encontrado nesta instalação.",
+        u"Toda saída é rascunho sujeito a revisão médica.",
+    )
+    linguas = F.construir()
+    for chave in chaves:
+        checar(u"os onze idiomas têm " + chave,
+               all(chave in d for d in linguas.values()))
+    checar(u"o título dos créditos aparece como uma frase",
+           u"<h1>Créditos e licenças</h1>" in radai_credits.pagina())
 
 
 def _frases_do_payload(itens, campos):
@@ -814,8 +856,12 @@ def teste_chave_viva():
     diferidas = (CHAVES_OPCIONAIS_NEURO if _fonte_neuro() is None else frozenset())
     if _fonte_lung() is None:
         diferidas = diferidas | CHAVES_OPCIONAIS_LUNG
+    from inspect import signature
+    import radai_bolus_screen
+    if 'peca' not in signature(radai_bolus_screen.pagina).parameters:
+        diferidas = diferidas | CHAVES_OPCIONAIS_APLICADOR
     if diferidas:
-        print(u"  OPCIONAL: vivacidade de %d chaves Nidus adiada para RADAI_NEURO_SOURCE; catálogo continua medido." % len(diferidas))
+        print(u"  OPCIONAL: %d chaves de ferramentas ausentes no conjunto em teste." % len(diferidas))
     mortas = [F.normalizar(l[0]) for l in F.TABELA
               if F.normalizar(l[0]) not in diferidas
               and F.normalizar(l[0]) not in tela
@@ -2270,6 +2316,7 @@ def main():
     teste_neuro_opcional()
     teste_rotas_medidas()
     teste_toda_frase_tem_chave()
+    teste_textos_do_diagnostico_e_creditos()
     teste_frase_que_chega_por_json()
     teste_nao_traduzir()
     teste_js()

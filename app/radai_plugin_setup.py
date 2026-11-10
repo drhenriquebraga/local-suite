@@ -58,6 +58,32 @@ def _write(path, value):
         Path(temporary).unlink(missing_ok=True)
 
 
+class InvalidReadiness(ValueError):
+    pass
+
+
+class SetupError(ValueError):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.error_code = code
+
+
+def _external_root(root, plugin_id):
+    return _plain(Path(root) / 'Plugins' / PLUGINS[plugin_id][0] / 'staging/external')
+
+
+def last_result(root, plugin_id):
+    try:
+        return _json(_external_root(root, plugin_id) / 'latest-result.json')
+    except (OSError, ValueError):
+        return None
+
+
+def _finish(work, result):
+    _write(work / 'result.json', result)
+    _write(work.parent / 'latest-result.json', result)
+
+
 def _protect(pid):
     import radai_pulso
     radai_pulso.poupar(pid)
@@ -103,7 +129,7 @@ class ExternalInstaller:
             if self.request:
                 return dict(self.request)
             transaction = uuid.uuid4().hex
-            work = _plain(self.root / ('Plugins/' + PLUGINS[self.plugin_id][0] + '/staging/external') / transaction)
+            work = _plain(_external_root(self.root, self.plugin_id) / transaction)
             work.mkdir(parents=True, exist_ok=False)
             plan = work / 'plan.json'
             nonce = secrets.token_hex(32)
@@ -113,11 +139,16 @@ class ExternalInstaller:
             _write(plan, envelope)
             digest = hashlib.sha256(plan.read_bytes()).hexdigest()
             source = Path(__file__).resolve()
-            scripts = (source.parent.parent / 'packager/PLUGIN_INSTALL.ps1',
+            scripts = (source.parent / 'maintenance/PLUGIN_INSTALL.ps1',
+                       source.parent.parent / 'packager/PLUGIN_INSTALL.ps1',
                        source.parent / 'packager/PLUGIN_INSTALL.ps1')
             script = next((p for p in scripts if p.is_file()), None)
             if script is None:
-                raise ValueError('Atualize a suíte para instalar o plugin.')
+                code = 'HOST_INSTALLER_MISSING'
+                message = 'O iniciador do PowerShell está ausente. Repare a instalação da Local Suite com o SETUP da suíte.'
+                _message(work, message)
+                _finish(work, _diagnostic(work, self.plugin_id, code, 'handoff'))
+                raise SetupError(code, message)
             command = [_powershell(), '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
                        str(script), '-PluginName', PLUGINS[self.plugin_id][0], '-PythonPath', sys.executable, '-WorkerPath', str(source),
                        '-PlanPath', str(plan), '-PlanSha256', digest]
@@ -133,17 +164,22 @@ class ExternalInstaller:
                 worker_pid = self._ready(process, work, nonce)
                 self.protect(worker_pid)
                 self.schedule(self.shutdown)
-            except Exception:
+            except Exception as error:
                 try:
                     _write(work / 'cancel.json', {'nonce': nonce})
                 except (OSError, ValueError):
                     pass
-                if process is not None and process.poll() is None:
+                if isinstance(error, InvalidReadiness) and process is not None and process.poll() is None:
                     try:
                         process.terminate()
                     except OSError:
                         pass
-                raise ValueError('O instalador externo não confirmou prontidão. A suíte continua aberta.') from None
+                code = ('INSTALLER_INVALID_READY' if isinstance(error, InvalidReadiness) else
+                        'INSTALLER_NOT_READY' if process is not None else 'INSTALLER_LAUNCH_FAILED')
+                message = 'O instalador externo não confirmou prontidão. A suíte continua aberta.'
+                _message(work, message + ' Código: ' + code)
+                _finish(work, _diagnostic(work, self.plugin_id, code, 'handoff'))
+                raise SetupError(code, message) from None
             self.request = {'ok': True, 'scheduled': True, 'transaction_id': transaction,
                             'state': 'external_install', 'pid': os.getpid()}
             return dict(self.request)
@@ -155,12 +191,15 @@ class ExternalInstaller:
                 break
             path = work / 'ready.json'
             if path.is_file():
-                value = _json(path)
+                try:
+                    value = _json(path)
+                except (OSError, ValueError) as error:
+                    raise InvalidReadiness('Sinal do instalador ilegível.') from error
                 if (value.get('ready') is True and value.get('nonce') == nonce and
                         value.get('supervisor_pid') == process.pid and
                         type(value.get('worker_pid')) is int and value['worker_pid'] > 0):
                     return value['worker_pid']
-                raise ValueError('Sinal do instalador inválido.')
+                raise InvalidReadiness('Sinal do instalador inválido.')
             time.sleep(.05)
         raise ValueError('O instalador não respondeu.')
 
@@ -208,6 +247,12 @@ def _message(work, text):
         pass
 
 
+def _diagnostic(work, plugin_id, code='', stage=''):
+    return {'ok': False, 'reopened': False, 'error_code': code, 'stage': stage,
+            'transaction_id': work.name, 'log': (Path('Plugins') / PLUGINS[plugin_id][0] /
+                       'staging/external' / work.name / 'progress.log').as_posix()}
+
+
 def run_worker(plan_path, expected_sha, supervisor_pid, *, runner=None, wait_old=None, reopen=None):
     plan_path = _plain(plan_path)
     if (not re.fullmatch('[0-9a-f]{64}', expected_sha) or not plan_path.is_file() or
@@ -243,11 +288,11 @@ def run_worker(plan_path, expected_sha, supervisor_pid, *, runner=None, wait_old
     _write(work / 'ready.json', {'ready': True, 'nonce': envelope['nonce'],
                                 'supervisor_pid': supervisor_pid, 'worker_pid': os.getpid()})
     _message(work, 'Aguardando o encerramento controlado da Local Suite...')
-    result = {'ok': False, 'reopened': False, 'error_code': '', 'transaction_id': envelope['transaction_id']}
+    result = _diagnostic(work, envelope['plugin_id'], stage='handoff')
     if not (wait_old or _wait_old)(envelope['old_pid'], cancelled):
         result['error_code'] = 'HOST_STILL_RUNNING'
         _message(work, 'O app não encerrou. Nenhuma instalação foi executada.')
-        _write(work / 'result.json', result)
+        _finish(work, result)
         return 1
     def progress(value):
         stages = {'downloading': 'Baixando componentes necessários', 'extracting': 'Copiando arquivos',
@@ -258,6 +303,7 @@ def run_worker(plan_path, expected_sha, supervisor_pid, *, runner=None, wait_old
                   'complete': 'Conferência concluída'}
         stage = stages.get(value.get('stage')) if isinstance(value, dict) else None
         if stage:
+            result['stage'] = value['stage']
             if value.get('stage') == 'resources':
                 actions = {'checking': 'Conferindo recurso', 'preparing': 'Preparando recurso',
                            'downloading': 'Baixando recurso', 'extracting': 'Extraindo componente',
@@ -281,7 +327,7 @@ def run_worker(plan_path, expected_sha, supervisor_pid, *, runner=None, wait_old
             _message(work, stage + suffix + '...')
     try:
         if cancelled():
-            raise ValueError('Instalação cancelada.')
+            raise SetupError('INSTALL_CANCELLED', 'Instalação cancelada.')
         prepared = runner(envelope['payload'], progress)
         if (not isinstance(prepared, dict) or prepared.get('state') != 'ready' or
                 not isinstance(prepared.get('active_version'), str) or
@@ -293,6 +339,7 @@ def run_worker(plan_path, expected_sha, supervisor_pid, *, runner=None, wait_old
         code = getattr(error, 'error_code', '')
         result['error_code'] = code if isinstance(code, str) and re.fullmatch('[A-Z][A-Z0-9_]{2,63}', code) else 'INSTALL_FAILED'
         _message(work, 'A instalação não foi concluída. Código: ' + result['error_code'] + '.')
+    _finish(work, result)
     _message(work, 'Reabrindo a Local Suite em uma nova janela...')
     try:
         callback = reopen or (lambda r, p, old: _reopen(r, p, old, envelope['plugin_id']))
@@ -301,7 +348,9 @@ def run_worker(plan_path, expected_sha, supervisor_pid, *, runner=None, wait_old
         result['reopened'] = False
     if not result['reopened']:
         _message(work, 'Não foi possível confirmar a nova janela. Abra o atalho Local Suite para continuar.')
-    _write(work / 'result.json', result)
+        if result['ok']:
+            result.update(error_code='REOPEN_FAILED', stage='restart')
+    _finish(work, result)
     return 0 if result['ok'] and result['reopened'] else 1
 
 

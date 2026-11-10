@@ -1849,6 +1849,12 @@ def etapa_app(ctx):
         shutil.copy2(str(origem), str(ferramentas / desinst))
         log("  maintenance/%s" % desinst)
 
+    origem_plugin = RAIZ / "packager" / "PLUGIN_INSTALL.ps1"
+    if not origem_plugin.is_file():
+        raise RuntimeError("falta packager/PLUGIN_INSTALL.ps1")
+    shutil.copy2(str(origem_plugin), str(ferramentas / origem_plugin.name))
+    log("  maintenance/%s" % origem_plugin.name)
+
     gravar_perfil(ctx)
 
     if ctx.get("instalar"):

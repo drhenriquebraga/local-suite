@@ -694,9 +694,10 @@ function _Relativos($de, $so) {
     if (-not (Test-Path -LiteralPath $de)) { return $fora }
     $raiz = (Resolve-Path -LiteralPath $de).Path.TrimEnd('\')
     foreach ($f in (Get-ChildItem -LiteralPath $de -File -Recurse -ErrorAction SilentlyContinue)) {
-        if ($so -and ($f.Extension -notin $so)) { continue }
         if ($f.FullName -like '*\__pycache__\*') { continue }
         $rel = $f.FullName.Substring($raiz.Length).TrimStart('\')
+        $iniciadorPlugin = ($rel -ieq 'maintenance\PLUGIN_INSTALL.ps1' -and $so -contains '.cmd')
+        if ($so -and ($f.Extension -notin $so) -and -not $iniciadorPlugin) { continue }
         $fora += @{ f = $f; rel = $rel }
     }
     return $fora

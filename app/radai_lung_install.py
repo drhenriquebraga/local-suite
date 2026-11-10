@@ -17,11 +17,17 @@ import zipfile
 PLUGIN_ID = 'lung-rt'
 VERSION = '1.1.0'
 CONSENT_POLICY = {'schema': 'lung-rt/consent-policy/1', 'version': '1.0', 'title': 'LUNG RT — fase de testes', 'clauses': ['LUNG RT está em fase de testes. As estruturas são sugestões UNAPPROVED e exigem revisão médica.', 'Pré-laudos experimentais podem omitir ou inventar achados e não constituem laudo final. O PDF é identificado como rascunho não verificado; o SR é PRELIMINARY/UNVERIFIED.', 'O processamento é local. NV-Reason-CT int4 requer GPU de pelo menos 6 GB e WebGPU; pode falhar ou ser truncado, com limite de uma hora.', 'O código usa MIT e os pesos NV-Reason-CT OpenMDW 1.1; cada recurso mantém sua licença. Sem serviço pago, nuvem ou fallback CPU.', 'Backup e sincronização são opcionais e devem usar uma pasta autorizada pelo serviço.'], 'digest': '5814e205a7647595e8b5ea5b29e44b7ceb988fe6953ca8e369694c9d48969918'}
-TRUSTED_CODE_INVENTORIES = frozenset(['2f14ca1784ae6465f0b7f95020a850359ac80d95b3bdbf5f67165e9c270db4d3', 'e43df36e728292003401785e8e75d1b3eadc3e9cfdd26ac31b3788a4a1269f3b'])
+TRUSTED_CODE_INVENTORIES = frozenset(['2f14ca1784ae6465f0b7f95020a850359ac80d95b3bdbf5f67165e9c270db4d3', 'e43df36e728292003401785e8e75d1b3eadc3e9cfdd26ac31b3788a4a1269f3b', 'b9de130360e87b82994c6773d6446ec71490d35fc1178ad522c9f3601e2049ad'])
 GITHUB = 'https://api.github.com/repos/drhenriquebraga/lung-rt/releases/latest'
 MIRROR = 'https://drhenriquebraga.com.br/_distribuicao/radioterapia-ai/lung-rt/atualizacoes'
 LATEST = 'LUNG_RT_SETUP_LATEST.zip'
 MAX_SETUP = 256 * 1024**2
+
+
+class LungInstallError(ValueError):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.error_code = code
 
 
 def suite_identity(root):
@@ -119,32 +125,35 @@ def _release(version, size, digest, urls, origin):
     return {'version':version,'size':size,'sha256':digest,'urls':urls,'origin':origin}
 
 
+def lookup_origin(source, fetch=_remote_json):
+    if source == 'github':
+        data = fetch(GITHUB)
+        if data.get('draft') or data.get('prerelease'):
+            raise ValueError('Release ainda não publicada.')
+        version = str(data['tag_name']).lstrip('v')
+        asset = next(a for a in data.get('assets', ()) if a.get('name') == LATEST)
+        url = asset['browser_download_url']
+        if not url.startswith('https://github.com/drhenriquebraga/lung-rt/releases/download/'):
+            raise ValueError('Origem GitHub inválida.')
+        return _release(version, asset['size'], str(asset.get('digest','')).removeprefix('sha256:'),
+                        [url, MIRROR+'/v'+version+'/'+LATEST], source)
+    data = fetch(MIRROR+'/latest.json')
+    if data.get('schema') != 'lung-rt-update/1':
+        raise ValueError('Manifesto do espelho inválido.')
+    version = data['version']
+    return _release(version,data['size'],data['sha256'],[MIRROR+'/v'+version+'/'+LATEST],source)
+
+
 def check_latest(installed=None):
     errors = []
     for source in ('github', 'mirror'):
         try:
-            if source == 'github':
-                data = _remote_json(GITHUB)
-                if data.get('draft') or data.get('prerelease'):
-                    raise ValueError('Release ainda não publicada.')
-                version = str(data['tag_name']).lstrip('v')
-                asset = next(a for a in data.get('assets', ()) if a.get('name') == LATEST)
-                url = asset['browser_download_url']
-                if not url.startswith('https://github.com/drhenriquebraga/lung-rt/releases/download/'):
-                    raise ValueError('Origem GitHub inválida.')
-                release = _release(version, asset['size'], str(asset.get('digest','')).removeprefix('sha256:'),
-                    [url, MIRROR+'/v'+version+'/'+LATEST], source)
-            else:
-                data = _remote_json(MIRROR+'/latest.json')
-                if data.get('schema') != 'lung-rt-update/1':
-                    raise ValueError('Manifesto do espelho inválido.')
-                version = data['version']
-                release = _release(version,data['size'],data['sha256'],[MIRROR+'/v'+version+'/'+LATEST],source)
+            release = lookup_origin(source, _remote_json)
             release['state'] = 'available' if not installed or _version(release['version']) > _version(installed) else 'current'
             return release
         except (OSError, ValueError, KeyError, StopIteration, TypeError):
             errors.append(source)
-    return {'state':'unavailable','reason':'Não foi possível consultar os dois servidores. Use um instalador ou pacote offline de uma pasta.','failed_origins':errors}
+    return {'state':'unavailable','reason':'Não foi possível consultar os dois servidores. Use um SETUP local ou um bundle offline.','failed_origins':errors}
 
 
 def _download(urls, destination, size, digest, progress=None, cancelled=None):
@@ -184,7 +193,7 @@ def _download(urls, destination, size, digest, progress=None, cancelled=None):
         finally:
             if temporary.exists():
                 temporary.unlink()
-    raise ValueError('Não foi possível baixar um arquivo íntegro dos servidores. Use a pasta offline.')
+    raise LungInstallError('DOWNLOAD_FAILED', 'Não foi possível baixar um arquivo íntegro. Use o bundle offline.')
 
 
 class Package:
@@ -192,18 +201,21 @@ class Package:
         self.path = Path(path)
         self.zip = zipfile.ZipFile(self.path) if self.path.is_file() else None
         if self.zip:
-            seen = set()
-            for item in self.zip.infolist():
-                name = item.filename.rstrip('/') if item.is_dir() else item.filename
-                _inside(Path(tempfile.gettempdir())/'lung-path-check', name)
-                folded = name.casefold()
-                if folded in seen or stat.S_ISLNK(item.external_attr>>16) or item.flag_bits & 1:
-                    self.zip.close()
-                    raise ValueError('Pacote contém entradas inválidas.')
-                seen.add(folded)
-            if len(seen) > 20000 or sum(i.file_size for i in self.zip.infolist()) > MAX_SETUP:
+            try:
+                entries = self.zip.infolist()
+                if len(entries) > 20000 or sum(i.file_size for i in entries) > MAX_SETUP:
+                    raise ValueError('O instalador excede o limite permitido.')
+                seen = set()
+                for item in entries:
+                    name = item.filename.rstrip('/') if item.is_dir() else item.filename
+                    _inside(Path(tempfile.gettempdir())/'lung-path-check', name)
+                    folded = name.casefold()
+                    if folded in seen or stat.S_ISLNK(item.external_attr>>16) or item.flag_bits & 1:
+                        raise ValueError('Pacote contém entradas inválidas.')
+                    seen.add(folded)
+            except BaseException:
                 self.zip.close()
-                raise ValueError('O instalador excede o limite permitido.')
+                raise
 
     def read(self,name,limit=8*1024**2):
         if self.zip:
@@ -223,11 +235,11 @@ class Package:
 def _inventory(package):
     raw = package.read('release-manifest.json')
     digest = hashlib.sha256(raw).hexdigest()
-    if digest not in TRUSTED_CODE_INVENTORIES:
-        raise ValueError('Este instalador requer uma versão mais recente da Local Suite. Atualize a suíte primeiro.')
     manifest = json.loads(raw)
-    if manifest.get('schema') != 'lung-rt/release-package/1' or manifest.get('plugin_id') != PLUGIN_ID:
-        raise ValueError('O pacote não é do LUNG RT.')
+    if not isinstance(manifest, dict) or manifest.get('schema') != 'lung-rt/release-package/1' or manifest.get('plugin_id') != PLUGIN_ID:
+        raise LungInstallError('WRONG_PLUGIN', 'Selecione um SETUP ou bundle do LUNG RT.')
+    if digest not in TRUSTED_CODE_INVENTORIES:
+        raise LungInstallError('PACKAGE_UNTRUSTED', 'O inventário não está autorizado nesta versão da Local Suite.')
     _version(manifest.get('version'))
     files = manifest.get('files')
     if not isinstance(files,list) or not files:
@@ -246,6 +258,26 @@ def _inventory(package):
     return manifest,digest,raw
 
 
+def _offline(root, digest):
+    if not root.is_dir():
+        return False
+    marker = _inside(root, '.lung-offline-preparation.json')
+    if marker.is_file():
+        record = _json(marker, 8192)
+        if (record.get('schema') != 'lung-rt/offline-preparation/1' or
+                record.get('complete') is not True or record.get('code_pin') != digest):
+            raise LungInstallError('BUNDLE_INCOMPLETE', 'Termine de preparar o bundle no START HERE.')
+        return True
+    return False
+
+
+def _code_bytes(package, entry):
+    data = package.read(entry['path'], limit=entry['size'])
+    if len(data) != entry['size'] or hashlib.sha256(data).hexdigest() != entry['sha256']:
+        raise LungInstallError('PACKAGE_INTEGRITY', 'A integridade do código do LUNG RT não confere.')
+    return data
+
+
 def inspect_local_source(folder):
     root = Path(str(folder)).absolute()
     if root.is_dir() and not (root/'release-manifest.json').is_file():
@@ -257,8 +289,12 @@ def inspect_local_source(folder):
     try:
         package = Package(root)
         manifest,digest,_ = _inventory(package)
+        offline = _offline(root, digest)
+        for entry in manifest['files']:
+            _code_bytes(package, entry)
         return {'state':'ready','source':'local','path':str(root),'version':manifest['version'],
-                'inventory_sha256':digest,'offline':root.is_dir() and (root/'resources').is_dir()}
+                'inventory_sha256':digest,'offline':offline,
+                'format':'offline_bundle' if offline else 'setup_zip' if root.is_file() else 'setup_folder'}
     except (zipfile.BadZipFile, KeyError, UnicodeError, TypeError):
         raise ValueError('Pacote LUNG RT incompleto ou corrompido. Selecione a pasta completa do instalador.') from None
     finally:
@@ -311,9 +347,7 @@ def run_external(plan, progress, *, suite_root, host_python):
         stage = _inside(plugin,'staging/code-'+uuid.uuid4().hex)
         stage.mkdir(parents=True)
         for count,entry in enumerate(inventory['files'],1):
-            data = package.read(entry['path'],limit=entry['size'])
-            if len(data) != entry['size'] or hashlib.sha256(data).hexdigest() != entry['sha256']:
-                raise ValueError('Integridade do código não confirmada.')
+            data = _code_bytes(package, entry)
             dest = _inside(stage,entry['path'][5:])
             dest.parent.mkdir(parents=True,exist_ok=True)
             dest.write_bytes(data)
@@ -325,7 +359,7 @@ def run_external(plan, progress, *, suite_root, host_python):
         stamp = (root/'entrega.txt').read_text(encoding='utf-8-sig')
         host_version = next((line.split('=',1)[1].strip() for line in stamp.splitlines() if line.startswith('VERSAO=')), '')
         if _version(host_version) < _version(module.get('host_min_version','8.14')):
-            raise ValueError('Atualize a Local Suite para a versão exigida pelo LUNG RT.')
+            raise LungInstallError('HOST_INCOMPATIBLE', 'Atualize a Local Suite para a versão exigida pelo LUNG RT.')
         previous = {}
         pointer = _inside(plugin,'installation.json')
         if pointer.is_file():
@@ -364,6 +398,9 @@ def run_external(plan, progress, *, suite_root, host_python):
                             raise ValueError('Recurso offline mudou durante a cópia.')
                         os.replace(temporary,dest)
                 else:
+                    if plan.get('offline'):
+                        raise LungInstallError('LOCAL_RESOURCES_MISSING',
+                            'O bundle não tem os recursos de laudo. Instale sem laudos ou prepare o bundle com eles.')
                     urls = resource.get('urls') or [resource['url']]
                     _download(urls,dest,size,digest_resource,progress)
                 progress({'stage':'resources','resource_stage':'complete','component':resource.get('id','nv-reason-ct')})

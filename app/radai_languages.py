@@ -163,6 +163,11 @@ try:
     import radai_phrases
     FRASES = radai_phrases.construir()
     normalizar = radai_phrases.normalizar
+    from radai_plugin_setup_i18n import TABELA as FRASES_INSTALACAO
+
+    for linha in FRASES_INSTALACAO:
+        for codigo, traducao in zip(radai_phrases.CODIGOS, linha[1:]):
+            FRASES[codigo][normalizar(linha[0])] = normalizar(traducao)
 except Exception:
     FRASES = {}
 

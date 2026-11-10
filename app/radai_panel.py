@@ -1511,7 +1511,7 @@ border-radius:var(--r-md);padding:7px 12px;font-size:12px;cursor:pointer}
 label.chk{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:5px}
 </style></head><body><div class="wrap">
 <div class="rt-topbar">
- <div class="rt-logo">&#9762; radioterapia<span class="ai">.ai</span> · Diagnóstico</div>
+ <div class="rt-logo">&#9762; radioterapia<span class="ai">.ai</span> · <span data-radai-frase>Diagnóstico</span></div>
  <div><a class="rt-gear" href="/config">&#9881; Configurações</a>
   <a class="rt-gear" href="/">&#8592; Menu</a></div>
 </div>
@@ -1533,7 +1533,7 @@ label.chk{font-size:12px;color:var(--text-muted);display:flex;align-items:center
   <button onclick="copiar()">Copiar tudo</button>
   <button onclick="carregar()">Recarregar o log</button>
  </div>
- <div id="log"></div>
+ <div id="log" dir="ltr" data-radai-t="1"></div>
  <div class="sub" id="logmeta" style="margin:8px 0 0"></div>
 </div>
 
@@ -1564,7 +1564,10 @@ function carregar(){fetch('/api/diagnostico').then(function(r){return r.json()})
  LINHAS=d.log||[];
  el('amb').innerHTML=linhas(d.ambiente);
  el('cfg').innerHTML=linhas(d.config);
- el('logmeta').textContent=(d.log||[]).length+' linha(s) em memória · arquivo: '+(d.arquivo||'—')
+ var modelo='{0} linha(s) em memória · arquivo: {1}';
+ if(window.radaiFrase) modelo=window.radaiFrase(modelo);
+ var valores=[LINHAS.length,d.arquivo||'—'];
+ el('logmeta').textContent=modelo.replace(/[{]([01])[}]/g,function(_,i){return valores[i]})
   +(d.bytes_arquivo?(' ('+Math.round(d.bytes_arquivo/1024)+' KB)'):'');
  pinta();
 })}
@@ -1763,6 +1766,28 @@ def linhas_do_registro_para_arranque(base=""):
     return [s]
 
 
+def _montar_bolus(app, modulo, registrar):
+    from fastapi.responses import HTMLResponse
+
+    modulo.montar(app, registrar)
+    rota_aplicador = "/bolus/aplicador"
+    if any(getattr(rota, "path", None) == rota_aplicador
+           and "GET" in (getattr(rota, "methods", None) or ())
+           for rota in app.routes):
+        return
+
+    @app.get(rota_aplicador, response_class=HTMLResponse)
+    def _aplicador_do_bolus_anterior():
+        ativar_aplicador = """<script>
+(function () {
+    var opcao = document.querySelector('input[name="bo-peca"][value="aplicador"]');
+    if (opcao && !opcao.checked) opcao.click();
+})();
+</script>"""
+        pagina = modulo.pagina().replace("</body>", ativar_aplicador + "</body>", 1)
+        return radai_menu.aplicar(pagina, "bolus_aplicador")
+
+
 def montar(app, ler_vigia=None, config=None):
     from fastapi import Request
     from fastapi.responses import HTMLResponse
@@ -1928,7 +1953,9 @@ def montar(app, ler_vigia=None, config=None):
                     mod.montar(app, ler_vigia)
                 elif nome == "radai_provenance_screen":
                     mod.montar(app, cfg)
-                elif nome in ("radai_bolus_screen", "radai_janela"):
+                elif nome == "radai_bolus_screen":
+                    _montar_bolus(app, mod, cfg.get("registrar"))
+                elif nome == "radai_janela":
                     mod.montar(app, cfg.get("registrar"))
                 elif nome == "radai_atualizar":
                     mod.montar(app, ler_vigia, cfg.get("registrar"))
@@ -2015,8 +2042,9 @@ def montar(app, ler_vigia=None, config=None):
     @app.get("/diagnostico", response_class=HTMLResponse)
     def _tela_log(nu: int = 0):
         if nu:
-            return PAGINA_LOG.replace(
-                u"</head>", u"<style>.rt-topbar{display:none}</style></head>", 1)
+            import radai_languages
+            return radai_languages.so_traduzir(PAGINA_LOG.replace(
+                u"</head>", u"<style>.rt-topbar{display:none}</style></head>", 1))
         return radai_menu.aplicar(PAGINA_LOG, "diagnostico")
 
 

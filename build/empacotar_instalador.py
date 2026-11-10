@@ -306,6 +306,7 @@ def coletar():
                 u"PAREI: falta `%s`. LICENSE e NOTICE sao condicao da "
                 u"Apache-2.0, e os tres empacotadores abortam sem eles." % a)
         itens.append((a, str(p)))
+    itens.append(("app/maintenance/PLUGIN_INSTALL.ps1", str(RAIZ / "packager/PLUGIN_INSTALL.ps1")))
     return sorted(itens)
 
 
@@ -407,7 +408,7 @@ def conferir_montado(caminho, bundle_minimo):
                            "LICENSE", "NOTICE", "PACKAGE_SIZE.txt",
                            "build/requisitos.py", "app/radai_tasks.py",
                            "app/radai_models.py",
-                           "packager/catalogo.json")
+                           "packager/catalogo.json", "app/maintenance/PLUGIN_INSTALL.ps1")
                if x not in _n and x.replace("/", "\\") not in _n]
     if _faltam:
         raise SystemExit(u"PAREI: nao consegui montar o pacote do preparador "

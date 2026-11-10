@@ -3785,6 +3785,41 @@ def teste_o_diagnostico_le_o_registro_da_regra_unica():
         os.environ.update(guardado)
 
 
+def teste_o_aplicador_abre_com_componente_antigo():
+    from fastapi import FastAPI
+    from fastapi.responses import HTMLResponse
+    from fastapi.testclient import TestClient
+    from types import SimpleNamespace
+
+    def montar(app, registrar):
+        @app.get("/bolus/gerar", response_class=HTMLResponse)
+        def gerar():
+            return pagina
+
+    pagina = ('<html><head></head><body><input name="bo-peca" '
+              'value="aplicador" type="radio"></body></html>')
+    app = FastAPI()
+    radai_panel._montar_bolus(app, SimpleNamespace(montar=montar, pagina=lambda: pagina), None)
+    client = TestClient(app)
+    legado = client.get("/bolus/gerar")
+    aplicador = client.get("/bolus/aplicador")
+    checar(u"o aplicador do componente anterior abre com a opção do aplicador",
+           aplicador.status_code == 200 and "opcao.click()" in aplicador.text
+           and 'input[name="bo-peca"][value="aplicador"]' in aplicador.text
+           and legado.text == pagina)
+
+    def montar_atual(app, registrar):
+        @app.get("/bolus/aplicador", response_class=HTMLResponse)
+        def aplicador_atual():
+            return "tela nativa"
+
+    app = FastAPI()
+    radai_panel._montar_bolus(app, SimpleNamespace(montar=montar_atual), None)
+    rotas = [rota for rota in app.routes if rota.path == "/bolus/aplicador"]
+    checar(u"a tela nativa do aplicador é registrada uma vez",
+           len(rotas) == 1 and TestClient(app).get("/bolus/aplicador").text == "tela nativa")
+
+
 def main():
     print("test_panel | acervo + mini-pagina do ContourLab + /config (cartoes de funcao)")
     guardado = os.environ.get("RADAI_CALIB_DIR")
@@ -3823,7 +3858,7 @@ def main():
               teste_reiniciar_aplica_sem_fechar_o_programa,
               teste_a_porta_e_so_a_porta,
               teste_a_porta_de_reserva_lista_todo_modulo,
-              teste_as_tres_mini_paginas,
+              teste_as_tres_mini_paginas, teste_o_aplicador_abre_com_componente_antigo,
               teste_o_torax_saiu_da_arvore,
               teste_nenhuma_pagina_busca_recurso_na_internet,
               teste_nomes_do_bridge_batem_cartao_trilha_h1,
