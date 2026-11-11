@@ -33,7 +33,7 @@ def serve(folder,port):
     radai_plugin_setup.ExternalInstaller=Installer
     app=FastAPI()
     app.state.radai_reabertura={'encerrar':lambda:None}
-    radai_lung_plugin.montar(app,{'suite_root':str(folder),'neuro_host_version':'8.19','port':port,
+    radai_lung_plugin.montar(app,{'suite_root':str(folder),'neuro_host_version':'8.20','port':port,
                                 'lung_cfg':{'ROOT':str(folder/'EMPTY-SYNTHETIC-INPUT')}})
     uvicorn.run(app,host='127.0.0.1',port=port,log_level='warning')
 
@@ -45,7 +45,7 @@ def run(bundle):
     bundle=Path(bundle).resolve()
     with tempfile.TemporaryDirectory(prefix='lung-bundle-http-synthetic-') as directory:
         folder=Path(directory)
-        (folder/'entrega.txt').write_text('PROJETO=LOCAL_SUITE\nVERSAO=8.19\n',encoding='ascii')
+        (folder/'entrega.txt').write_text('PROJETO=LOCAL_SUITE\nVERSAO=8.20\n',encoding='ascii')
         boot.ensure_base(folder,'lung-rt',installed_only=False)
         before=json.loads((folder/'Plugins/LUNG RT/installation.json').read_bytes())
         sock=socket.socket();sock.bind(('127.0.0.1',0));port=sock.getsockname()[1];sock.close()
@@ -65,7 +65,7 @@ def run(bundle):
                 try:status=request('GET','/api/plugins/lung-rt');break
                 except (OSError,http.client.HTTPException):time.sleep(.25)
             else:raise AssertionError('Synthetic server did not start')
-            assert status['code_version']=='1.1.3' and status['weights']['state']=='missing',status
+            assert status['code_version']=='1.1.4' and status['weights']['state']=='missing',status
             token=status['token']
             def chunks():
                 sent=0;checkpoint=0
@@ -91,10 +91,10 @@ def run(bundle):
             assert all(after[key]==before[key] for key in ('active_version','code_path','inventory_sha256'))
             result=request('GET','/api/plugins/lung-rt')
             assert result['weights']['state']=='ready' and result['weights']['version']=='1.1.2',result
-            assert result['code_version']=='1.1.3'
+            assert result['code_version']=='1.1.4'
             assert not (folder/'python').exists()
             assert not list((folder/'Plugins/LUNG RT/data').rglob('license.json'))
-            receipt={'code_version':'1.1.3','bundle_version':'1.1.2','zip_bytes':bundle.stat().st_size,
+            receipt={'code_version':'1.1.4','bundle_version':'1.1.2','zip_bytes':bundle.stat().st_size,
                      'http_streaming_verified':True,'network_forbidden':True,'weights_ready':True,
                      'code_preserved':True,'no_python_copy':True,'no_model_terms_fabricated':True}
             target=Path(tempfile.gettempdir())/'lung-large-bundle-v819-result.json'
