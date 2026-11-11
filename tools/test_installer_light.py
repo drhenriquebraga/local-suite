@@ -212,10 +212,12 @@ def teste_a_etapa_5_roda_de_verdade(alvo):
         u"[ACEITA] PyTorch (BSD-3)\n[ACEITA] pydicom (MIT)\n"
         u"[ACEITA] SimpleITK (Apache-2.0)\n")
 
+    env_instalado = dict(os.environ)
+    env_instalado.pop("RADAI_COMPONENTES_DIR", None)  # SETUP already merges components.
     r = subprocess.run(
         [sys.executable, os.path.join(alvo, "build", "configurar_ambiente.py"),
          "--etapas", "5", "--preparo", trab],
-        cwd=alvo, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        cwd=alvo, env=env_instalado, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     saida = r.stdout.decode("utf-8", "replace")
     checar(u"a etapa 5 termina sem erro", r.returncode == 0,
            saida[-300:])
@@ -288,6 +290,9 @@ def teste_a_etapa_5_roda_de_verdade(alvo):
 
 
 NAO_VAO_PELO_ATUALIZAR = {
+    u"tools/atualizar_v810_browser.cjs": u"browser regression runner; never executed by the installed station",
+    u"tools/plugin_operations_ui_v819_browser.cjs": u"browser regression runner; never executed by the installed station",
+    u"tools/update_sources_v819_browser.cjs": u"browser regression runner; never executed by the installed station",
     u"VERSION.txt": u"o carimbo para quem le; o `entrega.txt` e' o de codigo",
     u"PACKAGE_SIZE.txt": u"o tamanho do pacote completo, lido pelo START_HERE",
     u"entrega.txt": u"o ATUALIZAR o copia a parte, junto com o "
@@ -328,6 +333,8 @@ def _declarado(rel, declarados):
 
 
 def _vai_pelo_atualizar(rel, copiadas, docs):
+    if rel == "app/maintenance/PLUGIN_INSTALL.ps1" and ".cmd" in copiadas.get("app", []):
+        return True  # Explicit _Relativos exception, checked below.
     topo = rel.split(u"/")[0]
     if topo in copiadas and u"/" in rel:
         return os.path.splitext(rel)[1].lower() in set(
@@ -361,6 +368,8 @@ def teste_o_atualizar_leva_o_que_o_zip_leva_fora_das_pastas(alvo):
     if not os.path.isfile(up):
         return
     texto = io.open(up, encoding="utf-8-sig").read()
+    checar("o atualizador inclui explicitamente o supervisor PowerShell dos plugins",
+           "maintenance\\PLUGIN_INSTALL.ps1" in texto and "$iniciadorPlugin" in texto)
     docs = _documentos_do_atualizar(texto)
     checar(u"achei o `$DOCUMENTOS` do atualizador", bool(docs), docs)
     docs = docs or []
