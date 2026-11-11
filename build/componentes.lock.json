@@ -4,8 +4,8 @@
     {
       "nome": "CONTOURLAB",
       "repositorio": "drhenriquebraga/contourlab",
-      "tag": "v8.14",
-      "arvore_sha256": "d21be377a7b288ceb7d7ff6c34bbf8a77433b38abbb8e8e2bc34821e461a2710"
+      "tag": "v8.17",
+      "arvore_sha256": "52d87328157a0b9136a40f0ef685a8218b1c730cfd160437d2e43c7746594e56"
     },
     {
       "nome": "DICOM_BRIDGE",

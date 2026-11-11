@@ -336,6 +336,12 @@ def montar(app, cfg=None):
         base = base.parent
     suite_root = Path(cfg.get('suite_root') or base).resolve()
     info = _host_info(suite_root, cfg)
+    try:
+        import radai_plugin_bootstrap
+        radai_plugin_bootstrap.ensure_base(suite_root, 'neuro-rt')
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('NEURO RT: preparo do código integrado indisponível')
     installation = _installation_hint(suite_root)
     entry = {'installation': installation, 'receipt': None,
              'token': secrets.token_urlsafe(32), 'host_services': None}

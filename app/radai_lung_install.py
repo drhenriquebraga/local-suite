@@ -17,11 +17,12 @@ import zipfile
 PLUGIN_ID = 'lung-rt'
 VERSION = '1.1.0'
 CONSENT_POLICY = {'schema': 'lung-rt/consent-policy/1', 'version': '1.0', 'title': 'LUNG RT — fase de testes', 'clauses': ['LUNG RT está em fase de testes. As estruturas são sugestões UNAPPROVED e exigem revisão médica.', 'Pré-laudos experimentais podem omitir ou inventar achados e não constituem laudo final. O PDF é identificado como rascunho não verificado; o SR é PRELIMINARY/UNVERIFIED.', 'O processamento é local. NV-Reason-CT int4 requer GPU de pelo menos 6 GB e WebGPU; pode falhar ou ser truncado, com limite de uma hora.', 'O código usa MIT e os pesos NV-Reason-CT OpenMDW 1.1; cada recurso mantém sua licença. Sem serviço pago, nuvem ou fallback CPU.', 'Backup e sincronização são opcionais e devem usar uma pasta autorizada pelo serviço.'], 'digest': '5814e205a7647595e8b5ea5b29e44b7ceb988fe6953ca8e369694c9d48969918'}
-TRUSTED_CODE_INVENTORIES = frozenset(['2f14ca1784ae6465f0b7f95020a850359ac80d95b3bdbf5f67165e9c270db4d3', 'e43df36e728292003401785e8e75d1b3eadc3e9cfdd26ac31b3788a4a1269f3b', 'b9de130360e87b82994c6773d6446ec71490d35fc1178ad522c9f3601e2049ad'])
+TRUSTED_CODE_INVENTORIES = frozenset(['2f14ca1784ae6465f0b7f95020a850359ac80d95b3bdbf5f67165e9c270db4d3', 'e43df36e728292003401785e8e75d1b3eadc3e9cfdd26ac31b3788a4a1269f3b', 'b9de130360e87b82994c6773d6446ec71490d35fc1178ad522c9f3601e2049ad', 'e2831bb01be0ce0bcf98dba1b8eb827f7b801d09467e6f9c9011d0981607494d'])
 GITHUB = 'https://api.github.com/repos/drhenriquebraga/lung-rt/releases/latest'
 MIRROR = 'https://drhenriquebraga.com.br/_distribuicao/radioterapia-ai/lung-rt/atualizacoes'
 LATEST = 'LUNG_RT_SETUP_LATEST.zip'
 MAX_SETUP = 256 * 1024**2
+MAX_BUNDLE = 16 * 1024**3
 
 
 class LungInstallError(ValueError):
@@ -203,8 +204,15 @@ class Package:
         if self.zip:
             try:
                 entries = self.zip.infolist()
-                if len(entries) > 20000 or sum(i.file_size for i in entries) > MAX_SETUP:
+                if len(entries) > 20000 or sum(i.file_size for i in entries) > MAX_BUNDLE:
                     raise ValueError('O instalador excede o limite permitido.')
+                if sum(i.file_size for i in entries) > MAX_SETUP:
+                    marker = self.zip.getinfo('.lung-offline-preparation.json')
+                    if marker.file_size > 8192:
+                        raise ValueError('Metadados do bundle excedem o limite.')
+                    record = json.loads(self.zip.read(marker))
+                    if not isinstance(record,dict) or record.get('complete') is not True:
+                        raise ValueError('Termine de preparar o bundle no START HERE.')
                 seen = set()
                 for item in entries:
                     name = item.filename.rstrip('/') if item.is_dir() else item.filename
@@ -258,12 +266,17 @@ def _inventory(package):
     return manifest,digest,raw
 
 
-def _offline(root, digest):
-    if not root.is_dir():
-        return False
-    marker = _inside(root, '.lung-offline-preparation.json')
-    if marker.is_file():
+def _offline(root, digest, package=None):
+    marker = _inside(root, '.lung-offline-preparation.json') if root.is_dir() else None
+    if marker is not None and marker.is_file():
         record = _json(marker, 8192)
+    elif package is not None and package.zip and '.lung-offline-preparation.json' in package.zip.namelist():
+        record = json.loads(package.read('.lung-offline-preparation.json', 8192))
+    else:
+        return False
+    if not isinstance(record,dict):
+        raise LungInstallError('BUNDLE_INCOMPLETE', 'Metadados do bundle inválidos.')
+    if record is not None:
         if (record.get('schema') != 'lung-rt/offline-preparation/1' or
                 record.get('complete') is not True or record.get('code_pin') != digest):
             raise LungInstallError('BUNDLE_INCOMPLETE', 'Termine de preparar o bundle no START HERE.')
@@ -289,7 +302,7 @@ def inspect_local_source(folder):
     try:
         package = Package(root)
         manifest,digest,_ = _inventory(package)
-        offline = _offline(root, digest)
+        offline = _offline(root, digest, package)
         for entry in manifest['files']:
             _code_bytes(package, entry)
         return {'state':'ready','source':'local','path':str(root),'version':manifest['version'],
@@ -313,6 +326,51 @@ def prepare_external_plan(payload, *, source_folder=None):
             raise ValueError(source.get('reason','Release indisponível.'))
         source['source'] = 'online'
     return dict(source,schema='lung-rt/external-plan/1',reports=payload.get('reports') is True)
+
+
+def _install_resource(package, relative, dest, existing, resource, offline, progress):
+    size, digest = resource['size'], resource['sha256']
+    if type(size) is not int or size < 0 or not re.fullmatch('[0-9a-f]{64}', str(digest)):
+        raise ValueError('Recurso sem integridade publicada.')
+    if dest.is_file() and dest.stat().st_size == size and _sha(dest) == digest:
+        return
+    source = None
+    if existing.is_file() and existing.stat().st_size == size and _sha(existing) == digest:
+        source = existing.open('rb')
+    elif package.zip and 'resources/' + relative in package.zip.namelist():
+        entry = package.zip.getinfo('resources/' + relative)
+        if entry.file_size != size:
+            raise ValueError('Recurso offline incompleto.')
+        source = package.zip.open(entry)
+    elif not package.zip:
+        local = _inside(package.path / 'resources', relative)
+        if local.is_file():
+            if local.stat().st_size != size:
+                raise ValueError('Recurso offline incompleto.')
+            source = local.open('rb')
+    if source is None:
+        if offline:
+            raise LungInstallError('LOCAL_RESOURCES_MISSING', 'O bundle não tem todos os recursos de pré-laudo. Prepare o pacote com os modelos.')
+        _download(resource.get('urls') or [resource['url']], dest, size, digest, progress)
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    temporary = dest.with_name(dest.name + '.part-' + uuid.uuid4().hex)
+    try:
+        actual = hashlib.sha256()
+        total = 0
+        with source, temporary.open('xb') as output:
+            while block := source.read(1024**2):
+                total += len(block)
+                if total > size:
+                    raise ValueError('Recurso offline excede o tamanho publicado.')
+                actual.update(block)
+                output.write(block)
+        if total != size or actual.hexdigest() != digest:
+            raise ValueError('Integridade do recurso offline não confere.')
+        os.replace(temporary, dest)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
 
 
 def run_external(plan, progress, *, suite_root, host_python):
@@ -379,31 +437,24 @@ def run_external(plan, progress, *, suite_root, host_python):
                 if not relative.startswith(('models/','runtimes/')):
                     raise ValueError('Destino de recurso inválido.')
                 dest = _inside(resource_root,relative)
-                size,digest_resource = resource['size'],resource['sha256']
-                if type(size) is not int or size < 0 or not re.fullmatch('[0-9a-f]{64}',digest_resource):
-                    raise ValueError('Recurso sem integridade publicada.')
-                local = _inside(Path(source)/'resources',relative) if Path(source).is_dir() else None
-                existing = _inside(old_resources,relative)
-                if (not local or not local.is_file()) and existing.is_file() and existing.stat().st_size == size and _sha(existing) == digest_resource:
-                    local = existing
-                if local and local.is_file():
-                    if local.stat().st_size != size or _sha(local) != digest_resource:
-                        raise ValueError('Recurso offline incompleto.')
-                    if not dest.is_file() or dest.stat().st_size != size or _sha(dest) != digest_resource:
-                        dest.parent.mkdir(parents=True,exist_ok=True)
-                        temporary = dest.with_name(dest.name+'.part-'+uuid.uuid4().hex)
-                        shutil.copyfile(local,temporary)
-                        if _sha(temporary) != digest_resource:
-                            temporary.unlink()
-                            raise ValueError('Recurso offline mudou durante a cópia.')
-                        os.replace(temporary,dest)
-                else:
-                    if plan.get('offline'):
-                        raise LungInstallError('LOCAL_RESOURCES_MISSING',
-                            'O bundle não tem os recursos de laudo. Instale sem laudos ou prepare o bundle com eles.')
-                    urls = resource.get('urls') or [resource['url']]
-                    _download(urls,dest,size,digest_resource,progress)
+                _install_resource(package, relative, dest, _inside(old_resources,relative),
+                                  resource, bool(plan.get('offline')), progress)
                 progress({'stage':'resources','resource_stage':'complete','component':resource.get('id','nv-reason-ct')})
+            xray_file = stage/'catalog/xray_resources.json'
+            if xray_file.is_file():
+                xray = _json(xray_file)
+                revision = xray.get('revision', '')
+                if xray.get('schema') != 'lung-rt/xray-resources/1' or not re.fullmatch('[0-9a-f]{40}', revision):
+                    raise ValueError('Receita RX inválida.')
+                for key in ('runtime','model','mmproj'):
+                    resource = xray[key]
+                    filename = resource.get('filename', '')
+                    if not filename or '/' in filename or chr(92) in filename:
+                        raise ValueError('Nome de recurso RX inválido.')
+                    relative = 'xray/' + revision + '/' + filename
+                    dest = _inside(plugin, 'data/' + relative)
+                    _install_resource(package, relative, dest, dest, resource, bool(plan.get('offline')), progress)
+                    progress({'stage':'resources','resource_stage':'complete','component':'medgemma-' + key})
         progress({'stage':'activating'})
         code_path = 'versions/' + version + '/' + digest + '-' + uuid.uuid4().hex
         active = _inside(plugin,code_path)

@@ -66,6 +66,12 @@ def montar(app,cfg=None):
         return app.state.lung_plugin_entry
     root = Path(cfg.get('suite_root') or radai_install_profile.raiz()).resolve()
     info = radai_plugins._host_info(root,cfg)
+    try:
+        import radai_plugin_bootstrap
+        radai_plugin_bootstrap.ensure_base(root, 'lung-rt')
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('LUNG RT: preparo do código integrado indisponível')
     install = radai_plugins.discover_plugin(root,'lung-rt',host_info=info)
     entry = {'installation':install,'token':secrets.token_urlsafe(32),'sources':{},
              'release':{'state':'checking'},'lock':threading.RLock(),'preparing':False,'closed':False}
@@ -259,6 +265,32 @@ def montar(app,cfg=None):
 def controls():
     import radai_plugin_setup_ui
     return radai_plugin_setup_ui.controls(plugin='lung')
+
+
+def minipage_script():
+    return r'''<script>(function () {
+  'use strict';
+  const cards = Array.from(document.querySelectorAll('[data-lung-capability]'));
+  if (!cards.length) return;
+  fetch('/api/lung-plugin/status', {cache: 'no-store'})
+    .then(response => response.ok ? response.json() : null)
+    .then(status => {
+      for (const card of cards) {
+        if (status?.capabilities?.[card.dataset.lungCapability]?.resources_ready !== true) continue;
+        const link = document.createElement('a');
+        for (const attribute of card.attributes) {
+          if (attribute.name !== 'aria-disabled') link.setAttribute(attribute.name, attribute.value);
+        }
+        link.classList.remove('obra');
+        link.href = card.dataset.lungRoute;
+        card.querySelector('.lung-resource-settings')?.remove();
+        while (card.firstChild) link.append(card.firstChild);
+        const arrow = document.querySelector('.md-grade a.md-fer .md-abrir')?.cloneNode(true);
+        if (arrow) link.querySelector('.md-pe')?.append(arrow);
+        card.replaceWith(link);
+      }
+    }).catch(() => {});
+})();</script>'''
 
 
 def scripts():

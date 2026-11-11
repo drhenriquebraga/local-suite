@@ -647,6 +647,13 @@ def _cartao(f, cor):
     if tags:
         pe = (u'<div class="tags">%s</div>'
               % u"".join(u'<span data-radai-frase>%s</span>' % _esc(t) for t in tags))
+    resource = {"lung_laudo": "report_ct", "lung_laudo_rx": "report_rx"}.get(cod)
+    if resource:
+        return (u'<div class="md-fer obra" aria-disabled="true" data-lung-capability="%s" '
+                u'data-lung-route="%s">%s<div class="md-pe">%s'
+                u'<a class="lung-resource-settings" href="/config#ps_lung" aria-disabled="false" '
+                u'data-radai-frase>Configurações</a></div></div>'
+                % (resource, _esc(rota), corpo, pe))
     if obra or not rota:
         return (u'<div class="md-fer obra" aria-disabled="true">%s'
                 u'<div class="md-pe">%s</div></div>' % (corpo, pe))
@@ -768,10 +775,14 @@ JS_VIGIA = u"""
 def pagina_completa(chave, titulo=u""):
     m = MODULOS.get(chave) or {}
     nome = titulo or (u"%s%s" % (m.get("titulo", u""), m.get("destaque", u"")))
+    scripts = JS_VIGIA
+    if chave == "lung":
+        import radai_lung_plugin
+        scripts += radai_lung_plugin.minipage_script()
     return (u'<!doctype html><html><head><meta charset="utf-8">'
             u'<title>%s &middot; Radioterapia.AI</title>'
             u'<meta name="viewport" content="width=device-width,initial-scale=1">'
             u'<style>%s</style></head><body>%s%s</body></html>'
-            % (_esc(nome), CSS, pagina(chave), JS_VIGIA))
+            % (_esc(nome), CSS, pagina(chave), scripts))
 
 

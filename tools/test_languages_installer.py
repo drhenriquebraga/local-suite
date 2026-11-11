@@ -102,7 +102,11 @@ def teste_dicionario():
 
     LEGITIMAS = {(u"3 · Preparar", "es"), (u"MONAI VISTA-3D (código)", "es"),
                  (u"Idioma", "es"), (u"Desinstalar", "es"),
-                 (u"Instalador v{0}", "es")}
+                 (u"Instalador v{0}", "es"), (u"Modelos:", "es"),
+                 (u"ZIP…", "en"), (u"ZIP…", "es")}
+    # ZIP is a file-format identifier; MB and numeric placeholders are language independent.
+    LEGITIMAS.update((k,c) for k in (u"ZIP…", u"{0}/{1} MB")
+                     for c in d["codigos"][1:])
     iguais = [(k, c) for k, v in d["frases"].items()
               for c in d["codigos"][1:]
               if v.get(c) == k and (k, c) not in LEGITIMAS]
@@ -133,11 +137,13 @@ def teste_chaves_casam():
     d = dicionario()
 
     fontes = {}
-    for rel in (("packager", "prepare.ps1"), ("installer", "INSTALL.ps1")):
+    for rel in (("packager", "prepare.ps1"), ("installer", "INSTALL.ps1"),
+                ("packager", "PLUGIN_OPTIONS.ps1")):
         fontes[rel[1]] = _fonte_como_o_powershell_ve(ler(RAIZ, *rel))
 
     tudo = u"\n".join(fontes.values())
-    checar(u"os dois .ps1 foram lidos", len(tudo) > 20000, u"%d chars" % len(tudo))
+    checar(u"os tres .ps1 foram lidos",
+           all(fontes.values()) and len(tudo) > 20000, u"%d chars" % len(tudo))
 
     mortas = []
     for k in d["frases"]:
@@ -192,7 +198,8 @@ def teste_codificacao():
 
     for rel in (("packager", "languages.ps1"),
                 ("packager", "prepare.ps1"),
-                ("installer", "INSTALL.ps1")):
+                ("installer", "INSTALL.ps1"),
+                ("packager", "PLUGIN_OPTIONS.ps1")):
         nome = rel[1]
         caminho = os.path.join(RAIZ, *rel)
         if not os.path.isfile(caminho):
@@ -383,7 +390,8 @@ def teste_frase_de_T_tem_entrada():
     secao(u"toda frase passada a `T` tem entrada (a outra porta)")
     frases = dicionario().get(u"frases", {})
     for nome in (os.path.join(PREP, "prepare.ps1"),
-                 os.path.join(RAIZ, "installer", "INSTALL.ps1")):
+                 os.path.join(RAIZ, "installer", "INSTALL.ps1"),
+                 os.path.join(PREP, "PLUGIN_OPTIONS.ps1")):
         curto = os.path.basename(nome)
         try:
             src = io.open(nome, encoding="utf-8-sig").read()

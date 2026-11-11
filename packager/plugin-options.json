@@ -1,0 +1,74 @@
+{
+  "schema": "local-suite/plugin-options/1",
+  "plugins": {
+    "neuro-rt": {
+      "schema": "neuro-rt/consent-policy/1",
+      "plugin_id": "neuro-rt",
+      "version": "1.1",
+      "language": "pt-BR",
+      "title": "Termo do plugin NEURO RT",
+      "clauses": [
+        {
+          "id": "scope",
+          "text": "NEURO RT é um plugin de estudo e pesquisa da Local Suite. Nesta entrega, Nidus, Glioma, Metastasis, Meningioma e Anatomia estão em fase de testes. As ferramentas ainda estão sendo moldadas; a participação é voluntária e cada entrada solicita a confirmação desta fase."
+        },
+        {
+          "id": "nidus",
+          "text": "Nidus RT realiza construção geométrica a partir das entradas escolhidas pelo usuário. Não detecta lesões. O consenso ajustável entre união e interseção das projeções é uma sugestão geométrica; sua exportação para RTSTRUCT exige ação explícita, permanece UNAPPROVED e não cria CTV."
+        },
+        {
+          "id": "clinical",
+          "text": "Não é software médico registrado e não substitui o fluxo clínico do serviço. Resultados são sugestões não aprovadas (UNAPPROVED). Nenhuma tela aprova contornos. Revisão e aprovação para tratamento são atos do profissional responsável no TPS."
+        },
+        {
+          "id": "licenses",
+          "text": "A integração NEURO RT é MIT; o Nidus e o núcleo compartilhado mantêm Apache-2.0. Componentes, modelos, pesos e atlas preservam suas licenças próprias, avisos e atribuições distribuídos em LICENSE, NOTICE, licenses e catalog. Este aceite não concede uma licença geral aos pesos nem altera licenças originais."
+        },
+        {
+          "id": "local",
+          "text": "O processamento usa arquivos e recursos locais escolhidos pelo usuário. Instalação e atualização consultam o GitHub e baixam componentes autorizados. Essas rotinas não enviam exames. O usuário deve respeitar as permissões de acesso às pastas e proteger seus dados."
+        },
+        {
+          "id": "suite",
+          "text": "Este documento complementa os Termos, a Política e os Créditos da Local Suite. O aceite permite instalar e conhecer a ferramenta; não constitui validação clínica nem aprovação de qualquer resultado."
+        }
+      ],
+      "digest": "65a214a9a3bd2a02e3014020792f671b2d6d7b45825c0ab80704bafec91308d0",
+      "models": [
+        "Glioma – Attention U-Net 3D",
+        "Glioblastoma pós-operatório (3 sequências)",
+        "Anatomia – SynthSeg",
+        "Anatomia – CerebrA / ANTs",
+        "Máscara cerebral auxiliar (MRI_Brain)",
+        "Glioblastoma pré-operatório (MRI_GBM)",
+        "Glioblastoma pós-operatório (1 sequência)",
+        "Glioma de baixo grau pré-operatório",
+        "Meningioma pré-operatório",
+        "Metástase pré-operatório"
+      ],
+      "disk_bytes_max": 1543736488,
+      "payload_bytes": 823872930,
+      "cache_bytes": 719863558
+    },
+    "lung-rt": {
+      "schema": "lung-rt/consent-policy/1",
+      "version": "1.0",
+      "title": "LUNG RT — fase de testes",
+      "clauses": [
+        "LUNG RT está em fase de testes. As estruturas são sugestões UNAPPROVED e exigem revisão médica.",
+        "Pré-laudos experimentais podem omitir ou inventar achados e não constituem laudo final. O PDF é identificado como rascunho não verificado; o SR é PRELIMINARY/UNVERIFIED.",
+        "O processamento é local. NV-Reason-CT int4 requer GPU de pelo menos 6 GB e WebGPU; pode falhar ou ser truncado, com limite de uma hora.",
+        "O código usa MIT e os pesos NV-Reason-CT OpenMDW 1.1; cada recurso mantém sua licença. Sem serviço pago, nuvem ou fallback CPU.",
+        "Backup e sincronização são opcionais e devem usar uma pasta autorizada pelo serviço."
+      ],
+      "digest": "5814e205a7647595e8b5ea5b29e44b7ceb988fe6953ca8e369694c9d48969918",
+      "models": [
+        "NV-Reason-CT int4 (TC)",
+        "MedGemma 1.5 4B Q4_K_M (RX)"
+      ],
+      "disk_bytes_max": 6376654748,
+      "payload_bytes": 6376654748,
+      "cache_bytes": 0
+    }
+  }
+}

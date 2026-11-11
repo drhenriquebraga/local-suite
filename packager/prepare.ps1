@@ -157,6 +157,7 @@ $script:ResultadoModo3 = ''
 $script:AtualizouSoCodigo = $null
 $script:VersaoAntesDoCodigo = ''
 $script:EstacaoFinal = $null
+$script:ResumoPlugins = ''
 # GUARDA: RADAI_ATUALIZAR_APP e RADAI_ATUALIZAR_APP_DE sao o contrato com o instalador anterior que baixou este; nao renomear.
 $script:PastaDaCascata = [string]$env:RADAI_ATUALIZAR_APP
 $script:CascataVeioDe = [string]$env:RADAI_ATUALIZAR_APP_DE
@@ -2982,6 +2983,7 @@ SE OS SCRIPTS ESTIVEREM BLOQUEADOS NA ESTAÇÃO
 $comum
 "@
     }
+    if ($script:ResumoPlugins) { $txt4.Text += "`r`n`r`n" + $script:ResumoPlugins }
     $exeAqui = CaminhoDoPrograma
     $instalouAqui = [bool]$exeAqui
 
@@ -3185,7 +3187,7 @@ function AcharOuBaixarPython {
 
 function AcompanharProcesso {
     param([System.Diagnostics.Process]$Proc, [int]$PassoMs = 100,
-          $Coletar = $null)
+          $Coletar = $null, [scriptblock]$FormatarLinha = $null)
     $saida = $Proc.StandardOutput
     $erro  = $Proc.StandardError
     $tSaida = $saida.ReadLineAsync()
@@ -3198,7 +3200,9 @@ function AcompanharProcesso {
             $l = $tSaida.Result
             if ($null -eq $l) { $fimSaida = $true }
             else {
-                Registrar ('  ' + $l)
+                $legivel = $l
+                if ($FormatarLinha) { $legivel = & $FormatarLinha $l }
+                Registrar ('  ' + $legivel)
                 if ($null -ne $Coletar) { [void]$Coletar.Add($l) }
                 $tSaida = $saida.ReadLineAsync()
                 $andou = $true
@@ -3208,7 +3212,9 @@ function AcompanharProcesso {
             $l = $tErro.Result
             if ($null -eq $l) { $fimErro = $true }
             else {
-                Registrar ('  ' + $l) 'erro'
+                $legivel = $l
+                if ($FormatarLinha) { $legivel = & $FormatarLinha $l }
+                Registrar ('  ' + $legivel) 'erro'
                 if ($null -ne $Coletar) { [void]$Coletar.Add($l) }
                 $tErro = $erro.ReadLineAsync()
                 $andou = $true
@@ -3219,6 +3225,56 @@ function AcompanharProcesso {
     }
     $Proc.WaitForExit()
     return $Proc.ExitCode
+}
+
+# Load at script scope: WinForms callbacks created with GetNewClosure cannot
+# resolve functions dot-sourced only inside a still-running local function.
+$script:OpcoesPluginsCarregadas = $false
+try {
+    . (Join-Path $script:AQUI 'PLUGIN_OPTIONS.ps1')
+    $script:OpcoesPluginsCarregadas = $true
+} catch { Sessao ('plugins opcionais indisponiveis: ' + $_.Exception.Message) }
+
+function OferecerPluginsOpcionais {
+    param([switch]$Offline, [string[]]$PacotesOffline = @())
+    # Automatic updates and installer diagnostics never open optional dialogs.
+    if (-not $script:PastaInstalada -or $script:PastaDaCascata -or
+        $script:Modo -eq '7' -or $env:RADAI_PREPARADOR_AUTOTESTE) { return }
+    $abrirHabilitado = $btAbrirPrograma.Enabled
+    $btAbrirPrograma.Enabled = $false
+    try {
+        $catalogoPath = Join-Path $script:AQUI 'plugin-options.json'
+        if (-not $script:OpcoesPluginsCarregadas) {
+            throw (T 'O preparo dos plugins não está disponível nesta instalação. A suíte pode ser aberta normalmente.')
+        }
+        $catalogo = Ler-CatalogoPluginsSuite $catalogoPath
+        $plano = Selecionar-PluginsSuite -Catalogo $catalogo -Owner $form `
+            -Offline:$Offline -PacotesOffline $PacotesOffline
+        if (-not $plano) {
+            $script:ResumoPlugins = (T 'Plugins opcionais não selecionados. A suíte está pronta para abrir.')
+            Registrar $script:ResumoPlugins
+            return
+        }
+        if (-not (GarantirAppFechado $script:PastaInstalada)) {
+            $script:ResumoPlugins = (T 'Feche a suíte antes de instalar os plugins. A instalação principal foi concluída.')
+            Registrar $script:ResumoPlugins 'alerta'
+            return
+        }
+        Registrar ''
+        Registrar (T 'Preparando os plugins selecionados; acompanhe o progresso nesta janela.') 'titulo'
+        $rcPlugins = Instalar-PluginsSuite -SuiteRoot $script:PastaInstalada -Plano $plano
+        if ($rcPlugins -ne 0) {
+            $script:ResumoPlugins = (T 'O preparo dos plugins não terminou. A suíte continua disponível; use Configurações para tentar novamente ou apontar um pacote offline.')
+            Registrar $script:ResumoPlugins 'alerta'
+        } else {
+            $script:ResumoPlugins = (T 'Plugins selecionados preparados. A suíte pode ser aberta.')
+            Registrar $script:ResumoPlugins 'ok'
+        }
+    } catch {
+        $script:ResumoPlugins = ((T 'Os plugins opcionais não foram preparados. A instalação principal permanece disponível:') +
+            ' ' + $_.Exception.Message)
+        Registrar $script:ResumoPlugins 'alerta'
+    } finally { $btAbrirPrograma.Enabled = $abrirHabilitado }
 }
 
 function Preparar {
@@ -3421,6 +3477,7 @@ function Preparar {
             }
             Registrar ''
             Registrar 'PRONTO.' 'ok'
+            OferecerPluginsOpcionais
             AtualizarConclusao $trab ''
             $abas.SelectedTab = $aba4
             return
@@ -3453,6 +3510,7 @@ function Preparar {
             Registrar ''
             Registrar 'Instalando nesta maquina (voce disse que ela e a estacao de uso)' 'titulo'
             InstalarAqui $script:PacoteFinal
+            OferecerPluginsOpcionais
         }
 
         AtualizarConclusao $trab $script:PacoteFinal
@@ -3603,11 +3661,27 @@ function AplicarCodigoPorCima {
 function InstalarDeArquivo {
     $script:ResultadoModo3 = ''
     $dlg = New-Object System.Windows.Forms.OpenFileDialog
-    $dlg.Title  = (T 'Escolha o arquivo que voce trouxe')
-    $dlg.Filter = (T 'Pacote do Radioterapia.ai') + ' (*.zip)|*RADIOTERAPIA_AI*.zip;*AUTO_CONTORNO*.zip|' + (T 'Qualquer arquivo .zip') + ' (*.zip)|*.zip|' + (T 'Todos os arquivos') + ' (*.*)|*.*'
+    $dlg.Title  = (T 'Selecione um pacote da Local Suite e, se desejar, até dois pacotes dos plugins NEURO RT e LUNG RT.')
+    $dlg.Filter = (T 'Qualquer arquivo .zip') + ' (*.zip)|*.zip|' + (T 'Todos os arquivos') + ' (*.*)|*.*'
     $dlg.CheckFileExists = $true
+    $dlg.Multiselect = $true
     if ($dlg.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return }
     $zip = $dlg.FileName
+    $pacotesPlugins = @()
+    if ($dlg.FileNames.Count -gt 1) {
+        try {
+            if (-not $script:OpcoesPluginsCarregadas) {
+                throw (T 'O preparo dos plugins não está disponível nesta instalação. A suíte pode ser aberta normalmente.')
+            }
+            $pacotes = Ler-PacotesSuite -Caminhos $dlg.FileNames
+            $zip = $pacotes.Base
+            $pacotesPlugins = @($pacotes.Plugins)
+        } catch {
+            [void][System.Windows.Forms.MessageBox]::Show($_.Exception.Message,
+                (T 'Pacotes offline'), 'OK', 'Warning')
+            return
+        }
+    }
     AnotarPastaDoOperador (Split-Path -Parent $zip) '<pasta do .zip>'
 
     try {
@@ -3665,6 +3739,7 @@ function InstalarDeArquivo {
         try { AnotarPastaDoOperador $raizEscolhida '<pasta de destino>' } catch { }
         InstalarAqui $zip $raizEscolhida
         if ($dec.acao -eq 'instala_e_atualiza') { AplicarCodigoPorCima $vz.versao }
+        OferecerPluginsOpcionais -Offline -PacotesOffline $pacotesPlugins
         AtualizarConclusao $script:Trabalho $zip
         $abas.SelectedTab = $aba4
     } finally {
