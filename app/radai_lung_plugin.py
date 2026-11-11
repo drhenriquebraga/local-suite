@@ -137,7 +137,7 @@ def montar(app,cfg=None):
         local(request,True)
         return await run_in_threadpool(refresh)
 
-    def remember_source(description, operation='code'):
+    def remember_source(description, operation='weights'):
         source_id = secrets.token_urlsafe(24)
         with entry['lock']:
             entry['sources'] = {k:v for k,v in entry['sources'].items() if time.monotonic()-v['time'] < 900}
@@ -159,8 +159,10 @@ def montar(app,cfg=None):
         from radai_plugin_sources import SetupUploadError, receive_setup
 
         local(request, True)
-        purpose = request.query_params.get('operation','code')
-        if purpose not in ('code','weights'):
+        purpose = request.query_params.get('operation','weights')
+        if purpose == 'code':
+            raise HTTPException(400,{'code':'SUITE_CODE_UPDATE_REQUIRED','message':'O código dos plugins é atualizado pelo instalador principal da Local Suite.'})
+        if purpose != 'weights':
             raise HTTPException(400,'Operação de instalação inválida.')
         def inspect(path):
             description = sdk.inspect_local_source(path)
@@ -175,14 +177,16 @@ def montar(app,cfg=None):
         except sdk.LungInstallError as error:
             raise HTTPException(400, {'code':error.error_code, 'message':str(error)}) from None
         except (ValueError, OSError):
-            raise HTTPException(400, {'code':'PACKAGE_INVALID', 'message':'Selecione o ZIP autorizado do SETUP do LUNG RT.'}) from None
+            raise HTTPException(400, {'code':'PACKAGE_INVALID', 'message':'Escolha o bundle de pesos completo preparado para levar.'}) from None
         return remember_source(description,purpose)
 
     @app.post('/api/plugins/lung-rt/local/inspect')
     async def inspect_route(request:Request):
         local(request, True)
-        purpose = request.query_params.get('operation','code')
-        if purpose not in ('code','weights'):
+        purpose = request.query_params.get('operation','weights')
+        if purpose == 'code':
+            raise HTTPException(400,{'code':'SUITE_CODE_UPDATE_REQUIRED','message':'O código dos plugins é atualizado pelo instalador principal da Local Suite.'})
+        if purpose != 'weights':
             raise HTTPException(400,'Operação de instalação inválida.')
         payload = await body(request)
         folder = payload.get('folder')
@@ -197,15 +201,17 @@ def montar(app,cfg=None):
         except sdk.LungInstallError as error:
             raise HTTPException(400, {'code':error.error_code, 'message':str(error)}) from None
         except (ValueError, OSError):
-            raise HTTPException(400, {'code':'PACKAGE_INVALID', 'message':'Escolha o ZIP ou a pasta completa do SETUP ou bundle do LUNG RT.'}) from None
+            raise HTTPException(400, {'code':'PACKAGE_INVALID', 'message':'Escolha o bundle de pesos completo preparado para levar.'}) from None
         return remember_source(description,purpose)
 
     @app.post('/api/plugins/lung-rt/install')
     async def install_route(request:Request):
         local(request,True)
         payload=await body(request)
-        purpose=payload.get('operation')
-        if purpose not in (None,'code','weights'):
+        purpose=payload.get('operation','weights')
+        if purpose == 'code':
+            raise HTTPException(400,{'code':'SUITE_CODE_UPDATE_REQUIRED','message':'O código dos plugins é atualizado pelo instalador principal da Local Suite.'})
+        if purpose != 'weights':
             raise HTTPException(400,'Operação de instalação inválida.')
         source_id=payload.get('source_id')
         if (source_id is not None and (not isinstance(source_id,str) or not 1 <= len(source_id) <= 96)) or not isinstance(payload.get('consent',{}),dict) or type(payload.get('reports',False)) is not bool:
@@ -240,15 +246,10 @@ def montar(app,cfg=None):
                 if not source or time.monotonic()-source['time']>900:
                     raise ValueError('Confira novamente o pacote local.')
                 verified = source['description']
-                if purpose is None:
-                    purpose=source.get('operation','code')
-                if purpose is not None and source.get('operation') != purpose:
+                if source.get('operation') != 'weights':
                     raise ValueError('Confira o pacote na opção correta de código ou pesos.')
                 folder = verified['path']
-            elif purpose=='code':
-                raise ValueError('Escolha o ZIP do código offline.')
-            if purpose is not None:
-                payload=dict(payload,reports=purpose=='weights',resources_only=purpose=='weights')
+            payload=dict(payload,reports=True,resources_only=True)
             plan=await run_in_threadpool(sdk.prepare_external_plan,
                 dict(payload,installed_version=entry['installation'].get('active_version')),source_folder=folder)
             if verified and verified.get('inventory_sha256') and any(
@@ -350,8 +351,8 @@ def scripts():
   async function load() {
     state=await api('');handedOff=state.preparing;
     setup.versions(state);setup.result(state.last_result);
-    say(handedOff ? 'A instalação já foi iniciada.' : state.state==='ready'
-      ? 'LUNG RT instalado.' : state.reason || 'O plugin LUNG RT ainda não está instalado.');
+    const labels={ready:'Pesos prontos',partial:'Pesos incompletos',missing:'Pesos não instalados',checking:'Conferindo os pesos…'};
+    say(handedOff ? 'A instalação já foi iniciada.' : labels[state.weights?.state] || 'Conferindo os pesos…');
     enable();
   }
   async function action(run) {
@@ -360,11 +361,8 @@ def scripts():
     try{await run();}catch(error){setup.failure(error);}finally{busy=false;enable();}
   }
   e('lp-refresh').addEventListener('click',() => action(async () => {
-    say('Consultando a versão disponível.');
-    const latest=await api('/refresh',{});
-    if(latest.state==='available') e('lp-status').textContent=t('Nova versão disponível: %s').replace('%s',latest.version);
-    else say(latest.state==='current' ? 'O código do LUNG RT está atualizado.' : latest.reason || 'Não foi possível concluir.');
-    state=await api('');setup.versions(state);
+    say('Conferindo os pesos…');
+    await load();
   }));
   e('lp-install').addEventListener('click',() => action(async () => {
     if(setup.local() && !source) return;
@@ -386,7 +384,7 @@ def config_page(page):
     if 'id="ps_lung"' in page:
         return page
     import radai_ui
-    card=''' <a class="cfg-card" href="#ps_lung" data-alvo="ps_lung"><span class="cab"><span class="n">L</span><span class="ic">'''+radai_ui.icone('pulmoes')+'''</span></span><h3 data-radai-frase>Plugin LUNG RT</h3><p data-radai-frase>Instalar, atualizar, configurar rastreio e laudos locais.</p><span class="st" data-radai-frase>Instalação e atualização</span></a>'''
-    section='''<section class="ps-cx fechado" id="ps_lung" hidden><h2 class="ps-cab" tabindex="0" role="button"><span class="ps-num">L</span><span data-radai-frase>Plugin LUNG RT</span><span class="ps-seta">&#9662;</span></h2><div class="ps-corpo">'''+controls()+'</div></section>'
     import radai_plugin_setup_ui
+    card=''' <a class="cfg-card" href="#ps_lung" data-alvo="ps_lung"><span class="cab"><span class="ic">'''+radai_ui.icone('pulmoes')+'''</span><span class="n">L</span></span><h3 data-radai-frase>Plugin LUNG RT</h3><p data-radai-frase>Instalar, atualizar, configurar rastreio e laudos locais.</p><span class="st" data-radai-frase>Instalação e atualização</span></a>'''
+    section='''<section class="ps-cx fechado" id="ps_lung" hidden><h2 class="ps-cab" tabindex="0" role="button"><span class="ps-num">L</span><span data-radai-frase>Plugin LUNG RT</span>'''+radai_plugin_setup_ui.help_html()+'''<span class="ps-seta">&#9662;</span></h2><div class="ps-corpo">'''+controls()+'</div></section>'
     return radai_plugin_setup_ui.assets(page).replace(' <a class="cfg-card" href="#ps_limpar"',card+' <a class="cfg-card" href="#ps_limpar"',1).replace('<section class="ps-cx fechado" id="ps_limpar" hidden>',section+'<section class="ps-cx fechado" id="ps_limpar" hidden>',1).replace('</body>',scripts()+'</body>',1)

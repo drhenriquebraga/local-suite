@@ -4,10 +4,16 @@ import radai_ui
 
 
 HINT = 'A suíte fecha durante o preparo, mostra o progresso no PowerShell e reabre ao terminar. O Python existente é reutilizado.'
+CODE_MANAGED = 'O código dos plugins é atualizado pelo instalador principal da Local Suite.'
 PLUGINS = {
     'neuro': ('NEURO RT', 'neuro-rt', 'cruzamento', 'nidus'),
     'lung': ('LUNG RT', 'lung-rt', 'pulmoes', 'lung'),
 }
+
+
+def help_html():
+    return radai_ui.ajuda('<span data-radai-frase>' + HINT + '</span>',
+                         '<span data-radai-frase>' + CODE_MANAGED + '</span>')
 
 CSS = '''
 .plugin-install-page{max-width:1060px;width:100%;box-sizing:border-box;margin:0 auto;padding:clamp(18px,4vw,42px)}
@@ -65,8 +71,11 @@ CSS = '''
 .plugin-install #neuro-install-consent-document{display:grid;gap:6px;margin-bottom:10px}
 .plugin-install .pi-actions{margin:12px 0}
 .plugin-install progress{width:100%;height:8px;accent-color:var(--pi-cor)}
-.plugin-install .pi-last{color:var(--perigo)}
-.plugin-install .pi-last + .pi-hint{margin-top:6px}
+.plugin-install .pi-feedback{color:var(--perigo);border-inline-start:2px solid var(--perigo);padding-inline-start:10px}
+.plugin-install .pi-feedback p{margin:0}
+.plugin-install .pi-feedback details{margin-top:5px;color:var(--text-muted);font-size:12px}
+.plugin-install .pi-feedback summary{cursor:pointer}
+.plugin-install .pi-feedback pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:5px 0 0;font:12px/1.5 var(--mono)}
 '''
 
 
@@ -80,36 +89,25 @@ def _option(key, icon, title, help_text, selected=False):
 def _choices(name, ids):
     return ('''<div class="pi-options" role="group" aria-label="Origem da instalação">'''
             + _option('auto', 'rede', 'Instalação automática', 'Prepare os pesos que faltam usando o código instalado.', True)
-            + _option('zip', 'pacote', 'Instalar / atualizar apenas o código offline', 'Escolha o SETUP leve. Os pesos instalados são preservados.')
             + _option('folder', 'pasta', 'Instalar / atualizar o pacote de pesos offline', 'Escolha o ZIP do bundle de pesos. O código carregado é preservado.')
             + f'''</div>
 
 <div class="pi-overview">
 <div class="pi-panel" data-pi-panel="auto">
-  <h3 data-radai-frase>Servidores de atualização do código</h3>
+  <h3 data-radai-frase>Conexão com os servidores</h3>
   <ul class="pi-channel">
     <li><span>GitHub</span><output data-pi-channel="github"><span data-radai-frase>Ainda não consultado</span></output></li>
     <li><span data-radai-frase>Espelho</span><output data-pi-channel="mirror"><span data-radai-frase>Ainda não consultado</span></output></li>
   </ul>
   <div class="pi-row">
     <button class="ui-bt" type="button" data-pi-probe data-radai-frase>Testar conexão</button>
-    <button class="ui-bt" type="button" id="{ids['refresh']}" data-radai-frase>Verificar atualizações</button>
+    <button class="ui-bt" type="button" id="{ids['refresh']}" data-radai-frase>Conferir pesos</button>
   </div>
 </div>
 <dl class="pi-versions" data-pi-versions>
   <div><dt data-radai-frase>Código carregado</dt><dd data-pi-code-version>—</dd></div>
   <div><dt data-radai-frase>Pacote de pesos</dt><dd data-pi-weights-version>—</dd><small data-pi-weights-state></small></div>
 </dl>
-</div>
-<div class="pi-panel" data-pi-panel="zip" hidden>
-  <h3 data-radai-frase>Instalar / atualizar apenas o código offline</h3>
-  <p class="pi-muted" data-radai-frase>Escolha o SETUP leve. Os pesos instalados são preservados.</p>
-  <input type="file" accept=".zip,application/zip" data-pi-file hidden>
-  <button type="button" class="ui-envio pi-drop" data-pi-drop>
-    <span class="ui-envio-ic" aria-hidden="true">{radai_ui.icone('subir')}</span>
-    <span class="ui-envio-tit" data-radai-frase>Arraste o ZIP ou clique para escolher</span>
-    <span class="ui-envio-dica">{name} · SETUP (.zip)</span>
-  </button>
 </div>
 <div class="pi-panel" data-pi-panel="folder" id="{ids['folder_panel']}" hidden>
   <h3 data-radai-frase>Instalar / atualizar o pacote de pesos offline</h3>
@@ -121,7 +119,7 @@ def _choices(name, ids):
     <span class="ui-envio-dica">{name} · BUNDLE (.zip)</span>
   </button>
   <details><summary data-radai-frase>Usar uma pasta já extraída</summary>
-  <label for="{ids['folder']}" data-radai-frase>Pasta do instalador ou pacote offline</label>
+  <label for="{ids['folder']}" data-radai-frase>Pacote de pesos offline</label>
   <div class="pi-row">
     <input type="text" class="pi-field" id="{ids['folder']}" data-pi-folder autocomplete="off" spellcheck="false">
     <button class="ui-bt" type="button" id="{ids['browse']}" data-neuro-host-browse="1" data-pi-browse data-radai-frase>Procurar…</button>
@@ -148,13 +146,12 @@ def controls(settings=False, *, plugin='neuro'):
                'browse': 'lp-browse', 'inspect': 'lp-inspect', 'source': 'lp-source'}
         status = '<p id="lp-status" role="status" data-radai-frase>Verificando a instalação do LUNG RT…</p>'
         actions = '''<div class="pi-actions">
-  <button class="ui-bt pri" type="button" id="lp-install" disabled data-radai-frase>Instalar ou atualizar LUNG RT</button>
+  <button class="ui-bt pri" type="button" id="lp-install" disabled data-radai-frase>Instalar ou atualizar os pesos</button>
   <a href="/lung/rastreio#config" data-radai-frase>Configurar rastreio e laudos</a>
 </div>'''
     return (f'<section class="plugin-install" {panel} data-plugin-install="{slug}">'
-            f'<div class="pi-status">{status}<p class="pi-last" data-pi-error role="status" hidden></p>'
-            '<p class="pi-last" data-pi-last role="status" hidden></p></div>'
-            + _choices(name, ids) + actions + f'<p class="pi-hint" data-radai-frase>{HINT}</p></section>')
+            f'<div class="pi-status">{status}<div class="pi-feedback" data-pi-feedback role="status" hidden></div></div>'
+            + _choices(name, ids) + actions + '</section>')
 
 
 SCRIPT = r'''
@@ -162,15 +159,11 @@ SCRIPT = r'''
   'use strict';
   const t = text => window.radaiFrase ? window.radaiFrase(text) : text;
   const safeCode = code => typeof code === 'string' && /^[A-Z0-9_-]{1,60}$/.test(code) ? code : '';
-  const formatNames = {
-    setup_zip: 'Código offline',
-    setup_folder: 'Código offline',
-    offline_bundle: 'Pacote de pesos offline'
-  };
+  const formatNames = {offline_bundle: 'Pacote de pesos offline'};
   const hints = {
-    extract_setup: 'Use o card ZIP do instalador ou extraia todos os arquivos para escolher a pasta.',
+    extract_setup: 'Escolha o bundle de pesos completo preparado para levar.',
     update_suite: 'Atualize ou repare a base do Local Suite antes de instalar o plugin.',
-    prepare_again: 'Escolha o SETUP deste plugin ou prepare novamente o bundle completo.'
+    prepare_again: 'Escolha o bundle de pesos completo preparado para levar.'
   };
   function messageFor(error) {
     const detail = error.detail;
@@ -180,7 +173,10 @@ SCRIPT = r'''
   }
   function errorText(error) {
     const code = safeCode(error.detail?.error_code || error.detail?.code || error.code);
-    return [messageFor(error), code || (error.status ? 'HTTP ' + error.status : '')].filter(Boolean).join(' · ');
+    const component = error.detail?.error_component || error.detail?.component;
+    const label = typeof component === 'string' && /^[A-Za-z0-9_. -]{1,120}$/.test(component) ? component : '';
+    const reasonCode = safeCode(error.detail?.error_reason);
+    return [messageFor(error), code || (error.status ? 'HTTP ' + error.status : ''), label, reasonCode].filter(Boolean).join(' · ');
   }
   async function checked(response) {
     const payload = await response.json().catch(() => ({}));
@@ -197,20 +193,17 @@ SCRIPT = r'''
     const browse = find('[data-pi-browse]');
     const inspect = find('[data-pi-inspect]');
     const source = find('[data-pi-source]');
-    const drop = find('[data-pi-drop]');
-    const file = find('[data-pi-file]');
     const weightDrop = find('[data-pi-weights-drop]');
     const weightFile = find('[data-pi-weights-file]');
     const probe = find('[data-pi-probe]');
-    const inlineError = find('[data-pi-error]');
-    const last = find('[data-pi-last]');
+    const feedback = find('[data-pi-feedback]');
     let mode = 'auto', pending = false, probing = false;
+    let currentFailure = null, previousResult = null, ignoredResult = '';
 
     function sync() {
       const locked = pending || Boolean(hooks.isLocked());
-      for (const control of [...options, folder, browse, file, weightFile].filter(Boolean)) control.disabled = locked;
+      for (const control of [...options, folder, browse, weightFile].filter(Boolean)) control.disabled = locked;
       inspect.disabled = locked || !folder.value.trim();
-      drop.setAttribute('aria-disabled', String(locked));
       if (weightDrop) weightDrop.setAttribute('aria-disabled', String(locked));
       probe.disabled = locked || probing;
     }
@@ -226,6 +219,7 @@ SCRIPT = r'''
       }
       for (const part of panels) part.hidden = part.dataset.piPanel !== mode;
       notice();
+      clearFailure();
       hooks.reset();
       sync();
     }
@@ -262,13 +256,13 @@ SCRIPT = r'''
     async function verify(path, value, raw = false) {
       if (pending || hooks.isLocked()) return;
       pending = true;
+      clearFailure();
       hooks.reset();
       hooks.lock(true);
       sync();
       notice(t('Conferindo o pacote local…'));
       try {
-        const operation = mode === 'zip' ? 'code' : 'weights';
-        const result = await post(path + '?operation=' + operation, value, raw);
+        const result = await post(path + '?operation=weights', value, raw);
         const {body} = result;
         const description = body.description || body;
         const version = description.version;
@@ -277,22 +271,22 @@ SCRIPT = r'''
           throw new Error('source');
         }
         const format = description.format || body.format ||
-          (raw ? 'setup_zip' : description.offline ? 'offline_bundle' : 'setup_folder');
+          'offline_bundle';
         hooks.accept(body.source_id, version, result.current, format);
         notice(t(formatNames[format] || 'Pacote local') + ' · ' + version + ' · ' + t('Pacote conferido'), 'ok');
       } catch (error) {
-        notice(errorText(error), 'error');
+        failure(error);
       } finally {
         pending = false;
         hooks.lock(false);
         sync();
       }
     }
-    function zip(files, expectedMode = 'zip') {
+    function zip(files, expectedMode = 'folder') {
       if (mode !== expectedMode || pending || hooks.isLocked() || !files.length) return;
       if (files.length !== 1 || !/\.zip$/i.test(files[0].name)) {
         hooks.reset();
-        notice(t('Escolha um único arquivo ZIP.'), 'error');
+        failure({detail:'Escolha um único arquivo ZIP.'});
         return;
       }
       verify('local/upload', files[0], true);
@@ -333,33 +327,58 @@ SCRIPT = r'''
         if (target.textContent) target.textContent = '';
         return;
       }
-      const rawStage = result.error_stage || result.stage;
+      const rawStage = result.error_stage || result.error_phase || result.stage;
       const stageNames = {
         checking: 'Conferindo o pacote local…', handoff: 'Preparando o plugin',
         preparing: 'Preparando o plugin', downloading: 'Baixando componentes',
         resources: 'Preparando recursos', extracting: 'Preparando recursos',
         verifying: 'Conferindo o pacote local…', validating: 'Conferindo o pacote local…',
-        restart: 'Reabrindo a suíte'
+        activating: 'Preparando o plugin', restart: 'Reabrindo a suíte'
       };
-      const stage = typeof rawStage === 'string' && /^[a-z][a-z_]{0,40}$/.test(rawStage)
-        ? t(stageNames[rawStage] || rawStage) : '';
-      const log = typeof result.log === 'string' && /^[A-Za-z0-9_. /\\-]{1,180}$/.test(result.log) ? result.log : '';
-      const note = typeof result.message === 'string' ? t(result.message) : '';
-      const text = [note, t('Código:') + ' ' + code, stage && t('Etapa:') + ' ' + stage, log && t('Log de instalação') + ' ' + log].filter(Boolean).join(' · ');
+      const phase = typeof rawStage === 'string' && /^[A-Za-z][A-Za-z_]{0,40}$/.test(rawStage) ? rawStage.toLowerCase() : '';
+      const aliases = {download:'downloading',prepare:'preparing',resource:'resources',
+        extract:'extracting',verify:'verifying',validate:'validating',activate:'activating',code:'verifying'};
+      const stageKey = aliases[phase] || phase;
+      const stage = phase ? t(stageNames[stageKey] || rawStage) : '';
+      const log = typeof result.log === 'string' && !/^(?:[A-Za-z]:|[\\/])/.test(result.log) && /^[A-Za-z0-9_. /\\-]{1,180}$/.test(result.log) ? result.log : '';
+      const component = result.error_component || result.component;
+      const safeComponent = typeof component === 'string' && /^[A-Za-z0-9_. -]{1,120}$/.test(component) ? component : '';
+      const rawNote = result.message || result.reason;
+      const note = typeof rawNote === 'string' && rawNote.length <= 600 && !/[\x00-\x1f]|https?:\/\/|[A-Za-z]:[\\/]|\\\\/.test(rawNote) ? t(rawNote) : '';
+      const reasonCode = safeCode(result.error_reason);
+      const text = [note, t('Código:') + ' ' + code, stage && t('Etapa:') + ' ' + stage, safeComponent, reasonCode, log && t('Log de instalação') + ' ' + log].filter(Boolean).join(' · ');
       if (target.textContent !== text) target.textContent = text;
       target.hidden = false;
+    }
+    function failure(error) {
+      currentFailure = error;
+      notice();
+      feedback.textContent = errorText(error);
+      feedback.hidden = false;
+    }
+    function clearFailure() {
+      currentFailure = null;
+      ignoredResult = JSON.stringify(previousResult || null);
+      feedback.textContent = '';
+      feedback.hidden = true;
+    }
+    function result(value) {
+      previousResult = value;
+      if (currentFailure || JSON.stringify(value || null) === ignoredResult) return;
+      presentResult(value, feedback);
     }
     options.forEach(option => option.addEventListener('click', () => setMode(option.dataset.piChoice)));
     browse.addEventListener('click', () => {
       if (!window.uiExplorador) { folder.focus(); return; }
       window.uiExplorador({
-        titulo: t('Pasta do instalador ou pacote offline'), origem: browse, inicial: folder.value,
+        titulo: t('Pacote de pesos offline'), origem: browse, inicial: folder.value,
         aoUsar(path) { folder.value = path; folder.dispatchEvent(new Event('input')); }
       });
     });
     folder.addEventListener('input', () => {
       hooks.reset();
       notice();
+      clearFailure();
       sync();
     });
     inspect.addEventListener('click', () => {
@@ -389,7 +408,6 @@ SCRIPT = r'''
       zip(event.dataTransfer.files, expectedMode);
     });
     }
-    bindDrop(drop, file, 'zip');
     bindDrop(weightDrop, weightFile, 'folder');
     function versions(data) {
       const code = find('[data-pi-code-version]');
@@ -407,10 +425,8 @@ SCRIPT = r'''
     }
     probe.addEventListener('click', testConnection);
     return {
-      sync, versions, local: () => mode !== 'auto', operation: () => mode === 'zip' ? 'code' : 'weights',
-      failure(error) { inlineError.textContent = errorText(error); inlineError.hidden = false; },
-      clearFailure() { inlineError.textContent = ''; inlineError.hidden = true; },
-      result(result) { presentResult(result, last); }
+      sync, versions, failure, clearFailure, result,
+      local: () => mode !== 'auto', operation: () => 'weights'
     };
   }
   async function confirmInstallation(data, name) {
@@ -471,8 +487,8 @@ def landing(plugin, active=None, title=None, controller=None):
 
     name, _, icon, palette = PLUGINS[plugin]
     title = title or name
-    action = 'Instalar ou atualizar ' + name
-    header = radai_ui.cabeca_de_funcao(icon, title, action, chave_modulo=palette)
+    action = 'Instalar ou atualizar os pesos'
+    header = radai_ui.cabeca_de_funcao(icon, title, action, ajuda_html=help_html(), chave_modulo=palette)
     page = ('<!doctype html><html><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>{html.escape(title)} · Local Suite</title></head><body>'
@@ -486,14 +502,14 @@ def config_page(page):
     if 'id="ps_neuro"' in page:
         return page
     card = ''' <a class="cfg-card" href="#ps_neuro" data-alvo="ps_neuro">
-<span class="cab"><span class="n">N</span><span class="ic">''' + radai_ui.icone('neuro_anatomia') + '''</span></span>
+<span class="cab"><span class="ic">''' + radai_ui.icone('neuro_anatomia') + '''</span><span class="n">N</span></span>
 <h3 data-radai-frase>Plugin NEURO RT</h3>
 <p data-radai-frase>Instalar, atualizar e preparar com uma pasta offline.</p>
 <span class="st" data-radai-frase>Instalação e atualização</span></a>
 '''
     section = '''<section class="ps-cx fechado" id="ps_neuro" hidden>
 <h2 class="ps-cab" tabindex="0" role="button"><span class="ps-num">N</span>
-<span data-radai-frase>Plugin NEURO RT</span><span class="ps-seta">&#9662;</span></h2>
+<span data-radai-frase>Plugin NEURO RT</span>''' + help_html() + '''<span class="ps-seta">&#9662;</span></h2>
 <div class="ps-corpo">''' + controls(True) + '</div></section>\n'
     card_marker = ' <a class="cfg-card" href="#ps_limpar"'
     section_marker = '<section class="ps-cx fechado" id="ps_limpar" hidden>'

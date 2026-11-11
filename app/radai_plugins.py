@@ -12,6 +12,7 @@ from pathlib import Path, PureWindowsPath
 PLUGIN_ID = 'neuro-rt'
 HOST_CONTRACT = 'local-suite/plugins/1'
 PLUGIN_PATHS = {'neuro-rt': 'Plugins/NEURO RT', 'lung-rt': 'Plugins/LUNG RT'}
+CODE_UPDATE_VIA_SUITE = 'O código dos plugins é atualizado pelo instalador principal da Local Suite.'
 _MOUNT_LOCK = threading.RLock()
 _UPDATE_PROVIDER = None
 
@@ -104,6 +105,10 @@ def discover_plugin(suite_root, plugin_id=PLUGIN_ID, host_info=None, *, cancelle
             raise ValueError('Schema de instalação inválido.')
         result['state'] = state.get('state', 'failed')
         result['installation_state'] = state
+        recover_base = (plugin_id == PLUGIN_ID and result['state'] == 'failed'
+                        and bool(state.get('active_version')))
+        if recover_base:
+            result['state'] = 'ready'  # Verify CODE below before exposing any route.
         if result['state'] == 'installed_pending_restart' and state.get('active_version'):
             result['pending_version'] = state.get('pending_version')
             result['state'] = 'ready'
@@ -127,6 +132,9 @@ def discover_plugin(suite_root, plugin_id=PLUGIN_ID, host_info=None, *, cancelle
                 or manifest.get('id') != plugin_id or manifest.get('version') != version
                 or manifest.get('host_contract') != HOST_CONTRACT):
             raise ValueError('Manifesto não corresponde à instalação.')
+        if recover_base and manifest.get('base_tools') != ['nidus']:
+            result.update(state='failed', reason='Instalação aguardando preparo ou ativação.')
+            return result
         minimum = manifest.get('host_min_version')
         host_info = host_info or {}
         if (minimum is None or host_info.get('contract') != HOST_CONTRACT
@@ -375,13 +383,6 @@ def montar(app, cfg=None):
 
     def load_installation():
         try:
-            import radai_queue_state as queue
-            if queue.quem_tem_a_vez().get('dono') or queue.fechando_ao_fim():
-                entry['installation'] = dict(entry['installation'],
-                    reason='Aguardando a fila terminar para verificar o NEURO RT.')
-            while queue.quem_tem_a_vez().get('dono') or queue.fechando_ao_fim():
-                if entry['closed'].wait(.1):
-                    return
             if entry['closed'].is_set():
                 return
             entry['installation'] = dict(entry['installation'], reason='Verificando a instalação do NEURO RT.')
@@ -395,9 +396,6 @@ def montar(app, cfg=None):
                 entry['installation'] = verified
                 return
             entry['installation'] = dict(verified, state='loading', reason='Conectando o NEURO RT à fila da suíte.')
-            while queue.quem_tem_a_vez().get('dono') or queue.fechando_ao_fim():
-                if entry['closed'].wait(.1):
-                    return
             if entry['closed'].is_set():
                 return
             services = build_host_services(verified, info, cfg)
@@ -474,10 +472,13 @@ def montar(app, cfg=None):
         weights = (weight_status() if callable(weight_status) else {
             'state': 'checking' if current['state'] in ('checking', 'loading') else 'missing',
             'version': None, 'recipe_sha256': None, 'missing_components': []})
+        code_ready = current['state'] in ('ready', 'loading') and bool(current.get('code_dir'))
+        base_ready = code_ready and bool((entry['receipt'] or {}).get('mounted'))
         return {'plugin_id': PLUGIN_ID, 'host_pid': os.getpid(), 'state': current['state'],
                 'reason': current.get('reason', ''),
                 'active_version': current.get('active_version'),
                 'code_version': code_version,
+                'code_ready': code_ready, 'base_ready': base_ready,
                 'weights': weights,
                 'mounted': bool((entry['receipt'] or {}).get('mounted')),
                 'install_available': callable(cfg.get('neuro_install')),
@@ -529,14 +530,18 @@ def montar(app, cfg=None):
             raise HTTPException(400, 'Pedido inválido.')
         return payload
 
-    async def selected_plan(source_id, operation, purpose=None):
+    def weights_operation(purpose):
+        if purpose == 'code':
+            raise HTTPException(400, {'code': 'SUITE_CODE_UPDATE_REQUIRED', 'message': CODE_UPDATE_VIA_SUITE})
+        return 'weights'
+
+    async def selected_plan(source_id, operation, purpose='weights'):
         if not isinstance(source_id, str) or not 1 <= len(source_id) <= 96:
             raise ValueError('Fonte local inválida.')
         source = entry['local_sources'].get(source_id)
         if not source or time.monotonic() - source['checked_at'] > 900:
             raise ValueError('Confira novamente o pacote local.')
-        if purpose is None:
-            purpose = source.get('operation','code')
+        purpose = weights_operation(purpose)
         if purpose is not None and source.get('operation') != purpose:
             raise ValueError('Confira o pacote na opção correta de código ou pesos.')
         if purpose == 'weights' and source['description'].get('kind') != 'offline_bundle':
@@ -545,9 +550,7 @@ def montar(app, cfg=None):
         if purpose=='code' and current and _version(source['description']['version']) < _version(current):
             raise HTTPException(400,{'code':'CODE_DOWNGRADE_BLOCKED',
                 'message':'O código deste pacote é mais antigo. Use o pacote de pesos offline ou um SETUP atualizado.'})
-        payload = dict(source['description'], action=operation)
-        if purpose is not None:
-            payload.update(code_only=purpose=='code',resources_only=purpose=='weights')
+        payload = dict(source['description'], action=operation, code_only=False, resources_only=True)
         plan = await run_in_threadpool(radai_neuro_install.prepare_external_plan,
                                       payload, source_folder=source['folder'])
         if not isinstance(plan, dict) or plan.get('version') != source['description']['version']:
@@ -576,7 +579,7 @@ def montar(app, cfg=None):
         entry.update(release_check=result, release_checked_at=time.monotonic())
         return JSONResponse(result, headers={'Cache-Control': 'no-store'})
 
-    def remember_source(folder, description, source_format, operation='code'):
+    def remember_source(folder, description, source_format, operation='weights'):
         now = time.monotonic()
         entry['local_sources'] = {k: v for k, v in entry['local_sources'].items() if now - v['checked_at'] <= 900}
         if len(entry['local_sources']) >= 8:
@@ -599,9 +602,10 @@ def montar(app, cfg=None):
         from radai_plugin_sources import SetupUploadError, receive_setup
 
         authorize(request)
-        purpose = request.query_params.get('operation','code')
+        purpose = request.query_params.get('operation','weights')
         if purpose not in ('code','weights'):
             raise HTTPException(400,'Operação de instalação inválida.')
+        purpose = weights_operation(purpose)
         try:
             inspector = lambda path: radai_neuro_install.inspect_local_zip(path,resources_only=purpose=='weights')
             description = await receive_setup(request,suite_root,PLUGIN_ID,inspector,
@@ -618,9 +622,10 @@ def montar(app, cfg=None):
     @app.post('/api/plugins/neuro-rt/local/inspect')
     async def inspect_local(request: Request):
         authorize(request)
-        purpose = request.query_params.get('operation','code')
+        purpose = request.query_params.get('operation','weights')
         if purpose not in ('code','weights'):
             raise HTTPException(400,'Operação de instalação inválida.')
+        purpose = weights_operation(purpose)
         payload = await read_payload(request)
         folder = payload.get('folder')
         if (set(payload) != {'folder'} or not isinstance(folder, str) or not folder or
@@ -665,21 +670,18 @@ def montar(app, cfg=None):
                 set(payload) - {'confirm', 'consent', 'source_id','operation'} or payload['confirm'] is not True
                 or payload.get('operation') not in (None,'code','weights')):
             raise HTTPException(400, 'Confirmação explícita obrigatória.')
+        purpose = weights_operation(payload.get('operation'))
         callback = cfg.get('neuro_install')
         if not callable(callback):
             raise HTTPException(501, 'Instalação ainda não conectada nesta versão do Local Suite.')
         await accept_installation_terms(payload)
         try:
             if 'source_id' in payload:
-                plan = await selected_plan(payload['source_id'],'install',payload.get('operation'))
+                plan = await selected_plan(payload['source_id'],'install',purpose)
                 result = await run_in_threadpool(provider.request_plugin_update, PLUGIN_ID, 'comecar', plan=plan)
-            elif payload.get('operation') == 'weights':
+            else:
                 plan = await automatic_weights_plan('install')
                 result = await run_in_threadpool(provider.request_plugin_update,PLUGIN_ID,'comecar',plan=plan)
-            elif payload.get('operation') == 'code':
-                raise ValueError('Escolha o ZIP do código offline.')
-            else:
-                result = await run_in_threadpool(callback)
         except (ValueError, TypeError, OSError):
             raise HTTPException(400, 'Não foi possível iniciar o preparo. Confira a fonte local e o estado da instalação.')
         if not isinstance(result, dict):
@@ -703,26 +705,25 @@ def montar(app, cfg=None):
                     or payload.get('action') not in ('comecar', 'esperar', 'interromper')):
                 raise ValueError()
             await accept_installation_terms(payload)
+            purpose = weights_operation(payload.get('operation'))
             if 'source_id' in payload:
                 operation = 'interrupt_then_update' if payload['action'] == 'interromper' else 'update'
-                plan = await selected_plan(payload['source_id'],operation,payload.get('operation'))
+                plan = await selected_plan(payload['source_id'],operation,purpose)
                 result = await run_in_threadpool(provider.request_plugin_update, PLUGIN_ID, payload['action'], plan=plan)
-            elif payload.get('operation') == 'weights':
+            else:
                 operation = 'interrupt_then_update' if payload['action']=='interromper' else 'update'
                 plan = await automatic_weights_plan(operation)
                 result = await run_in_threadpool(provider.request_plugin_update,PLUGIN_ID,payload['action'],plan=plan)
-            elif payload.get('operation') == 'code':
-                raise ValueError('Escolha o ZIP do código offline.')
-            else:
-                result = await run_in_threadpool(provider.request_plugin_update, PLUGIN_ID, payload['action'])
         except (ValueError, TypeError, UnicodeError):
             raise HTTPException(400, 'Ação de atualização inválida.')
         return JSONResponse(result, status_code=202, headers={'Cache-Control': 'no-store'})
 
     @app.get('/neuro')
-    def neuro(request: Request):
+    async def neuro(request: Request):
         local(request)
         ensure_background_work()
+        if entry['load_started'] and not entry['load_complete'].is_set():
+            await run_in_threadpool(entry['load_complete'].wait, 3.0)
         if (entry['receipt'] or {}).get('mounted'):
             return RedirectResponse('/neuro/', status_code=307)
         return HTMLResponse(landing(), headers={'Cache-Control': 'no-store'})

@@ -9,7 +9,7 @@ ITENS = [
     ("autocontorno", "/autocontorno", u"contornos",     u"ContourLab",     u"comparar modelos sobre o mesmo exame"),
     ("neuro",       "/neuro",       u"cruzamento", u"NEURO RT", u"ferramentas de estudo do sistema nervoso central"),
     ("nidus",       "/nidus",       u"cruzamento",      u"Nidus RT",      u"projeção vascular: a mesma lesão em duas incidências"),
-    ("nidus_projecao", "/nidus/projecao", u"cruzamento", u"Projeção Vascular", u"circular na projeção, ver onde as duas se cruzam"),
+    ("nidus_projecao", "/nidus/projecao", u"cruzamento", u"NIDUS RT", u"circular na projeção, ver onde as duas se cruzam"),
     ("lung",        "/lung",        u"pulmoes",    u"LUNG RT",       u"anatomia torácica, nódulos e TC 4D"),
     ("elastic_fusao", "/bridge/elastic", u"malha",  u"Fusão elástica", u"registrar duas séries e medir o campo"),
     ("bolus",       "/bolus",       u"bolus",      u"3D Printed Bolus", u"bólus impresso em 3D: a camada sobre a pele, em STL"),

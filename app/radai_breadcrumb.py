@@ -27,7 +27,7 @@ ARVORE = {
     "ver":          (u"Ver segmentações",       "/ver",           "autocontorno"),
     "vigia":        (u"Overnight Run · Vigia", "/vigia",         "autocontorno"),
 
-    "nidus_projecao": (u"Projeção Vascular",  "/nidus/projecao", "neuro"),
+    "nidus_projecao": (u"NIDUS RT",  "/nidus/projecao", "neuro"),
     "elastic_fusao":  (u"Fusão elástica",     "/bridge/elastic", "bridge"),
     "bolus_gerar":    (u"Bólus e caixa",      "/bolus/gerar",    "bolus"),
     "bolus_aplicador": (u"Aplicador de braquiterapia de superfície", "/bolus/aplicador", "bolus"),

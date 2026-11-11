@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import radai_plugins as P
 import radai_neuro_install as N
+import radai_plugin_bootstrap as BOOT
 
 class NeuroHost(unittest.TestCase):
  def setUp(self):
@@ -24,9 +25,13 @@ class NeuroHost(unittest.TestCase):
   for name,value in (("check_plugin_release",{"state":"unavailable"}),("status",{"state":"idle"})):
    p=patch.object(self.provider,name,return_value=value);p.start();self.addCleanup(p.stop)
   def install():self.events.append("install");return {"state":"preparing"}
-  def update(plugin,action):self.events.append(action);return {"state":"preparing"}
+  def update(plugin,action,plan=None):
+   self.assertIs(plan.get('resources_only'),True)
+   self.events.append(action);return {"state":"preparing"}
   p=patch.object(self.provider,"install",side_effect=install);p.start();self.addCleanup(p.stop)
   p=patch.object(self.provider,"request_plugin_update",side_effect=update);p.start();self.addCleanup(p.stop)
+  p=patch.object(BOOT,"seed_for_install",return_value=self.root);p.start();self.addCleanup(p.stop)
+  p=patch.object(N,"prepare_external_plan",side_effect=lambda payload,**kw:dict(payload,version='1.3.4'));p.start();self.addCleanup(p.stop)
   self.entry=P.montar(self.app,{"suite_root":self.root,"neuro_host_version":"8.11"})
   self.client=TestClient(self.app,base_url="http://localhost")
   self.headers={"origin":"http://localhost","x-neuro-plugin-token":self.entry["token"]}
@@ -50,7 +55,7 @@ class NeuroHost(unittest.TestCase):
   self.assertEqual(self.client.post(route,json=stale,headers=self.headers).status_code,400)
   self.assertEqual(self.events,[])
   self.assertEqual(self.client.post(route,json=body,headers=self.headers).status_code,202)
-  self.assertEqual(self.events,["install"])
+  self.assertEqual(self.events,["comecar"])
   self.assertTrue(self.provider.consent_status()["installation_accepted"])
   self.assertFalse(self.provider.consent_status()["first_use_accepted"])
  def test_atualizar_tambem_exige_aceite_e_recusa_acao_extra(self):

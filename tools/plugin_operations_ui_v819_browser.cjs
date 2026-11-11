@@ -32,7 +32,7 @@ const weightsTitle='Instalar / atualizar o pacote de pesos offline';
     if(url.pathname.endsWith('/local/upload')){
       assert.equal(req.headers()['content-type'],'application/zip');
       assert.equal(req.headers()[slug==='neuro-rt'?'x-neuro-plugin-token':'x-lung-plugin-token'],'SYNTHETIC_TOKEN');
-      const operation=url.searchParams.get('operation');assert(['code','weights'].includes(operation));
+      const operation=url.searchParams.get('operation');assert.equal(operation,'weights');
       uploads.push({slug,operation});
       await new Promise(resolve=>setTimeout(resolve,100));
       if(uploadError)return route.fulfill({status:400,json:{detail:uploadError}});
@@ -46,20 +46,19 @@ const weightsTitle='Instalar / atualizar o pacote de pesos offline';
    assert.deepEqual(translated,words,'shared code/weights and error translations in '+locale);
    for(const slug of ['neuro-rt','lung-rt']){
     const panel=page.locator('[data-plugin-install="'+slug+'"]');
-    assert.equal(await panel.locator('[data-pi-choice="zip"] strong').textContent(),words[codeTitle]);
+    assert.equal(await panel.locator('[data-pi-choice="zip"]').count(),0);
     assert.equal(await panel.locator('[data-pi-choice="folder"] strong').textContent(),words[weightsTitle]);
-    assert.equal(await panel.locator('[data-pi-file]').getAttribute('accept'),'.zip,application/zip');
+    assert.equal(await panel.locator('[data-pi-file]').count(),0);
     assert.equal(await panel.locator('[data-pi-weights-file]').getAttribute('accept'),'.zip,application/zip');
     assert.equal(await panel.locator('[data-pi-code-version]').textContent(),slug==='neuro-rt'?'1.3.3':'1.1.3');
     assert.equal(await panel.locator('[data-pi-weights-version]').textContent(),slug==='neuro-rt'?'1.3.0':words['Ainda não instalado']);
     await panel.locator('[data-pi-probe]').click();
     await panel.locator('[data-pi-channel="mirror"][data-state="ok"]').waitFor();
     assert((await panel.locator('[data-pi-channel="mirror"]').textContent()).includes(words['Disponível']));
-    await panel.locator('[data-pi-choice="zip"]').click();
-    await panel.locator('[data-pi-file]').setInputFiles({name:'CODE_SETUP.zip',mimeType:'application/zip',buffer:Buffer.from('SYNTHETIC ZIP ONLY')});
-    await page.waitForFunction(s=>window.testAccepted[s]?.id==='SYNTHETIC_code',slug);
-    assert.equal(await page.evaluate(s=>window.testPanels[s].operation(),slug),'code');
     await panel.locator('[data-pi-choice="folder"]').click();
+    await panel.locator('[data-pi-weights-file]').setInputFiles({name:'WEIGHTS_BUNDLE.zip',mimeType:'application/zip',buffer:Buffer.from('SYNTHETIC ZIP ONLY')});
+    await page.waitForFunction(s=>window.testAccepted[s]?.id==='SYNTHETIC_weights',slug);
+    assert.equal(await page.evaluate(s=>window.testPanels[s].operation(),slug),'weights');
     await panel.locator('[data-pi-weights-drop]').evaluate(element=>{
       const data=new DataTransfer();data.items.add(new File(['SYNTHETIC WEIGHTS ONLY'],'WEIGHTS_BUNDLE.zip',{type:'application/zip'}));
       element.dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:data}));
@@ -73,8 +72,8 @@ const weightsTitle='Instalar / atualizar o pacote de pesos offline';
     assert.equal(await panel.locator('[data-pi-weights-state]').textContent(),words['Pesos prontos']);
     const before=uploads.length;
     await panel.locator('[data-pi-weights-file]').setInputFiles({name:'NOT_A_ZIP.txt',mimeType:'text/plain',buffer:Buffer.from('SYNTHETIC INVALID FILE')});
-    await panel.locator('[data-pi-source][data-state="error"]').waitFor();
-    assert.equal(await panel.locator('[data-pi-source]').textContent(),words['Escolha um único arquivo ZIP.']);
+    await panel.locator('[data-pi-feedback]:visible').waitFor();
+    assert.equal(await panel.locator('[data-pi-feedback]').textContent(),words['Escolha um único arquivo ZIP.']);
     assert.equal(uploads.length,before);
    }
    assert.equal(uploads.length,4);
@@ -86,11 +85,22 @@ const weightsTitle='Instalar / atualizar o pacote de pesos offline';
    ]){
     uploadError=detail;
     await panel.locator('[data-pi-weights-file]').setInputFiles({name:'ERROR_FIXTURE.zip',mimeType:'application/zip',buffer:Buffer.from('SYNTHETIC ERROR RESPONSE')});
-    await panel.locator('[data-pi-source][data-state="error"]').waitFor();
+    await panel.locator('[data-pi-feedback]:visible').waitFor();
     const message=typeof detail==='string'?detail:detail.message;
-    assert.equal(await panel.locator('[data-pi-source]').textContent(),words[message]+' · '+(typeof detail==='string'?'HTTP 400':detail.code));
+    assert.equal(await panel.locator('[data-pi-feedback]').textContent(),words[message]+' · '+(typeof detail==='string'?'HTTP 400':detail.code));
+    await page.evaluate(()=>window.testPanels['lung-rt'].result({error_code:'INSTALL_FAILED',message:'SYNTHETIC OLD FAILURE'}));
+    assert(!(await panel.innerText()).includes('SYNTHETIC OLD FAILURE'));
    }
    uploadError=null;
+   for(const [phase,label] of [['RESOURCES','Preparando recursos'],['DOWNLOAD','Baixando componentes']]){
+    await page.evaluate(({phase})=>{
+      window.testPanels['lung-rt'].clearFailure();
+      window.testPanels['lung-rt'].result({error_code:'DOWNLOAD_FAILED',error_phase:phase,error_component:'medgemma-model',error_reason:'HTTP_403'});
+    },{phase});
+    const text=await panel.locator('[data-pi-feedback]').innerText();
+    assert(text.includes(words[label]),'uppercase worker phase not translated in '+locale);
+    assert(text.includes('DOWNLOAD_FAILED')&&text.includes('medgemma-model')&&text.includes('HTTP_403'));
+   }
    assert.equal(await page.locator('.pi-terms').count(),0);
    assert(!(await page.locator('body').innerText()).includes('SYNTHETIC LUNG TERMS'));
    await page.locator('#open-test-terms').click();

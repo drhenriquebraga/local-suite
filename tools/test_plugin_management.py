@@ -27,7 +27,7 @@ class Management(unittest.TestCase):
     (self.provider,'check_plugin_release',{'state':'unavailable'}),
     (self.provider,'refresh_plugin_release',{'state':'available','version':'1.1.0'}),
     (self.provider,'request_plugin_update',{'state':'external_install','scheduled':True}),
-    (N,'inspect_local_source',{'version':'1.1.0','kind':'bundle','trusted':True}),
+    (N,'inspect_local_source',{'version':'1.1.0','kind':'offline_bundle','trusted':True}),
     (N,'prepare_external_plan',{'schema':'neuro-rt/external-plan/1','mode':'local','version':'1.1.0'})]:
    item=patch.object(obj,name,create=True,return_value=value);mock=item.start();self.addCleanup(item.stop)
    if name=='inspect_local_source':self.inspect=mock

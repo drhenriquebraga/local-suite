@@ -38,6 +38,16 @@ TEXTS = (
     'Atualize o código da Local Suite antes de preparar os pesos.',
     'Confira novamente o código carregado antes de preparar os pesos.',
     'O código ativo mudou durante o preparo. Reabra e confira a instalação.',
+    'Conferir pesos',
+    'O código dos plugins é atualizado pelo instalador principal da Local Suite.',
+    'Esta ferramenta precisa dos modelos adicionais do NEURO RT. Deseja abrir as configurações para preparar os pesos?',
+    'Possível 3D TOF · confirmar', 'Possível TOF · confirmar',
+    'Sugestão pelos metadados; confirme a sequência e escolha a série original, sem MIP.',
+    'Qualidade máxima · dados originais', 'Maximizar angiografia', 'Restaurar estação',
+    'Centrar consenso', 'Anatomia na entrega',
+    'Consenso vazio: ajuste a temperatura ou revise as incidências.', 'Não foi possível centrar o consenso.',
+    'Incidências guardadas', 'Exportar sugestão', 'Anatomia', 'Tecidos', 'Vasos',
+    'Preparando recursos', 'Baixando componentes',
 )
 
 CONTROLLER = r'''<script>
@@ -87,9 +97,13 @@ class PluginOperationsUI(unittest.TestCase):
     def test_both_panels_have_zip_dropzones_without_inline_terms(self):
         for plugin in ('neuro', 'lung'):
             page = UI.controls(settings=True, plugin=plugin)
-            self.assertEqual(page.count('accept=".zip,application/zip"'), 2)
-            self.assertIn('data-pi-drop', page)
+            self.assertEqual(page.count('accept=".zip,application/zip"'), 1)
+            self.assertNotIn('data-pi-choice="zip"', page)
+            self.assertNotIn('data-pi-file', page)
             self.assertIn('data-pi-weights-drop', page)
+            self.assertEqual(page.count('data-pi-feedback'), 1)
+            self.assertNotIn('data-pi-last', page)
+            self.assertNotIn('data-pi-error', page)
             self.assertIn('data-pi-code-version', page)
             self.assertIn('data-pi-weights-version', page)
             self.assertNotIn('LUNG RT está em fase de testes.', page)

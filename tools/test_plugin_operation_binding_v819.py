@@ -38,6 +38,7 @@ class OperationBinding(unittest.TestCase):
         self.root = self.folder / 'suite'
         self.root.mkdir()
         self.stack.enter_context(patch.object(BOOT, 'ensure_base', return_value=False))
+        self.stack.enter_context(patch.object(BOOT, 'seed_for_install', return_value=self.root))
         self.stack.enter_context(patch.object(QUEUE, 'quem_tem_a_vez', return_value={}))
         self.stack.enter_context(patch.object(QUEUE, 'fechando_ao_fim', return_value=False))
         self.stack.enter_context(patch.object(QUEUE, 'pedir_fechar_ao_fim'))
@@ -106,19 +107,15 @@ class OperationBinding(unittest.TestCase):
                 self.assertIs(payload.get('resources_only'), True)
                 self.assertFalse(payload.get('code_only', False))
 
-    def test_omitted_operation_inherits_bound_code_for_both_plugins(self):
+    def test_old_code_source_cannot_trigger_code_installation(self):
         for slug in ('neuro-rt', 'lung-rt'):
             with self.subTest(plugin=slug):
                 self.mount(slug)
                 self.source('code')
                 response = self.request_install()
-                self.assertEqual(response.status_code, 202 if slug == 'neuro-rt' else 200, response.text)
-                payload = self.prepare.call_args.args[0]
-                self.assertIs(payload.get('resources_only'), False)
-                if slug == 'neuro-rt':
-                    self.assertIs(payload.get('code_only'), True)
-                else:
-                    self.assertIs(payload.get('reports'), False)
+                self.assertEqual(response.status_code, 400, response.text)
+                self.prepare.assert_not_called()
+                self.launch.assert_not_called()
 
     def test_explicit_cross_operation_mismatch_is_rejected_before_plan(self):
         for slug in ('neuro-rt', 'lung-rt'):
@@ -143,22 +140,20 @@ class OperationBinding(unittest.TestCase):
         self.source('code', version='1.3.0')
         response = self.request_install('code')
         self.assertEqual(response.status_code, 400, response.text)
-        self.assertEqual(response.json()['detail']['code'], 'CODE_DOWNGRADE_BLOCKED')
+        self.assertEqual(response.json()['detail']['code'], 'SUITE_CODE_UPDATE_REQUIRED')
         self.prepare.assert_not_called()
         self.launch.assert_not_called()
 
-    def test_legacy_install_without_source_or_operation_still_uses_legacy_path(self):
+    def test_legacy_install_without_operation_prepares_only_weights(self):
         for slug in ('neuro-rt', 'lung-rt'):
             with self.subTest(plugin=slug):
                 self.mount(slug)
                 response = self.client.post('/api/plugins/' + slug + '/install',
                     json={'confirm': True}, headers=self.headers)
                 self.assertEqual(response.status_code, 202 if slug == 'neuro-rt' else 200, response.text)
+                self.assertIs(self.prepare.call_args.args[0].get('resources_only'), True)
                 if slug == 'neuro-rt':
-                    self.legacy.assert_called_once()
-                    self.prepare.assert_not_called()
-                else:
-                    self.assertNotIn('resources_only', self.prepare.call_args.args[0])
+                    self.legacy.assert_not_called()
 
     def test_install_without_token_or_from_other_origin_is_rejected(self):
         for slug in ('neuro-rt', 'lung-rt'):

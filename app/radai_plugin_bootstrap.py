@@ -267,11 +267,12 @@ def main():
     parser.add_argument('--suite-root', required=True)
     parser.add_argument('--selection')
     parser.add_argument('--base-only', action='store_true')
+    parser.add_argument('--plugin', choices=_IDS)
     args = parser.parse_args()
     def progress(event):
         print(json.dumps(event, ensure_ascii=True), flush=True)
     if args.base_only:
-        for plugin_id in _IDS:
+        for plugin_id in ([args.plugin] if args.plugin else _IDS):
             ensure_base(args.suite_root, plugin_id, progress=progress)
         return 0
     if not args.selection:

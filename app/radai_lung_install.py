@@ -1,15 +1,19 @@
 import hashlib
 import http.client
+import errno
 import json
 import os
 from pathlib import Path, PureWindowsPath
 import re
 import shutil
+import socket
+import ssl
 import stat
 import sys
 import tempfile
 import time
 from urllib.parse import urlparse
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 import uuid
 import zipfile
@@ -17,7 +21,7 @@ import zipfile
 PLUGIN_ID = 'lung-rt'
 VERSION = '1.1.0'
 CONSENT_POLICY = {'schema': 'lung-rt/consent-policy/1', 'version': '1.0', 'title': 'LUNG RT — fase de testes', 'clauses': ['LUNG RT está em fase de testes. As estruturas são sugestões UNAPPROVED e exigem revisão médica.', 'Pré-laudos experimentais podem omitir ou inventar achados e não constituem laudo final. O PDF é identificado como rascunho não verificado; o SR é PRELIMINARY/UNVERIFIED.', 'O processamento é local. NV-Reason-CT int4 requer GPU de pelo menos 6 GB e WebGPU; pode falhar ou ser truncado, com limite de uma hora.', 'O código usa MIT e os pesos NV-Reason-CT OpenMDW 1.1; cada recurso mantém sua licença. Sem serviço pago, nuvem ou fallback CPU.', 'Backup e sincronização são opcionais e devem usar uma pasta autorizada pelo serviço.'], 'digest': '5814e205a7647595e8b5ea5b29e44b7ceb988fe6953ca8e369694c9d48969918'}
-TRUSTED_CODE_INVENTORIES = frozenset(['0f2a55cff22b15fb0b786784c0cd548b8d6946ab7eecf2c3b91c525b8defb782', '2f14ca1784ae6465f0b7f95020a850359ac80d95b3bdbf5f67165e9c270db4d3', '48d61bbfa8670dd3bca474cd5228f16800a46c47c8bbfdb2a3cbb28ba1954568', 'b9de130360e87b82994c6773d6446ec71490d35fc1178ad522c9f3601e2049ad', 'e2831bb01be0ce0bcf98dba1b8eb827f7b801d09467e6f9c9011d0981607494d', 'e43df36e728292003401785e8e75d1b3eadc3e9cfdd26ac31b3788a4a1269f3b'])
+TRUSTED_CODE_INVENTORIES = frozenset(['0f2a55cff22b15fb0b786784c0cd548b8d6946ab7eecf2c3b91c525b8defb782', '2f14ca1784ae6465f0b7f95020a850359ac80d95b3bdbf5f67165e9c270db4d3', '48d61bbfa8670dd3bca474cd5228f16800a46c47c8bbfdb2a3cbb28ba1954568', 'acb4dd5473dea4bb328e0fce7b57e1fbcf5dc5435ce045f3d8910df1aa633008', 'b9de130360e87b82994c6773d6446ec71490d35fc1178ad522c9f3601e2049ad', 'e2831bb01be0ce0bcf98dba1b8eb827f7b801d09467e6f9c9011d0981607494d', 'e43df36e728292003401785e8e75d1b3eadc3e9cfdd26ac31b3788a4a1269f3b'])
 GITHUB = 'https://api.github.com/repos/drhenriquebraga/lung-rt/releases/latest'
 MIRROR = 'https://drhenriquebraga.com.br/_distribuicao/radioterapia-ai/lung-rt/atualizacoes'
 LATEST = 'LUNG_RT_SETUP_LATEST.zip'
@@ -26,9 +30,26 @@ MAX_BUNDLE = 16 * 1024**3
 
 
 class LungInstallError(ValueError):
-    def __init__(self, code, message):
+    def __init__(self, code, message, *, reason=None, phase=None):
         super().__init__(message)
         self.error_code = code
+        self.error_reason = reason
+        self.error_phase = phase
+
+
+def _failure_reason(error):
+    if isinstance(error, HTTPError):
+        return 'HTTP_%d' % error.code if 100 <= error.code <= 599 else 'HTTP_ERROR'
+    cause = error.reason if isinstance(error, URLError) else error
+    if isinstance(cause, (TimeoutError, socket.timeout)) or getattr(cause, 'errno', None) == errno.ETIMEDOUT:
+        return 'TIMEOUT'
+    if isinstance(cause, ssl.SSLError):
+        return 'TLS_ERROR'
+    if isinstance(cause, socket.gaierror):
+        return 'DNS_ERROR'
+    if getattr(cause, 'errno', None) == errno.ENOSPC:
+        return 'DISK_FULL'
+    return 'CONNECTION_FAILED' if isinstance(error, (URLError, http.client.HTTPException)) else 'IO_ERROR'
 
 
 def suite_identity(root):
@@ -163,13 +184,14 @@ def _download(urls, destination, size, digest, progress=None, cancelled=None):
         return destination
     destination.parent.mkdir(parents=True, exist_ok=True)
     cancelled = cancelled or (lambda: False)
+    reason = 'DOWNLOAD_FAILED'
     for url in urls:
         temporary = destination.with_name(destination.name+'.part-'+uuid.uuid4().hex)
         try:
             h, total, reported = hashlib.sha256(), 0, 0.0
             with _request(url,timeout=45) as response, temporary.open('xb') as stream:
                 if urlparse(response.geturl()).scheme != 'https':
-                    raise ValueError('Redirecionamento inseguro.')
+                    raise LungInstallError('DOWNLOAD_FAILED', 'Redirecionamento inseguro.', reason='UNSAFE_REDIRECT')
                 while True:
                     if cancelled():
                         raise ValueError('Instalação cancelada.')
@@ -178,23 +200,26 @@ def _download(urls, destination, size, digest, progress=None, cancelled=None):
                         break
                     total += len(data)
                     if total > size:
-                        raise ValueError('Download excede o tamanho publicado.')
+                        raise LungInstallError('DOWNLOAD_FAILED', 'Download excede o tamanho publicado.', reason='SIZE_MISMATCH')
                     stream.write(data)
                     h.update(data)
                     if progress and time.monotonic() - reported > .3:
                         progress({'stage':'downloading','downloaded_bytes':total,'total_bytes':size})
                         reported = time.monotonic()
-            if total != size or h.hexdigest() != digest:
-                raise ValueError('Integridade do download não confirmada.')
+            if total != size:
+                raise LungInstallError('DOWNLOAD_FAILED', 'Integridade do download não confirmada.', reason='SIZE_MISMATCH')
+            if h.hexdigest() != digest:
+                raise LungInstallError('DOWNLOAD_FAILED', 'Integridade do download não confirmada.', reason='HASH_MISMATCH')
             os.replace(temporary,destination)
             return destination
-        except (OSError, ValueError, http.client.HTTPException):
+        except (OSError, ValueError, http.client.HTTPException) as error:
+            reason = error.error_reason if isinstance(error, LungInstallError) else _failure_reason(error)
             if cancelled():
                 raise ValueError('Instalação cancelada.') from None
         finally:
             if temporary.exists():
                 temporary.unlink()
-    raise LungInstallError('DOWNLOAD_FAILED', 'Não foi possível baixar um arquivo íntegro. Use o bundle offline.')
+    raise LungInstallError('DOWNLOAD_FAILED', 'Não foi possível baixar um arquivo íntegro. Use o bundle offline.', reason=reason, phase='DOWNLOAD')
 
 
 def archive_prefix(archive):
@@ -367,6 +392,32 @@ def prepare_external_plan(payload, *, source_folder=None):
 
 
 def _install_resource(package, relative, dest, existing, resource, offline, progress):
+    if relative.startswith('xray/'):
+        filename = relative.rsplit('/', 1)[-1]
+        component = 'medgemma-' + ('runtime' if filename.endswith('.zip') else 'mmproj' if filename.startswith('mmproj') else 'model')
+    else:
+        component = resource.get('id') or 'nv-reason-ct-' + relative.rsplit('/', 1)[-1]
+    if not isinstance(component, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.+-]{0,159}', component):
+        component = 'report-resource'
+    def report(event):
+        value = dict(event)
+        action = value.get('resource_stage') or value.get('stage', 'preparing')
+        value.update(stage='resources', resource_stage=action, component=component)
+        if progress:
+            progress(value)
+    report({'stage':'checking'})
+    try:
+        return _install_resource_bytes(package, relative, dest, existing, resource, offline, report)
+    except Exception as error:
+        error.error_component = component
+        if not getattr(error, 'error_phase', None):
+            error.error_phase = 'RESOURCES'
+        if not getattr(error, 'error_reason', None):
+            error.error_reason = _failure_reason(error) if isinstance(error, OSError) else 'RESOURCE_INVALID'
+        raise
+
+
+def _install_resource_bytes(package, relative, dest, existing, resource, offline, progress):
     size, digest = resource['size'], resource['sha256']
     if type(size) is not int or size < 0 or not re.fullmatch('[0-9a-f]{64}', str(digest)):
         raise ValueError('Recurso sem integridade publicada.')

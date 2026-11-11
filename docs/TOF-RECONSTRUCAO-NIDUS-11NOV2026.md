@@ -1,0 +1,21 @@
+# NIDUS RT: TOF e reconstrução fiel ao exame
+
+Seleção bibliográfica verificada em 11/11/2026. Proposta de pós-processamento; não representa validação clínica do aplicativo. Os links abaixo oferecem cinco artigos completos. Estudos com aquisição a 7 T explicam limites físicos: não permitem obter essa resolução a partir de um exame convencional por simples interpolação.
+
+| Texto escolhido | DOI | Texto completo | Aplicação ao NIDUS |
+|---|---|---|---|
+| Yan et al. (2013), Non-contrast 3D time-of-flight magnetic resonance angiography for visualization of intracranial aneurysms in patients with absolute contraindications to CT or MRI contrast | [10.1016/j.jocn.2012.12.005](https://doi.org/10.1016/j.jocn.2012.12.005) | [PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC3707952/) | Reconstrução a partir de TOF sem contraste, com MIP e visualização volumétrica. É a leitura mais diretamente relacionada às projeções do app. |
+| Bollmann et al. (2022), Imaging of the pial arterial vasculature of the human brain in vivo using high-resolution 7T time-of-flight angiography | [10.7554/eLife.71186](https://doi.org/10.7554/eLife.71186) | [PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC9150892/) | Vasos pequenos, tamanho do voxel e volume parcial. Fundamenta preservar a resolução adquirida e não confundir ampliação da tela com detalhe anatômico novo. |
+| Cosottini et al. (2024), Time-of-flight MRA of intracranial vessels at 7 T | [10.1186/s41747-024-00463-z](https://doi.org/10.1186/s41747-024-00463-z) | [PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC11156832/) | Comparação de resolução e conspicuidade vascular, inclusive com DSA. Ajuda a separar limitações da aquisição das limitações do renderizador. |
+| Clinical Evaluation of Highly Accelerated Compressed Sensing Time-of-Flight MR Angiography for Intracranial Arterial Stenosis (2018) | [10.3174/ajnr.A5786](https://doi.org/10.3174/ajnr.A5786) | [PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC7410741/) | Diferenças entre imagens de origem e MIP: a projeção pode esconder certos artefatos. Justifica manter as vistas MPR junto da angio. A reconstrução de aquisição descrita no artigo exige dados próprios do equipamento. |
+| Incidental vascular findings on brain magnetic resonance angiography (2022/2023) | [10.1259/bjr.20220135](https://doi.org/10.1259/bjr.20220135) | [PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC9975521/) | Artefatos de fluxo e variantes anatômicas. Apoia a revisão de cortes originais e impede tratar toda ausência de sinal na TOF como ausência real de vaso. |
+
+## Consequências propostas para a implementação
+
+1. Sugerir a série fonte TOF 3D, usando SeriesDescription, ProtocolName, SequenceName, MRAcquisitionType e ImageType. `AXI 3D TOF 3SLAB FS MT ASSET` é uma indicação forte pelo nome, mas os metadados e a imagem precisam confirmar. Não priorizar uma MIP já derivada como se contivesse um volume 3D original. Preservar a escolha explícita do usuário e a separação entre pacientes/estudos.
+2. Usar a geometria física DICOM para MPR e projeções; manter a fonte original como referência. A projeção MIP seleciona os maiores sinais no trajeto; recorte e espessura de laje ajudam a reduzir sobreposições. Não completar ramos ausentes com IA nem preencher falhas de fluxo com anatomia inventada.
+3. Exibir a melhor resolução final suportada pelo volume e pelo renderizador, sem um seletor que deixe a sessão permanentemente reduzida. Interpolação melhora a apresentação, mas não aumenta a resolução adquirida. Não prometer resolução anatômica equivalente a 7 T para qualquer exame.
+4. Na RM, janelas significam ajustes de sinal/contraste, não unidades Hounsfield. Mudar de “vasos” para “anatomia” não transforma a TOF em uma aquisição T1 ou T2, nem comprova uma fusão entre séries diferentes.
+5. Preservar o método de consenso geométrico já existente e a exportação explicitamente solicitada. Os ajustes de layout, cor, ampliação, seleção e centralização não devem alterar a máscara ou aprovar o RTSTRUCT.
+
+As recomendações acima são inferências de implementação a partir dos artigos e do funcionamento atual. A revisão de imagens reais e do registro entre séries continua sendo uma etapa independente dos testes sintéticos de software.

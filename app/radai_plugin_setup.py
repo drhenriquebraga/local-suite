@@ -309,7 +309,15 @@ def run_worker(plan_path, expected_sha, supervisor_pid, *, runner=None, wait_old
         _message(work, 'O app não encerrou. Nenhuma instalação foi executada.')
         _finish(work, result)
         return 1
+    context = {}
     def progress(value):
+        if isinstance(value, dict):
+            component = value.get('component')
+            if isinstance(component, str) and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.+-]{0,159}', component):
+                context['error_component'] = component
+            phase = value.get('resource_stage') or value.get('stage')
+            if isinstance(phase, str) and re.fullmatch(r'[a-z_]{2,32}', phase):
+                context['error_phase'] = phase.upper()
         stages = {'downloading': 'Baixando componentes necessários', 'extracting': 'Copiando arquivos',
                   'verifying': 'Conferindo a instalação', 'validating': 'Conferindo integridade',
                   'preparing': 'Preparando o plugin', 'activating': 'Ativando o plugin',
@@ -359,7 +367,23 @@ def run_worker(plan_path, expected_sha, supervisor_pid, *, runner=None, wait_old
     except Exception as error:
         code = getattr(error, 'error_code', '')
         result['error_code'] = code if isinstance(code, str) and re.fullmatch('[A-Z][A-Z0-9_]{2,63}', code) else 'INSTALL_FAILED'
+        for field, pattern in (('error_component', r'[A-Za-z0-9][A-Za-z0-9_.+-]{0,159}'),
+                               ('error_phase', r'[A-Z_]{2,32}')):
+            value = getattr(error, field, None) or context.get(field)
+            if isinstance(value, str) and re.fullmatch(pattern, value):
+                result[field] = value
+        reason = getattr(error, 'error_reason', None)
+        allowed = {'TIMEOUT', 'TLS_ERROR', 'DNS_ERROR', 'DISK_FULL', 'CONNECTION_FAILED', 'IO_ERROR',
+                   'HASH_MISMATCH', 'SIZE_MISMATCH', 'UNSAFE_REDIRECT', 'RESOURCE_INVALID',
+                   'VALIDATION_FAILED', 'PACKAGE_INVALID', 'INVALID_PLAN', 'FILE_NOT_FOUND', 'DOWNLOAD_FAILED', 'HTTP_ERROR'}
+        if not isinstance(reason, str) or (reason not in allowed and not re.fullmatch(r'HTTP_[1-5][0-9]{2}', reason)):
+            reason = ('FILE_NOT_FOUND' if isinstance(error, FileNotFoundError) else
+                      'IO_ERROR' if isinstance(error, OSError) else
+                      'VALIDATION_FAILED' if isinstance(error, ValueError) else 'INSTALL_FAILED')
+        result['error_reason'] = reason
+        detail = ' / '.join(result[field] for field in ('error_component', 'error_phase', 'error_reason') if result.get(field))
         _message(work, 'A instalação não foi concluída. Código: ' + result['error_code'] + '.')
+        _message(work, 'Diagnóstico: ' + detail + '.')
     _finish(work, result)
     _message(work, 'Reabrindo a Local Suite em uma nova janela...')
     try:

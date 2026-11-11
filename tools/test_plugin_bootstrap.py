@@ -33,6 +33,12 @@ def modified_zip(plugin_id, additions=(), prefix=''):
 
 
 class PluginBootstrap(unittest.TestCase):
+    def test_single_plugin_cli_uses_only_requested_suite_code_seed(self):
+        with patch.object(sys,'argv',['bootstrap','--suite-root','SYNTHETIC','--base-only','--plugin','lung-rt']),patch.object(bootstrap,'ensure_base',return_value=True) as ensure:
+            self.assertEqual(bootstrap.main(),0)
+            self.assertEqual(ensure.call_count,1)
+            self.assertEqual(ensure.call_args.args,('SYNTHETIC','lung-rt'))
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='suite-plugin-bootstrap-test-')
         self.addCleanup(self.temp.cleanup)
@@ -40,8 +46,8 @@ class PluginBootstrap(unittest.TestCase):
         self.root.mkdir()
         for name in ('radai_panel.py', 'radai_ui.py'):
             (self.root / name).write_text('# synthetic base marker\n')
-        (self.root / 'entrega.txt').write_text('PROJETO=LOCAL_SUITE\nVERSAO=8.20\n')
-        self.headers = {'contract': radai_plugins.HOST_CONTRACT, 'version': '8.20'}
+        (self.root / 'entrega.txt').write_text('PROJETO=LOCAL_SUITE\nVERSAO=8.21\n')
+        self.headers = {'contract': radai_plugins.HOST_CONTRACT, 'version': '8.21'}
 
     def test_actual_embedded_code_bootstraps_both_plugins_without_extra_resources(self):
         keeps = []
