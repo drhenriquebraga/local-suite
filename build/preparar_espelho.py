@@ -27,7 +27,7 @@ def preparar(arquivo, destino):
         raise ValueError("A entrada deve ser o SETUP leve e versionado da Local Suite.")
     v = m.group(1)
     with zipfile.ZipFile(arquivo) as z:
-        if ("START_HERE.cmd" not in z.namelist()
+        if (not ({"START_HERE.cmd","START_HERE_TO_INSTALL_LOCAL_SUITE.cmd"} & set(z.namelist()))
                 or "programa/packager/UPDATE.ps1" not in z.namelist()
                 or any(x.lower().startswith(("programa/python/", "programa/ts_weights/",
                                              "programa/modelos/")) for x in z.namelist())
@@ -66,12 +66,14 @@ def preparar_plugin(arquivo, destino, plugin_id):
     version = match.group(1)
     with zipfile.ZipFile(arquivo) as archive:
         names = archive.namelist()
-        if 'START_HERE.cmd' not in names or 'release-manifest.json' not in names or archive.testzip():
+        prefix = 'programa/' if 'programa/release-manifest.json' in names else ''
+        starter = 'START_HERE_TO_INSTALL_'+product+'.cmd'
+        if not ({'START_HERE.cmd',starter} & set(names)) or prefix+'release-manifest.json' not in names or archive.testzip():
             raise ValueError('SETUP inválido.')
-        if any(name.lower().startswith(('models/','runtimes/','python/','ts_weights/')) or
+        if any(name.removeprefix(prefix).lower().startswith(('models/','runtimes/','python/','ts_weights/')) or
                name.lower().endswith(('.onnx','.safetensors','.pth','.whl','.dcm')) for name in names):
             raise ValueError('O espelho público não recebe modelos, Python ou dados.')
-        module = json.loads(archive.read('code/module.json'))
+        module = json.loads(archive.read(prefix+'code/module.json'))
         if module.get('id') != plugin_id or module.get('version') != version:
             raise ValueError('Manifesto incompatível com o SETUP.')
     root = destino / '_distribuicao/radioterapia-ai' / plugin_id / 'atualizacoes'

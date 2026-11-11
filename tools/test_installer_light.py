@@ -72,9 +72,9 @@ def teste_o_zip_abre_e_tem_forma():
         z.extractall(alvo)
     checar(u"ele extrai", os.path.isdir(alvo))
 
-    ENTRADA = "START_HERE.cmd"
+    ENTRADA = "START_HERE_TO_INSTALL_LOCAL_SUITE.cmd"
     cmds = set(f for f in os.listdir(alvo) if f.lower().endswith(".cmd"))
-    checar(u"o START_HERE.cmd esta na raiz do extraido", ENTRADA in cmds,
+    checar(u"o START_HERE_TO_INSTALL_LOCAL_SUITE.cmd esta na raiz do extraido", ENTRADA in cmds,
            sorted(cmds))
     checar(u"e nao ha `.cmd` desconhecido ao lado dele",
            not (cmds - {ENTRADA}), sorted(cmds - {ENTRADA}))
@@ -82,8 +82,8 @@ def teste_o_zip_abre_e_tem_forma():
            u"instalador leve", "verify.cmd" not in cmds, sorted(cmds))
 
     arquivos_raiz = {n for n in os.listdir(alvo) if os.path.isfile(os.path.join(alvo, n))}
-    checar(u"a raiz contem apenas README.txt e START_HERE.cmd",
-           arquivos_raiz == {"README.txt", "START_HERE.cmd"}, arquivos_raiz)
+    checar(u"a raiz contem apenas README.txt e START_HERE_TO_INSTALL_LOCAL_SUITE.cmd",
+           arquivos_raiz == {"README.txt", "START_HERE_TO_INSTALL_LOCAL_SUITE.cmd"}, arquivos_raiz)
     alvo = os.path.join(alvo, "programa")
     checar(u"o conteudo do instalador fica em programa/", os.path.isdir(alvo))
 
@@ -525,7 +525,7 @@ def teste_o_lancador_alcanca_o_preparador(alvo):
     secao(u"o START_HERE alcanca o preparador")
     if not alvo:
         return
-    com = io.open(os.path.join(os.path.dirname(alvo), "START_HERE.cmd"),
+    com = io.open(os.path.join(os.path.dirname(alvo), "START_HERE_TO_INSTALL_LOCAL_SUITE.cmd"),
                   encoding="utf-8", errors="replace").read()
     checar(u"ele chama o prepare.ps1", u"prepare.ps1" in com)
     checar(u"e o prepare.ps1 esta no extraido",

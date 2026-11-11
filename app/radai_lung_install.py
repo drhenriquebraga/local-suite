@@ -17,7 +17,7 @@ import zipfile
 PLUGIN_ID = 'lung-rt'
 VERSION = '1.1.0'
 CONSENT_POLICY = {'schema': 'lung-rt/consent-policy/1', 'version': '1.0', 'title': 'LUNG RT — fase de testes', 'clauses': ['LUNG RT está em fase de testes. As estruturas são sugestões UNAPPROVED e exigem revisão médica.', 'Pré-laudos experimentais podem omitir ou inventar achados e não constituem laudo final. O PDF é identificado como rascunho não verificado; o SR é PRELIMINARY/UNVERIFIED.', 'O processamento é local. NV-Reason-CT int4 requer GPU de pelo menos 6 GB e WebGPU; pode falhar ou ser truncado, com limite de uma hora.', 'O código usa MIT e os pesos NV-Reason-CT OpenMDW 1.1; cada recurso mantém sua licença. Sem serviço pago, nuvem ou fallback CPU.', 'Backup e sincronização são opcionais e devem usar uma pasta autorizada pelo serviço.'], 'digest': '5814e205a7647595e8b5ea5b29e44b7ceb988fe6953ca8e369694c9d48969918'}
-TRUSTED_CODE_INVENTORIES = frozenset(['2f14ca1784ae6465f0b7f95020a850359ac80d95b3bdbf5f67165e9c270db4d3', 'e43df36e728292003401785e8e75d1b3eadc3e9cfdd26ac31b3788a4a1269f3b', 'b9de130360e87b82994c6773d6446ec71490d35fc1178ad522c9f3601e2049ad', 'e2831bb01be0ce0bcf98dba1b8eb827f7b801d09467e6f9c9011d0981607494d'])
+TRUSTED_CODE_INVENTORIES = frozenset(['2f14ca1784ae6465f0b7f95020a850359ac80d95b3bdbf5f67165e9c270db4d3', 'e43df36e728292003401785e8e75d1b3eadc3e9cfdd26ac31b3788a4a1269f3b', 'b9de130360e87b82994c6773d6446ec71490d35fc1178ad522c9f3601e2049ad', 'e2831bb01be0ce0bcf98dba1b8eb827f7b801d09467e6f9c9011d0981607494d','48d61bbfa8670dd3bca474cd5228f16800a46c47c8bbfdb2a3cbb28ba1954568'])
 GITHUB = 'https://api.github.com/repos/drhenriquebraga/lung-rt/releases/latest'
 MIRROR = 'https://drhenriquebraga.com.br/_distribuicao/radioterapia-ai/lung-rt/atualizacoes'
 LATEST = 'LUNG_RT_SETUP_LATEST.zip'
@@ -197,17 +197,44 @@ def _download(urls, destination, size, digest, progress=None, cancelled=None):
     raise LungInstallError('DOWNLOAD_FAILED', 'Não foi possível baixar um arquivo íntegro. Use o bundle offline.')
 
 
+def archive_prefix(archive):
+    candidates = [row.filename[:-len('release-manifest.json')]
+                  for row in archive.infolist() if not row.is_dir()
+                  and row.filename.split('/')[-1] == 'release-manifest.json'
+                  and row.filename.count('/') <= 2]
+    if len(candidates) != 1:
+        raise ValueError('Escolha um ZIP que contenha apenas um plugin.')
+    return candidates[0]
+
+
+def package_root(path):
+    path = Path(path).absolute()
+    if path.is_file():
+        return path
+    candidates = [path, path/'programa']
+    if path.is_dir():
+        candidates.extend(child for child in path.iterdir() if child.is_dir())
+        candidates.extend(child/'programa' for child in path.iterdir() if child.is_dir())
+    matches = {candidate for candidate in candidates
+               if _inside(candidate, 'release-manifest.json').is_file()}
+    if len(matches) != 1:
+        raise ValueError('Escolha a pasta completa de um único plugin.')
+    return matches.pop()
+
+
 class Package:
     def __init__(self,path):
-        self.path = Path(path)
+        self.path = package_root(path)
         self.zip = zipfile.ZipFile(self.path) if self.path.is_file() else None
+        self.prefix = ''
         if self.zip:
             try:
                 entries = self.zip.infolist()
                 if len(entries) > 20000 or sum(i.file_size for i in entries) > MAX_BUNDLE:
                     raise ValueError('O instalador excede o limite permitido.')
                 if sum(i.file_size for i in entries) > MAX_SETUP:
-                    marker = self.zip.getinfo('.lung-offline-preparation.json')
+                    self.prefix = archive_prefix(self.zip)
+                    marker = self.zip.getinfo(self.prefix + '.lung-offline-preparation.json')
                     if marker.file_size > 8192:
                         raise ValueError('Metadados do bundle excedem o limite.')
                     record = json.loads(self.zip.read(marker))
@@ -221,12 +248,14 @@ class Package:
                     if folded in seen or stat.S_ISLNK(item.external_attr>>16) or item.flag_bits & 1:
                         raise ValueError('Pacote contém entradas inválidas.')
                     seen.add(folded)
+                self.prefix = archive_prefix(self.zip)
             except BaseException:
                 self.zip.close()
                 raise
 
     def read(self,name,limit=8*1024**2):
         if self.zip:
+            name = self.prefix + name
             if self.zip.getinfo(name).file_size > limit:
                 raise ValueError('Artefato excede o limite.')
             return self.zip.read(name)
@@ -270,7 +299,7 @@ def _offline(root, digest, package=None):
     marker = _inside(root, '.lung-offline-preparation.json') if root.is_dir() else None
     if marker is not None and marker.is_file():
         record = _json(marker, 8192)
-    elif package is not None and package.zip and '.lung-offline-preparation.json' in package.zip.namelist():
+    elif package is not None and package.zip and package.prefix + '.lung-offline-preparation.json' in package.zip.namelist():
         record = json.loads(package.read('.lung-offline-preparation.json', 8192))
     else:
         return False
@@ -301,6 +330,7 @@ def inspect_local_source(folder):
     package = None
     try:
         package = Package(root)
+        root = package.path
         manifest,digest,_ = _inventory(package)
         offline = _offline(root, digest, package)
         for entry in manifest['files']:
@@ -318,6 +348,13 @@ def inspect_local_source(folder):
 def prepare_external_plan(payload, *, source_folder=None):
     if not isinstance(payload,dict):
         raise ValueError('Plano inválido.')
+    resources_only = payload.get('resources_only', False)
+    if type(resources_only) is not bool:
+        raise ValueError('Operação de instalação inválida.')
+    if resources_only and source_folder is None:
+        _version(payload.get('installed_version'))
+        return {'schema':'lung-rt/external-plan/1','source':'installed',
+                'version':payload['installed_version'],'reports':True,'resources_only':True,'offline':False}
     if source_folder:
         source = inspect_local_source(source_folder)
     else:
@@ -325,7 +362,8 @@ def prepare_external_plan(payload, *, source_folder=None):
         if source.get('state') not in ('available','current'):
             raise ValueError(source.get('reason','Release indisponível.'))
         source['source'] = 'online'
-    return dict(source,schema='lung-rt/external-plan/1',reports=payload.get('reports') is True)
+    return dict(source,schema='lung-rt/external-plan/1',
+                reports=resources_only or payload.get('reports') is True,resources_only=resources_only)
 
 
 def _install_resource(package, relative, dest, existing, resource, offline, progress):
@@ -337,12 +375,12 @@ def _install_resource(package, relative, dest, existing, resource, offline, prog
     source = None
     if existing.is_file() and existing.stat().st_size == size and _sha(existing) == digest:
         source = existing.open('rb')
-    elif package.zip and 'resources/' + relative in package.zip.namelist():
-        entry = package.zip.getinfo('resources/' + relative)
+    elif package is not None and package.zip and package.prefix + 'resources/' + relative in package.zip.namelist():
+        entry = package.zip.getinfo(package.prefix + 'resources/' + relative)
         if entry.file_size != size:
             raise ValueError('Recurso offline incompleto.')
         source = package.zip.open(entry)
-    elif not package.zip:
+    elif package is not None and not package.zip:
         local = _inside(package.path / 'resources', relative)
         if local.is_file():
             if local.stat().st_size != size:
@@ -373,12 +411,140 @@ def _install_resource(package, relative, dest, existing, resource, offline, prog
             temporary.unlink()
 
 
+def _active_code(plugin):
+    state = _json(_inside(plugin,'installation.json'))
+    if state.get('schema') != 'lung-rt/installation/1' or state.get('state') != 'ready':
+        raise ValueError('Atualize o código da Local Suite antes de preparar os pesos.')
+    version = state.get('active_version')
+    _version(version)
+    relative = state.get('code_path','')
+    if not (relative == 'versions/'+version or relative.startswith('versions/'+version+'/')):
+        raise ValueError('A versão do código ativo não confere.')
+    code = _inside(plugin,relative)
+    class Current:
+        def read(self,name,limit=8*1024**2):
+            path = _inside(code,name[5:] if name.startswith('code/') else name)
+            if path.stat().st_size > limit:
+                raise ValueError('Artefato excede o limite.')
+            return path.read_bytes()
+    package = Current()
+    manifest,digest,_ = _inventory(package)
+    if state.get('inventory_sha256') != digest or manifest['version'] != version:
+        raise ValueError('O código carregado não corresponde ao inventário autorizado.')
+    for entry in manifest['files']:
+        _code_bytes(package,entry)
+    return state,code
+
+
+def _prepare_report_resources(plugin, code, previous, package, offline, progress):
+    recipe_file = code/'catalog/resource_recipe.json'
+    recipe = _json(recipe_file)
+    recipe_sha = _sha(recipe_file)
+    old_path = previous.get('resources_path')
+    old_resources = _inside(plugin,old_path) if old_path else plugin
+    resource_path = old_path if old_path and Path(old_path).name.startswith(recipe_sha) else 'resources/'+recipe_sha
+    resource_root = _inside(plugin,resource_path)
+    files = recipe.get('files',[])
+    if not files:
+        raise ValueError('Receita de recursos de laudo ausente.')
+    for resource in files:
+        relative = resource['path']
+        if not relative.startswith(('models/','runtimes/')):
+            raise ValueError('Destino de recurso inválido.')
+        _install_resource(package,relative,_inside(resource_root,relative),
+                          _inside(old_resources,relative),resource,offline,progress)
+        progress({'stage':'resources','resource_stage':'complete','component':resource.get('id','nv-reason-ct')})
+    xray_file = code/'catalog/xray_resources.json'
+    if xray_file.is_file():
+        xray = _json(xray_file)
+        revision = xray.get('revision','')
+        if xray.get('schema') != 'lung-rt/xray-resources/1' or not re.fullmatch('[0-9a-f]{40}',revision):
+            raise ValueError('Receita RX inválida.')
+        for key in ('runtime','model','mmproj'):
+            resource = xray[key]
+            filename = resource.get('filename','')
+            if not filename or '/' in filename or chr(92) in filename:
+                raise ValueError('Nome de recurso RX inválido.')
+            relative = 'xray/'+revision+'/'+filename
+            dest = _inside(plugin,'data/'+relative)
+            _install_resource(package,relative,dest,dest,resource,offline,progress)
+            progress({'stage':'resources','resource_stage':'complete','component':'medgemma-'+key})
+    return {'resources_path':resource_path,'resource_recipe_sha256':recipe_sha,
+            'reports_installed':True,'weights_prepared_at':time.time()}
+
+
+def _run_resources_only(plan, progress, root):
+    plugin = _inside(root,'Plugins/LUNG RT')
+    previous,code = _active_code(plugin)
+    progress = progress or (lambda value:None)
+    progress({'stage':'checking'})
+    package = None
+    version = None
+    offline = False
+    try:
+        if plan.get('source') == 'local':
+            package = Package(plan['path'])
+            inventory,digest,_ = _inventory(package)
+            if inventory['version'] != plan.get('version') or plan.get('inventory_sha256') != digest:
+                raise ValueError('O pacote mudou desde a conferência.')
+            offline = _offline(package.path,digest,package)
+            if not offline:
+                raise LungInstallError('EXPECTED_WEIGHT_BUNDLE','Escolha o bundle de pesos completo preparado para levar.')
+            version = inventory['version']
+        elif plan.get('source') != 'installed' or previous['active_version'] != plan.get('version'):
+            raise ValueError('Confira novamente o código carregado antes de preparar os pesos.')
+        updates = _prepare_report_resources(plugin,code,previous,package,offline,progress)
+        if version:
+            updates['resource_bundle_version'] = version
+        updates['resource_source'] = 'offline_bundle' if offline else 'online'
+        current = _json(plugin/'installation.json')
+        for key in ('active_version','code_path','inventory_sha256'):
+            if current.get(key) != previous.get(key):
+                raise ValueError('O código ativo mudou durante o preparo. Reabra e confira a instalação.')
+        if not version and previous.get('resource_recipe_sha256') != updates['resource_recipe_sha256']:
+            current.pop('resource_bundle_version',None)
+        _atomic(plugin/'installation.json',dict(current,**updates))
+        progress({'stage':'complete'})
+        return {'state':'ready','active_version':current['active_version'],'resource_bundle_version':version}
+    finally:
+        if package is not None:
+            package.close()
+
+
+def weights_status(suite_root):
+    plugin = _inside(suite_root,'Plugins/LUNG RT')
+    try:
+        state,code = _active_code(plugin)
+        recipe_file = code/'catalog/resource_recipe.json'
+        recipe = _json(recipe_file)
+        resource_root = _inside(plugin,state['resources_path']) if state.get('resources_path') else plugin
+        rows = [(_inside(resource_root,row['path']),row) for row in recipe.get('files',[])]
+        xray_file = code/'catalog/xray_resources.json'
+        if xray_file.is_file():
+            xray = _json(xray_file)
+            rows += [(_inside(plugin,'data/xray/'+xray['revision']+'/'+xray[key]['filename']),xray[key])
+                     for key in ('runtime','model','mmproj')]
+        missing = [row.get('id') or row.get('filename') or row['path'] for path,row in rows
+                   if not path.is_file() or path.stat().st_size != row['size']]
+        version = state.get('resource_bundle_version')
+        if version is not None:
+            _version(version)
+        return {'state':'ready' if rows and not missing else 'partial' if len(missing)<len(rows) else 'missing',
+                'version':version,'recipe_sha256':_sha(recipe_file),'missing_components':missing}
+    except (OSError,ValueError,KeyError,TypeError):
+        return {'state':'checking','version':None,'recipe_sha256':None,'missing_components':[]}
+
+
 def run_external(plan, progress, *, suite_root, host_python):
     if not isinstance(plan,dict) or plan.get('schema') != 'lung-rt/external-plan/1':
         raise ValueError('Plano inválido.')
     root = Path(suite_root).absolute()
     if Path(host_python).resolve() != Path(sys.executable).resolve() or sys.version_info[:2] < (3,10):
         raise ValueError('Use o Python existente da Local Suite 8.14 ou posterior.')
+    if type(plan.get('resources_only',False)) is not bool:
+        raise ValueError('Operação de instalação inválida.')
+    if plan.get('resources_only'):
+        return _run_resources_only(plan,progress,root)
     plugin = _inside(root,'Plugins/LUNG RT')
     plugin.mkdir(parents=True,exist_ok=True)
     progress = progress or (lambda value:None)
@@ -422,6 +588,9 @@ def run_external(plan, progress, *, suite_root, host_python):
         pointer = _inside(plugin,'installation.json')
         if pointer.is_file():
             previous = _json(pointer)
+        if previous.get('active_version') and _version(version) < _version(previous['active_version']):
+            raise LungInstallError('CODE_DOWNGRADE_BLOCKED',
+                'O código deste pacote é mais antigo. Use o pacote de pesos offline ou um SETUP atualizado.')
         resource_path = previous.get('resources_path')
         old_resources = _inside(plugin,resource_path) if resource_path else plugin
         if plan.get('reports'):
@@ -465,6 +634,18 @@ def run_external(plan, progress, *, suite_root, host_python):
                  'code_path':code_path,'inventory_sha256':digest,
                  'reports_installed':bool(plan.get('reports') or previous.get('reports_installed')),
                  'activated_at':time.time()}
+        for key in ('resource_bundle_version','resource_recipe_sha256','resource_source','weights_prepared_at'):
+            if key in previous:
+                state[key] = previous[key]
+        if plan.get('reports'):
+            recipe_sha = _sha(active/'catalog/resource_recipe.json')
+            state.update(resource_recipe_sha256=recipe_sha,
+                         resource_source='offline_bundle' if plan.get('offline') else 'online',
+                         weights_prepared_at=time.time())
+            if plan.get('offline'):
+                state['resource_bundle_version']=version
+            elif previous.get('resource_recipe_sha256') != recipe_sha:
+                state.pop('resource_bundle_version',None)
         if resource_path:
             state['resources_path'] = resource_path
         _atomic(pointer,state)

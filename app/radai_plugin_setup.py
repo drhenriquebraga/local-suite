@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -82,6 +83,20 @@ def last_result(root, plugin_id):
 def _finish(work, result):
     _write(work / 'result.json', result)
     _write(work.parent / 'latest-result.json', result)
+
+
+def _cleanup_uploaded_source(root, plugin_id, payload):
+    source = payload.get('source')
+    path = payload.get('path') or (source.get('folder') if isinstance(source,dict) else None)
+    if not isinstance(path,str):
+        return
+    inbox = _plain(Path(root)/'Plugins'/PLUGINS[plugin_id][0]/'staging/local-setup')
+    selected = _plain(path)
+    for candidate in (selected,*selected.parents):
+        if candidate.parent == inbox and candidate.name.startswith('setup-'):
+            if candidate.is_dir():
+                shutil.rmtree(candidate)
+            return
 
 
 def _protect(pid):
@@ -334,6 +349,12 @@ def run_worker(plan_path, expected_sha, supervisor_pid, *, runner=None, wait_old
                 not re.fullmatch(r'\d+(?:\.\d+)*', prepared['active_version'])):
             raise ValueError('O preparo não confirmou a ativação.')
         result.update(ok=True, version=prepared['active_version'])
+        if prepared.get('resource_bundle_version'):
+            result['resource_bundle_version']=prepared['resource_bundle_version']
+        try:
+            _cleanup_uploaded_source(root,envelope['plugin_id'],envelope['payload'])
+        except (OSError,ValueError):
+            pass
         _message(work, 'Instalação conferida e ativada.')
     except Exception as error:
         code = getattr(error, 'error_code', '')
@@ -394,6 +415,10 @@ def open_settings(suite_root, port=None, *, alive=None, open_browser=None, launc
 
 
 def main():
+    # PowerShell captures UTF-8; isolated Python ignores PYTHONIOENCODING.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser()
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument('--plan', type=Path)

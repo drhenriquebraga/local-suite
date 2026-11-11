@@ -641,6 +641,9 @@ def estado_publico():
         d.update({"aqui": t.get("aqui"), "publicada": t.get("publicada"),
                   "link": t.get("link"), "nova": t.get("nova"),
                   "consulta_estado": t.get("estado"),
+                  "consulta_fonte": t.get("fonte"),
+                  "consulta_erro": t.get("erro"),
+                  "consulta_origens": t.get("origens"),
                   "consultando": bool(t.get("consultando"))})
     except Exception:
         pass
@@ -936,6 +939,19 @@ JS = u"""<script id="radai-atualizar-js">
    if(msg) msg.textContent=T(d.consultando ? 'Verificando atualizações…' :
      (d.nova ? 'Versão nova disponível' : (d.consulta_estado==='atual' ? 'O programa está atualizado.' : 'Não foi possível verificar atualizações.')))
      +(!d.consultando && d.publicada ? ' ('+d.publicada+')' : '');
+   var fontes=document.getElementById('consultaVersaoOrigens');
+   var erro=document.getElementById('consultaVersaoErro');
+   var origens=d.consulta_origens||{};
+   var estados=['github','espelho'].map(function(nome){
+    var origem=origens[nome];
+    if(!origem) return nome==='espelho'&&origens.github?T('Espelho')+': '+T('Ainda não consultado'):'';
+    var ok=origem.estado==='nova'||origem.estado==='atual';
+    return (nome==='github'?'GitHub':T('Espelho'))+': '+T(ok?'Disponível':'Indisponível');
+   }).filter(Boolean);
+   if(fontes){fontes.textContent=d.consultando?T('Consultando…'):estados.join(' · ');
+    fontes.hidden=!fontes.textContent;}
+   if(erro){erro.textContent=!d.consultando&&d.consulta_erro?String(d.consulta_erro):'';
+    erro.hidden=!erro.textContent;}
    var agora=document.getElementById('btAtuAgora');
    if(agora){ agora.hidden=!d.nova; agora.style.display=d.nova?'':'none' }
    if(d.consultando){ setTimeout(function(){ pedir('estado').then(mostrar) },600); return }

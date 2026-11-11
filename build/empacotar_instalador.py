@@ -349,7 +349,7 @@ def main():
         de = RAIZ / "packager" / "START_HERE.cmd"
         if not de.exists():
             raise SystemExit("falta packager/START_HERE.cmd")
-        z.write(str(de), "START_HERE.cmd")
+        z.write(str(de), "START_HERE_TO_INSTALL_LOCAL_SUITE.cmd")
         z.writestr("programa/PACKAGE_SIZE.txt", (tam_txt + u"\r\n").encode("ascii"))
         z.writestr("README.txt", LEIA_ME % {"projeto": projeto,
                                     "versao": versao,
@@ -393,8 +393,8 @@ def conferir_montado(caminho, bundle_minimo):
             _n = {n[len("programa/"):] if n.startswith("programa/") else n
                   for n in _originais}
             _raiz = {n for n in _originais if "/" not in n.rstrip("/")}
-            if _raiz != {"README.txt", "START_HERE.cmd"}:
-                raise ValueError("a raiz deve conter apenas README.txt e START_HERE.cmd")
+            if _raiz != {"README.txt", "START_HERE_TO_INSTALL_LOCAL_SUITE.cmd"}:
+                raise ValueError("a raiz deve conter apenas README.txt e START_HERE_TO_INSTALL_LOCAL_SUITE.cmd")
             _ent = (_z.read("programa/entrega.txt").decode("utf-8", "replace")
                     if "entrega.txt" in _n else u"")
     except Exception as e:
@@ -404,7 +404,7 @@ def conferir_montado(caminho, bundle_minimo):
     if _ruim:
         raise SystemExit(u"PAREI: nao consegui montar o pacote do preparador "
                          u"— `%s` esta corrompido dentro do .zip." % _ruim)
-    _faltam = [x for x in ("START_HERE.cmd", "entrega.txt",
+    _faltam = [x for x in ("START_HERE_TO_INSTALL_LOCAL_SUITE.cmd", "entrega.txt",
                            "LICENSE", "NOTICE", "PACKAGE_SIZE.txt",
                            "build/requisitos.py", "app/radai_tasks.py",
                            "app/radai_models.py",
@@ -450,7 +450,7 @@ identico.
 COMO SE USA
 
   1. Extraia o .zip numa pasta.
-  2. De dois cliques em START_HERE.cmd, DE DENTRO DA PASTA EXTRAIDA.
+  2. De dois cliques em START_HERE_TO_INSTALL_LOCAL_SUITE.cmd, DE DENTRO DA PASTA EXTRAIDA.
   3. Ele abre o preparador, que baixa o que falta e monta o pacote.
 
 Numa maquina que ja tem o Local Suite instalado, o preparador detecta a
@@ -513,7 +513,7 @@ LEIA_ME = u"""%(projeto)s v%(versao)s - INSTALLER
 This file is NOT the program: it is the installer for it.
 
   1. Extract this whole .zip into a folder.
-  2. Double-click START_HERE.cmd, from inside the extracted folder.
+  2. Double-click START_HERE_TO_INSTALL_LOCAL_SUITE.cmd, from inside the extracted folder.
   3. On the first screen, choose what to do:
 
      Install / Update app on this machine   the big button: it checks

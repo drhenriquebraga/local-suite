@@ -508,8 +508,9 @@ def teste_constante_e_porta():
         t = V.para_a_tela()
         checar(u"com `nao_achada` (o 404), nada de versao nem de link na porta",
                not t.get("publicada") and not t.get("link"), str(t)[:90])
-        checar(u"a resposta tem so as cinco chaves",
-               sorted(t) == ["aqui", "estado", "link", "nova", "publicada"],
+        checar(u"a resposta inclui estado, progresso e diagnóstico das origens",
+               sorted(t) == ["aqui", "consultando", "erro", "estado", "fonte",
+                             "link", "nova", "origens", "publicada"],
                str(sorted(t)))
     finally:
         V._CONSULTA.clear()

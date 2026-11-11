@@ -40,8 +40,8 @@ class PluginBootstrap(unittest.TestCase):
         self.root.mkdir()
         for name in ('radai_panel.py', 'radai_ui.py'):
             (self.root / name).write_text('# synthetic base marker\n')
-        (self.root / 'entrega.txt').write_text('PROJETO=LOCAL_SUITE\nVERSAO=8.17\n')
-        self.headers = {'contract': radai_plugins.HOST_CONTRACT, 'version': '8.17'}
+        (self.root / 'entrega.txt').write_text('PROJETO=LOCAL_SUITE\nVERSAO=8.19\n')
+        self.headers = {'contract': radai_plugins.HOST_CONTRACT, 'version': '8.19'}
 
     def test_actual_embedded_code_bootstraps_both_plugins_without_extra_resources(self):
         keeps = []
@@ -143,7 +143,10 @@ class PluginBootstrap(unittest.TestCase):
                     result = bootstrap.install_selection(self.root, {'plugins': [row]})
                 self.assertFalse(result[0]['ok'])
                 self.assertIn('offline', result[0]['reason'].lower())
-                self.assertFalse((self.root / 'Plugins' / bootstrap._IDS[plugin_id] / 'installation.json').exists())
+                installed = radai_plugins.discover_plugin(self.root,plugin_id,self.headers)
+                self.assertEqual(installed['state'],'ready',installed)
+                self.assertEqual(installed['active_version'],radai_plugin_seeds.SEEDS[plugin_id]['version'])
+                self.assertFalse((self.root/'Plugins'/bootstrap._IDS[plugin_id]/'models').exists())
 
 
 if __name__ == '__main__':

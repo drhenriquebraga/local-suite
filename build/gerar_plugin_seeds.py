@@ -27,13 +27,15 @@ def collect(path, plugin_id):
         buffer.seek(0)
         path = buffer
     with zipfile.ZipFile(path) as package, tempfile.TemporaryDirectory(prefix='suite-seed-check-') as temporary:
+        from radai_lung_install import archive_prefix
+        prefix = archive_prefix(package)
         bootstrap._extract(package, Path(temporary), plugin_id, code_only=True)
-        manifest = json.loads(package.read('release-manifest.json'))
+        manifest = json.loads(package.read(prefix+'release-manifest.json'))
         stream = io.BytesIO()
         with zipfile.ZipFile(stream, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as output:
             for name in ['release-manifest.json'] + sorted(row['path'] for row in manifest['files']):
                 info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
-                output.writestr(info, package.read(name), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+                output.writestr(info, package.read(prefix+name), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
     raw = stream.getvalue()
     if plugin_id == 'neuro-rt':
         import radai_neuro_install as sdk

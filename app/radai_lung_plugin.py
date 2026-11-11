@@ -126,6 +126,7 @@ def montar(app,cfg=None):
         except ValueError:
             policy=None
         return JSONResponse({'suite_fingerprint':sdk.suite_identity(root),'state':entry['installation']['state'],'version':entry['installation'].get('active_version'),
+                'code_version':entry['installation'].get('active_version'), 'weights':sdk.weights_status(root),
                 'reason':entry['installation'].get('reason',''),'token':entry['token'],
                 'release':entry['release'],'preparing':entry['preparing'],
                 'last_result':last_result(root, 'lung-rt'),
@@ -136,15 +137,15 @@ def montar(app,cfg=None):
         local(request,True)
         return await run_in_threadpool(refresh)
 
-    def remember_source(description):
+    def remember_source(description, operation='code'):
         source_id = secrets.token_urlsafe(24)
         with entry['lock']:
             entry['sources'] = {k:v for k,v in entry['sources'].items() if time.monotonic()-v['time'] < 900}
             if len(entry['sources']) >= 8:
                 entry['sources'].pop(next(iter(entry['sources'])))
-            entry['sources'][source_id] = {'time':time.monotonic(), 'description':description}
+            entry['sources'][source_id] = {'time':time.monotonic(), 'description':description,'operation':operation}
         return {'source_id':source_id, 'version':description['version'],
-                'offline':description.get('offline', False), 'format':description.get('format', 'setup_folder')}
+                'offline':description.get('offline', False), 'format':description.get('format', 'setup_folder'),'operation':operation}
 
     @app.post('/api/plugins/lung-rt/connectivity')
     async def connectivity(request:Request):
@@ -158,35 +159,54 @@ def montar(app,cfg=None):
         from radai_plugin_sources import SetupUploadError, receive_setup
 
         local(request, True)
+        purpose = request.query_params.get('operation','code')
+        if purpose not in ('code','weights'):
+            raise HTTPException(400,'Operação de instalação inválida.')
+        def inspect(path):
+            description = sdk.inspect_local_source(path)
+            if purpose=='weights' and not description.get('offline'):
+                raise ValueError('Escolha o bundle de pesos completo preparado para levar.')
+            return description
         try:
-            description = await receive_setup(request, root, 'lung-rt', sdk.inspect_local_source, sdk.MAX_SETUP)
+            description = await receive_setup(request,root,'lung-rt',inspect,
+                sdk.MAX_BUNDLE if purpose=='weights' else sdk.MAX_SETUP)
         except SetupUploadError as error:
             raise HTTPException(error.status, {'code':error.code, 'message':str(error)}) from None
         except sdk.LungInstallError as error:
             raise HTTPException(400, {'code':error.error_code, 'message':str(error)}) from None
         except (ValueError, OSError):
             raise HTTPException(400, {'code':'PACKAGE_INVALID', 'message':'Selecione o ZIP autorizado do SETUP do LUNG RT.'}) from None
-        return remember_source(description)
+        return remember_source(description,purpose)
 
     @app.post('/api/plugins/lung-rt/local/inspect')
     async def inspect_route(request:Request):
         local(request, True)
+        purpose = request.query_params.get('operation','code')
+        if purpose not in ('code','weights'):
+            raise HTTPException(400,'Operação de instalação inválida.')
         payload = await body(request)
         folder = payload.get('folder')
         if set(payload) != {'folder'} or not isinstance(folder, str) or len(folder) > 4096 or not Path(folder).is_absolute():
             raise HTTPException(400, {'code':'EXPECTED_SETUP_PATH', 'message':'Selecione a pasta extraída ou o bundle do LUNG RT.'})
         try:
             description = await run_in_threadpool(sdk.inspect_local_source, folder)
+            if 'operation' not in request.query_params and description.get('offline'):
+                purpose='weights'
+            if purpose=='weights' and not description.get('offline'):
+                raise ValueError('Escolha o bundle de pesos completo preparado para levar.')
         except sdk.LungInstallError as error:
             raise HTTPException(400, {'code':error.error_code, 'message':str(error)}) from None
         except (ValueError, OSError):
             raise HTTPException(400, {'code':'PACKAGE_INVALID', 'message':'Escolha o ZIP ou a pasta completa do SETUP ou bundle do LUNG RT.'}) from None
-        return remember_source(description)
+        return remember_source(description,purpose)
 
     @app.post('/api/plugins/lung-rt/install')
     async def install_route(request:Request):
         local(request,True)
         payload=await body(request)
+        purpose=payload.get('operation')
+        if purpose not in (None,'code','weights'):
+            raise HTTPException(400,'Operação de instalação inválida.')
         source_id=payload.get('source_id')
         if (source_id is not None and (not isinstance(source_id,str) or not 1 <= len(source_id) <= 96)) or not isinstance(payload.get('consent',{}),dict) or type(payload.get('reports',False)) is not bool:
             raise HTTPException(400,'Pedido inválido.')
@@ -220,7 +240,15 @@ def montar(app,cfg=None):
                 if not source or time.monotonic()-source['time']>900:
                     raise ValueError('Confira novamente o pacote local.')
                 verified = source['description']
+                if purpose is None:
+                    purpose=source.get('operation','code')
+                if purpose is not None and source.get('operation') != purpose:
+                    raise ValueError('Confira o pacote na opção correta de código ou pesos.')
                 folder = verified['path']
+            elif purpose=='code':
+                raise ValueError('Escolha o ZIP do código offline.')
+            if purpose is not None:
+                payload=dict(payload,reports=purpose=='weights',resources_only=purpose=='weights')
             plan=await run_in_threadpool(sdk.prepare_external_plan,
                 dict(payload,installed_version=entry['installation'].get('active_version')),source_folder=folder)
             if verified and verified.get('inventory_sha256') and any(
@@ -297,83 +325,59 @@ def scripts():
     return r'''<script>(function () {
   'use strict';
   const e = id => document.getElementById(id);
+  if (!e('lung-plugin-setup')) return;
   const t = text => window.radaiFrase ? window.radaiFrase(text) : text;
-  const m = (text, value) => window.uiMolde ? uiMolde(text, [value]) : t(text).replace('%s', value);
   let state = null, source = null, busy = false, checking = false, handedOff = false;
-
-  function say(text) { e('lp-status').textContent = t(text); }
+  const say = text => {e('lp-status').textContent=t(text);};
   function enable() {
-    e('lp-install').disabled = busy || checking || handedOff || !state?.policy ||
-      (setup.local() && !source) || (!state.accepted && !e('lp-accept').checked);
+    e('lp-install').disabled = busy || checking || handedOff || !state?.policy || (setup.local() && !source);
     e('lp-refresh').disabled = busy || checking || handedOff;
     setup.sync();
   }
   async function api(path, body) {
     const response = await fetch('/api/plugins/lung-rt' + path, {
-      method: body ? 'POST' : 'GET',
-      cache: 'no-store',
-      headers: body ? {'Content-Type': 'application/json', 'X-Lung-Plugin-Token': state?.token || ''} : {},
-      body: body ? JSON.stringify(body) : undefined
+      method: body ? 'POST' : 'GET', cache:'no-store',
+      headers:body ? {'Content-Type':'application/json','X-Lung-Plugin-Token':state?.token || ''} : {},
+      body:body ? JSON.stringify(body) : undefined
     });
     return window.RadaiPluginSetup.checked(response);
   }
   const setup = window.RadaiPluginSetup.bind(e('lung-plugin-setup'), {
-    tokenHeader: 'X-Lung-Plugin-Token',
-    status: () => api(''),
-    reset() { source = null; enable(); },
-    lock(value) { checking = value; enable(); },
-    accept(sourceId) { source = sourceId; },
-    isLocked: () => busy || handedOff
+    tokenHeader:'X-Lung-Plugin-Token', status:() => api(''),
+    reset(){source=null;enable();}, lock(value){checking=value;enable();},
+    accept(id){source=id;}, isLocked:() => busy || handedOff
   });
   async function load() {
-    state = await api('');
-    handedOff = state.preparing;
-    say(handedOff ? 'A instalação já foi iniciada.' : state.state === 'ready'
+    state=await api('');handedOff=state.preparing;
+    setup.versions(state);setup.result(state.last_result);
+    say(handedOff ? 'A instalação já foi iniciada.' : state.state==='ready'
       ? 'LUNG RT instalado.' : state.reason || 'O plugin LUNG RT ainda não está instalado.');
-    setup.result(state.last_result);
-    const box = e('lp-policy');
-    box.replaceChildren();
-    if (state.policy) {
-      for (const clause of state.policy.clauses) {
-        const line = document.createElement('p');
-        line.textContent = t(typeof clause === 'string' ? clause : clause.text);
-        box.append(line);
-      }
-    }
-    box.hidden = state.accepted;
-    e('lp-accept-label').hidden = state.accepted;
     enable();
   }
   async function action(run) {
-    if (busy || checking || handedOff) return;
-    busy = true;
-    enable();
-    setup.clearFailure();
-    try { await run(); }
-    catch (error) { setup.failure(error); }
-    finally { busy = false; enable(); }
+    if(busy || checking || handedOff) return;
+    busy=true;enable();setup.clearFailure();
+    try{await run();}catch(error){setup.failure(error);}finally{busy=false;enable();}
   }
-  e('lp-accept').addEventListener('change', enable);
-  e('lp-refresh').addEventListener('click', () => action(async () => {
+  e('lp-refresh').addEventListener('click',() => action(async () => {
     say('Consultando a versão disponível.');
-    const latest = await api('/refresh', {});
-    if (latest.state === 'available') say(m('Nova versão disponível: %s', latest.version));
-    else say(latest.state === 'current' ? 'LUNG RT está atualizado.' : latest.reason || 'Não foi possível concluir.');
+    const latest=await api('/refresh',{});
+    if(latest.state==='available') e('lp-status').textContent=t('Nova versão disponível: %s').replace('%s',latest.version);
+    else say(latest.state==='current' ? 'O código do LUNG RT está atualizado.' : latest.reason || 'Não foi possível concluir.');
+    state=await api('');setup.versions(state);
   }));
-  e('lp-install').addEventListener('click', () => action(async () => {
-    if (setup.local() && !source) return;
-    if (!confirm(t('A suíte será fechada para instalar o plugin e reaberta ao terminar. Continuar?'))) return;
-    await api('/install', {
-      source_id: setup.local() ? source : undefined,
-      reports: e('lp-reports').checked,
-      consent: {accepted: e('lp-accept').checked, version: state.policy.version, digest: state.policy.digest}
+  e('lp-install').addEventListener('click',() => action(async () => {
+    if(setup.local() && !source) return;
+    state=await api('');setup.versions(state);
+    if(!await window.RadaiPluginSetup.confirmInstallation(state,'LUNG RT')) return;
+    await api('/install',{
+      source_id:setup.local() ? source : undefined,operation:setup.operation(),
+      consent:{accepted:true,version:state.policy.version,digest:state.policy.digest}
     });
-    handedOff = true;
-    say('Instalação externa iniciada. Acompanhe o PowerShell.');
+    handedOff=true;say('Instalação externa iniciada. Acompanhe o PowerShell.');
   }));
-  const start = () => load().catch(error => { setup.failure(error); enable(); });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once:true});
-  else start();
+  const start=() => load().catch(error => {setup.failure(error);enable();});
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();</script>'''
 
 
@@ -381,7 +385,8 @@ def scripts():
 def config_page(page):
     if 'id="ps_lung"' in page:
         return page
-    card=''' <a class="cfg-card" href="#ps_lung" data-alvo="ps_lung"><span class="cab"><span class="n">L</span></span><h3 data-radai-frase>Plugin LUNG RT</h3><p data-radai-frase>Instalar, atualizar, configurar rastreio e laudos locais.</p><span class="st" data-radai-frase>Instalação e atualização</span></a>'''
+    import radai_ui
+    card=''' <a class="cfg-card" href="#ps_lung" data-alvo="ps_lung"><span class="cab"><span class="n">L</span><span class="ic">'''+radai_ui.icone('pulmoes')+'''</span></span><h3 data-radai-frase>Plugin LUNG RT</h3><p data-radai-frase>Instalar, atualizar, configurar rastreio e laudos locais.</p><span class="st" data-radai-frase>Instalação e atualização</span></a>'''
     section='''<section class="ps-cx fechado" id="ps_lung" hidden><h2 class="ps-cab" tabindex="0" role="button"><span class="ps-num">L</span><span data-radai-frase>Plugin LUNG RT</span><span class="ps-seta">&#9662;</span></h2><div class="ps-corpo">'''+controls()+'</div></section>'
     import radai_plugin_setup_ui
     return radai_plugin_setup_ui.assets(page).replace(' <a class="cfg-card" href="#ps_limpar"',card+' <a class="cfg-card" href="#ps_limpar"',1).replace('<section class="ps-cx fechado" id="ps_limpar" hidden>',section+'<section class="ps-cx fechado" id="ps_limpar" hidden>',1).replace('</body>',scripts()+'</body>',1)

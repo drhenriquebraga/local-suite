@@ -177,16 +177,49 @@ _THREAD_CONSULTA = None
 
 
 def _api_de(url_pagina):
-    import re
+    from urllib.parse import urlparse
     u = str(url_pagina or "").strip()
     if not u.lower().startswith(("http://", "https://")):
         return u""
-    m = re.search(r"github\.com/([^/]+)/([^/]+)", u)
-    if m:
-        dono, repo = m.group(1), m.group(2).replace(u".git", u"")
+    parsed = urlparse(u)
+    partes = parsed.path.strip('/').split('/')
+    if parsed.hostname in ('github.com', 'www.github.com') and len(partes) >= 2:
+        dono, repo = partes[:2]
+        repo = repo[:-4] if repo.endswith('.git') else repo
         return (u"https://api.github.com/repos/%s/%s/releases/latest"
                 % (dono, repo))
     return u
+
+
+def _distribuicao_oficial(url):
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(str(url or '').strip())
+        if parsed.scheme != 'https' or parsed.username or parsed.password or parsed.port not in (None, 443):
+            return False
+    except ValueError:
+        return False
+    partes = parsed.path.strip('/').lower().split('/')
+    if parsed.hostname in ('github.com', 'www.github.com'):
+        identidade = partes[:2]
+    elif parsed.hostname == 'api.github.com' and partes[:1] == ['repos']:
+        identidade = partes[1:3]
+    else:
+        return False
+    if len(identidade) != 2:
+        return False
+    dono, repo = identidade
+    repo = repo[:-4] if repo.endswith('.git') else repo
+    return dono in ('drhenriquebraga', 'radioterapia-ai') and repo == 'local-suite'
+
+
+def _redirecionamento_do_espelho(origem, destino):
+    from urllib.parse import urlparse
+    esperado, final = urlparse(origem), urlparse(destino)
+    return (final.scheme == 'https' and not final.username and not final.password
+            and final.port in (None, 443)
+            and final.hostname in (esperado.hostname, 'www.' + esperado.hostname)
+            and final.path == esperado.path and not final.fragment)
 
 
 SUFIXO_DO_INSTALADOR = u"_SETUP_LATEST.zip"
@@ -219,13 +252,25 @@ def nome_do_instalador_latest():
 
 
 def link_do_instalador(url_pagina=None, nome=None):
-    import re
+    from urllib.parse import urlparse
     u = str(URL_VERSOES if url_pagina is None else url_pagina or "").strip()
-    m = re.search(r"https?://github\.com/([^/]+)/([^/?#]+)", u)
     nome = nome if nome is not None else nome_do_instalador_latest()
-    if not m or not nome:
+    if not nome:
         return u""
-    dono, repo = m.group(1), m.group(2).replace(u".git", u"")
+    parsed = urlparse(u)
+    if parsed.scheme not in ('http', 'https'):
+        return u""
+    partes = parsed.path.strip('/').split('/')
+    if parsed.hostname in ('github.com', 'www.github.com'):
+        identidade = partes[:2]
+    elif parsed.hostname == 'api.github.com' and partes[:1] == ['repos']:
+        identidade = partes[1:3]
+    else:
+        return u""
+    if len(identidade) != 2 or not all(identidade):
+        return u""
+    dono, repo = identidade
+    repo = repo[:-4] if repo.endswith('.git') else repo
     return (u"https://github.com/%s/%s/releases/latest/download/%s"
             % (dono, repo, nome))
 
@@ -242,8 +287,8 @@ def consultar_espelho(timeout=None, forcar=False):
         req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT,
                                       "Accept": "application/json", "Cache-Control": "no-cache"})
         with urllib.request.urlopen(req, timeout=float(timeout or TIMEOUT_S)) as r:
-            if r.geturl() != url:
-                raise ValueError("o espelho redirecionou a consulta")
+            if not _redirecionamento_do_espelho(url, r.geturl()):
+                raise ValueError("o espelho redirecionou a consulta para fora da distribuição autorizada")
             corpo = r.read(4097)
         if len(corpo) > 4096:
             raise ValueError("metadados acima do limite")
@@ -269,15 +314,20 @@ def consultar_espelho(timeout=None, forcar=False):
 def consultar(url_pagina=None, timeout=None, forcar=False):
     url = _url(url_pagina)
     r = _consultar_primario(url, timeout, forcar=forcar)
-    if url != URL_VERSOES:
+    if not _distribuicao_oficial(url):
         return r
     r["fonte"] = "github"
+    origens = {'github': {k: r.get(k) for k in ('estado', 'erro', 'versao')}}
     if r["estado"] not in ("erro", "nao_achada"):
+        r['origens'] = origens
         return r
     espelho = consultar_espelho(timeout, forcar=forcar)
+    origens['espelho'] = {k: espelho.get(k) for k in ('estado', 'erro', 'versao')}
     if espelho["estado"] in ("nova", "atual"):
+        espelho['origens'] = origens
         return espelho
     r["erro"] = "%s; %s" % (r.get("erro") or "GitHub indisponível", espelho["erro"])
+    r['origens'] = origens
     return r
 
 
@@ -488,7 +538,7 @@ def iniciar_consulta(url_pagina=None, timeout=None, ao_terminar=None, forcar=Fal
             r = consultar(url_pagina, timeout, forcar=True) if forcar else consultar(url_pagina, timeout)
         except Exception as e:
             r = {"estado": "erro", "erro": type(e).__name__,
-                 "versao": "", "fonte": "", "instalador": {}}
+                 "versao": "", "fonte": "", "instalador": {}, "origens": {}}
         with _TRAVA_CONSULTA:
             _CONSULTA.update(r)
             _CONSULTA["quando"] = datetime.datetime.now()
@@ -503,6 +553,9 @@ def iniciar_consulta(url_pagina=None, timeout=None, ao_terminar=None, forcar=Fal
         if anterior is not None and anterior.is_alive():
             return anterior
         _CONSULTA["consultando"] = True
+        _CONSULTA['origens'] = {}
+        _CONSULTA['erro'] = ''
+        _CONSULTA['fonte'] = ''
         t = threading.Thread(target=_rodar, name="radai-versao", daemon=True)
         _THREAD_CONSULTA = t
         t.start()
@@ -556,6 +609,9 @@ def para_a_tela():
         fora["estado"] = str(d.get("estado") or "nunca")
         fora["consultando"] = bool(d.get("consultando"))
         fora["publicada"] = str(d.get("versao") or "")
+        fora['fonte'] = str(d.get('fonte') or '')
+        fora['erro'] = str(d.get('erro') or '')[:400]
+        fora['origens'] = dict(d.get('origens') or {})
         try:
             import radai_delivery
             fora["aqui"] = str((radai_delivery.carimbo() or {}).get("versao")

@@ -36,6 +36,12 @@ CSS = '''
 .plugin-install small,.plugin-install .pi-muted,.plugin-install .pi-hint{color:var(--text-muted);font-size:13px}
 .plugin-install .pi-panel{display:grid;gap:10px;padding:14px;background:var(--panel-2);
  border:1px solid var(--line);border-radius:var(--r-lg);min-width:0}
+.plugin-install .pi-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;margin:0 0 12px}
+.plugin-install .pi-versions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px;margin:0 0 12px}
+.plugin-install .pi-versions>div{padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--panel-2);display:grid;gap:3px}
+.plugin-install .pi-versions dt{color:var(--text-muted);font-size:12px}
+.plugin-install .pi-versions dd{margin:0;overflow-wrap:anywhere}
+.plugin-install .pi-versions small{font-size:12px}
 .plugin-install .pi-channel{display:grid;gap:6px;margin:0;padding:0;list-style:none}
 .plugin-install .pi-channel li{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 12px}
 .plugin-install .pi-channel output{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;min-width:0}
@@ -73,12 +79,14 @@ def _option(key, icon, title, help_text, selected=False):
 
 def _choices(name, ids):
     return ('''<div class="pi-options" role="group" aria-label="Origem da instalação">'''
-            + _option('auto', 'rede', 'Instalação automática', 'Baixe do GitHub ou do espelho.', True)
-            + _option('zip', 'pacote', 'ZIP do instalador', 'Escolha o arquivo SETUP do plugin.')
-            + _option('folder', 'pasta', 'Pasta local ou bundle', 'Escolha uma pasta extraída ou um bundle offline.')
+            + _option('auto', 'rede', 'Instalação automática', 'Prepare os pesos que faltam usando o código instalado.', True)
+            + _option('zip', 'pacote', 'Instalar / atualizar apenas o código offline', 'Escolha o SETUP leve. Os pesos instalados são preservados.')
+            + _option('folder', 'pasta', 'Instalar / atualizar o pacote de pesos offline', 'Escolha o ZIP do bundle de pesos. O código carregado é preservado.')
             + f'''</div>
+
+<div class="pi-overview">
 <div class="pi-panel" data-pi-panel="auto">
-  <h3 data-radai-frase>Conexão com os servidores</h3>
+  <h3 data-radai-frase>Servidores de atualização do código</h3>
   <ul class="pi-channel">
     <li><span>GitHub</span><output data-pi-channel="github"><span data-radai-frase>Ainda não consultado</span></output></li>
     <li><span data-radai-frase>Espelho</span><output data-pi-channel="mirror"><span data-radai-frase>Ainda não consultado</span></output></li>
@@ -88,9 +96,14 @@ def _choices(name, ids):
     <button class="ui-bt" type="button" id="{ids['refresh']}" data-radai-frase>Verificar atualizações</button>
   </div>
 </div>
+<dl class="pi-versions" data-pi-versions>
+  <div><dt data-radai-frase>Código carregado</dt><dd data-pi-code-version>—</dd></div>
+  <div><dt data-radai-frase>Pacote de pesos</dt><dd data-pi-weights-version>—</dd><small data-pi-weights-state></small></div>
+</dl>
+</div>
 <div class="pi-panel" data-pi-panel="zip" hidden>
-  <h3 data-radai-frase>ZIP do instalador</h3>
-  <p class="pi-muted" data-radai-frase>Use o ZIP do SETUP deste plugin. O preparo dos recursos que faltam requer internet.</p>
+  <h3 data-radai-frase>Instalar / atualizar apenas o código offline</h3>
+  <p class="pi-muted" data-radai-frase>Escolha o SETUP leve. Os pesos instalados são preservados.</p>
   <input type="file" accept=".zip,application/zip" data-pi-file hidden>
   <button type="button" class="ui-envio pi-drop" data-pi-drop>
     <span class="ui-envio-ic" aria-hidden="true">{radai_ui.icone('subir')}</span>
@@ -99,14 +112,22 @@ def _choices(name, ids):
   </button>
 </div>
 <div class="pi-panel" data-pi-panel="folder" id="{ids['folder_panel']}" hidden>
-  <h3 data-radai-frase>Pasta local ou bundle</h3>
-  <p class="pi-muted" data-radai-frase>Com internet, escolha a pasta completa do SETUP extraído. Sem internet, escolha a pasta do bundle completo preparado pelo START HERE em outra estação.</p>
+  <h3 data-radai-frase>Instalar / atualizar o pacote de pesos offline</h3>
+  <p class="pi-muted" data-radai-frase>Escolha o ZIP do bundle de pesos. O código carregado é preservado.</p>
+  <input type="file" accept=".zip,application/zip" data-pi-weights-file hidden>
+  <button type="button" class="ui-envio pi-drop" data-pi-weights-drop>
+    <span class="ui-envio-ic" aria-hidden="true">{radai_ui.icone('subir')}</span>
+    <span class="ui-envio-tit" data-radai-frase>Arraste o ZIP ou clique para escolher</span>
+    <span class="ui-envio-dica">{name} · BUNDLE (.zip)</span>
+  </button>
+  <details><summary data-radai-frase>Usar uma pasta já extraída</summary>
   <label for="{ids['folder']}" data-radai-frase>Pasta do instalador ou pacote offline</label>
   <div class="pi-row">
     <input type="text" class="pi-field" id="{ids['folder']}" data-pi-folder autocomplete="off" spellcheck="false">
     <button class="ui-bt" type="button" id="{ids['browse']}" data-neuro-host-browse="1" data-pi-browse data-radai-frase>Procurar…</button>
     <button class="ui-bt" type="button" id="{ids['inspect']}" data-pi-inspect data-radai-frase>Conferir pacote local</button>
   </div>
+  </details>
 </div>
 <p class="pi-source" id="{ids['source']}" data-pi-source role="status"></p>''')
 
@@ -126,12 +147,7 @@ def controls(settings=False, *, plugin='neuro'):
         ids = {'refresh': 'lp-refresh', 'folder_panel': 'lp-folder-panel', 'folder': 'lp-folder',
                'browse': 'lp-browse', 'inspect': 'lp-inspect', 'source': 'lp-source'}
         status = '<p id="lp-status" role="status" data-radai-frase>Verificando a instalação do LUNG RT…</p>'
-        actions = '''<div class="pi-terms">
-  <label><input type="checkbox" id="lp-reports"><span data-radai-frase>Preparar também o piloto local de laudos (aproximadamente 3 GB)</span></label>
-  <div id="lp-policy"></div>
-  <label id="lp-accept-label"><input type="checkbox" id="lp-accept"><span data-radai-frase>Li e aceito os termos do LUNG RT e a participação na fase de testes.</span></label>
-</div>
-<div class="pi-actions">
+        actions = '''<div class="pi-actions">
   <button class="ui-bt pri" type="button" id="lp-install" disabled data-radai-frase>Instalar ou atualizar LUNG RT</button>
   <a href="/lung/rastreio#config" data-radai-frase>Configurar rastreio e laudos</a>
 </div>'''
@@ -147,9 +163,9 @@ SCRIPT = r'''
   const t = text => window.radaiFrase ? window.radaiFrase(text) : text;
   const safeCode = code => typeof code === 'string' && /^[A-Z0-9_-]{1,60}$/.test(code) ? code : '';
   const formatNames = {
-    setup_zip: 'ZIP do instalador',
-    setup_folder: 'Pasta do instalador',
-    offline_bundle: 'Bundle offline'
+    setup_zip: 'Código offline',
+    setup_folder: 'Código offline',
+    offline_bundle: 'Pacote de pesos offline'
   };
   const hints = {
     extract_setup: 'Use o card ZIP do instalador ou extraia todos os arquivos para escolher a pasta.',
@@ -183,16 +199,19 @@ SCRIPT = r'''
     const source = find('[data-pi-source]');
     const drop = find('[data-pi-drop]');
     const file = find('[data-pi-file]');
+    const weightDrop = find('[data-pi-weights-drop]');
+    const weightFile = find('[data-pi-weights-file]');
     const probe = find('[data-pi-probe]');
     const inlineError = find('[data-pi-error]');
     const last = find('[data-pi-last]');
-    let mode = 'auto', pending = false, probing = false, dragDepth = 0;
+    let mode = 'auto', pending = false, probing = false;
 
     function sync() {
       const locked = pending || Boolean(hooks.isLocked());
-      for (const control of [...options, folder, browse, file]) control.disabled = locked;
+      for (const control of [...options, folder, browse, file, weightFile].filter(Boolean)) control.disabled = locked;
       inspect.disabled = locked || !folder.value.trim();
       drop.setAttribute('aria-disabled', String(locked));
+      if (weightDrop) weightDrop.setAttribute('aria-disabled', String(locked));
       probe.disabled = locked || probing;
     }
     function notice(text = '', status = '') {
@@ -212,6 +231,24 @@ SCRIPT = r'''
     }
     async function post(path, value, raw = false) {
       const current = await hooks.status();
+      if (raw) return new Promise((resolve,reject) => {
+        const request = new XMLHttpRequest();
+        request.open('POST','/api/plugins/' + slug + '/' + path);
+        request.responseType = 'json';
+        request.setRequestHeader('Content-Type','application/zip');
+        request.setRequestHeader(hooks.tokenHeader,current.token);
+        request.upload.addEventListener('progress',event => {
+          const total = event.lengthComputable ? event.total : value.size;
+          notice(t('Enviando ZIP local…') + ' ' + (event.loaded / 1048576).toFixed(1) + ' / ' + (total / 1048576).toFixed(1) + ' MB');
+        });
+        request.upload.addEventListener('load',() => notice(t('Conferindo o pacote local…')));
+        request.addEventListener('load',() => {
+          if(request.status >= 200 && request.status < 300) resolve({current,body:request.response || {}});
+          else reject(Object.assign(new Error('plugin'),{status:request.status,detail:request.response?.detail}));
+        });
+        request.addEventListener('error',() => reject(Object.assign(new Error('plugin'),{code:'LOCAL_UPLOAD_FAILED'})));
+        request.send(value);
+      });
       const response = await fetch('/api/plugins/' + slug + '/' + path, {
         method: 'POST',
         headers: {
@@ -230,7 +267,8 @@ SCRIPT = r'''
       sync();
       notice(t('Conferindo o pacote local…'));
       try {
-        const result = await post(path, value, raw);
+        const operation = mode === 'zip' ? 'code' : 'weights';
+        const result = await post(path + '?operation=' + operation, value, raw);
         const {body} = result;
         const description = body.description || body;
         const version = description.version;
@@ -250,11 +288,11 @@ SCRIPT = r'''
         sync();
       }
     }
-    function zip(files) {
-      if (mode !== 'zip' || pending || hooks.isLocked() || !files.length) return;
+    function zip(files, expectedMode = 'zip') {
+      if (mode !== expectedMode || pending || hooks.isLocked() || !files.length) return;
       if (files.length !== 1 || !/\.zip$/i.test(files[0].name)) {
         hooks.reset();
-        notice(t('Escolha um único arquivo ZIP do instalador.'), 'error');
+        notice(t('Escolha um único arquivo ZIP.'), 'error');
         return;
       }
       verify('local/upload', files[0], true);
@@ -327,35 +365,88 @@ SCRIPT = r'''
     inspect.addEventListener('click', () => {
       if (folder.value.trim()) verify('local/inspect', {folder: folder.value.trim()});
     });
-    drop.addEventListener('click', () => { if (drop.getAttribute('aria-disabled') === 'false') file.click(); });
-    file.addEventListener('change', () => { zip(file.files); file.value = ''; });
-    drop.addEventListener('dragenter', event => {
+    function bindDrop(zone, input, expectedMode) {
+    if (!zone || !input) return;
+    let depth = 0;
+    zone.addEventListener('click', () => { if (zone.getAttribute('aria-disabled') === 'false') input.click(); });
+    input.addEventListener('change', () => { zip(input.files, expectedMode); input.value = ''; });
+    zone.addEventListener('dragenter', event => {
       event.preventDefault();
-      if (drop.getAttribute('aria-disabled') === 'false') { dragDepth++; drop.classList.add('sobre'); }
+      if (zone.getAttribute('aria-disabled') === 'false') { depth++; zone.classList.add('sobre'); }
     });
-    drop.addEventListener('dragover', event => {
+    zone.addEventListener('dragover', event => {
       event.preventDefault();
-      event.dataTransfer.dropEffect = drop.getAttribute('aria-disabled') === 'false' ? 'copy' : 'none';
+      event.dataTransfer.dropEffect = zone.getAttribute('aria-disabled') === 'false' ? 'copy' : 'none';
     });
-    drop.addEventListener('dragleave', () => {
-      dragDepth = Math.max(0, dragDepth - 1);
-      if (!dragDepth) drop.classList.remove('sobre');
+    zone.addEventListener('dragleave', () => {
+      depth = Math.max(0, depth - 1);
+      if (!depth) zone.classList.remove('sobre');
     });
-    drop.addEventListener('drop', event => {
+    zone.addEventListener('drop', event => {
       event.preventDefault();
-      dragDepth = 0;
-      drop.classList.remove('sobre');
-      zip(event.dataTransfer.files);
+      depth = 0;
+      zone.classList.remove('sobre');
+      zip(event.dataTransfer.files, expectedMode);
     });
+    }
+    bindDrop(drop, file, 'zip');
+    bindDrop(weightDrop, weightFile, 'folder');
+    function versions(data) {
+      const code = find('[data-pi-code-version]');
+      const bundle = find('[data-pi-weights-version]');
+      const detail = find('[data-pi-weights-state]');
+      if (!code || !bundle || !detail) return;
+      const valid = value => typeof value === 'string' && /^\d+(?:\.\d+)*$/.test(value);
+      const current = data?.code_version || data?.active_version || data?.version;
+      code.textContent = valid(current) ? current : t('Ainda não instalado');
+      const weights = data?.weights || {};
+      bundle.textContent = valid(weights.version) ? weights.version :
+        t(weights.state === 'ready' ? 'Instalado · versão não registrada' : 'Ainda não instalado');
+      const names = {ready:'Pesos prontos',missing:'Pesos não instalados',partial:'Pesos incompletos',checking:'Conferindo os pesos…'};
+      detail.textContent = t(names[weights.state] || 'Conferindo os pesos…');
+    }
     probe.addEventListener('click', testConnection);
     return {
-      sync, local: () => mode !== 'auto',
+      sync, versions, local: () => mode !== 'auto', operation: () => mode === 'zip' ? 'code' : 'weights',
       failure(error) { inlineError.textContent = errorText(error); inlineError.hidden = false; },
       clearFailure() { inlineError.textContent = ''; inlineError.hidden = true; },
       result(result) { presentResult(result, last); }
     };
   }
-  window.RadaiPluginSetup = {bind, checked};
+  async function confirmInstallation(data, name) {
+    if (data.accepted) return new Promise(resolve => {
+      window.uiConfirmar({titulo:t('Instalar ou atualizar %s').replace('%s',name),
+        corpo:t('A suíte será fechada para instalar o plugin e reaberta ao terminar. Continuar?'),
+        aoSim:() => resolve(true), aoNao:() => resolve(false)});
+    });
+    const policy = data.policy;
+    if (!policy || !Array.isArray(policy.clauses)) return false;
+    return new Promise(resolve => {
+      let finished = false;
+      const box = document.createElement('div');
+      box.className = 'plugin-install pi-terms';
+      for (const clause of policy.clauses) {
+        const line = document.createElement('p');
+        line.textContent = t(typeof clause === 'string' ? clause : clause.text);
+        box.append(line);
+      }
+      const label = document.createElement('label');
+      const input = document.createElement('input'); input.type = 'checkbox';
+      const words = document.createElement('span');
+      words.textContent = t('Li e aceito os termos do LUNG RT e a participação na fase de testes.');
+      label.append(input, words);box.append(label);
+      const note = document.createElement('p');note.textContent = t('A suíte fecha durante o preparo, mostra o progresso no PowerShell e reabre ao terminar. O Python existente é reutilizado.');box.append(note);
+      const row = document.createElement('div');row.className = 'pi-actions';
+      const cancel = document.createElement('button');cancel.type = 'button';cancel.className = 'ui-bt';cancel.textContent = t('Cancelar');
+      const accept = document.createElement('button');accept.type = 'button';accept.className = 'ui-bt pri';accept.disabled = true;accept.textContent = t('Instalar ou atualizar %s').replace('%s',name);
+      row.append(cancel,accept);box.append(row);
+      const modal = window.uiModal({titulo:policy.title,no:box,largura:720,aoFechar(){if(!finished){finished=true;resolve(false);}}});
+      input.addEventListener('change',() => {accept.disabled = !input.checked;});
+      cancel.addEventListener('click',() => modal.fechar());
+      accept.addEventListener('click',() => {if(!input.checked)return;finished=true;modal.fechar();resolve(true);});
+    });
+  }
+  window.RadaiPluginSetup = {bind, checked, confirmInstallation};
 })();
 '''
 
@@ -395,7 +486,7 @@ def config_page(page):
     if 'id="ps_neuro"' in page:
         return page
     card = ''' <a class="cfg-card" href="#ps_neuro" data-alvo="ps_neuro">
-<span class="cab"><span class="n">N</span></span>
+<span class="cab"><span class="n">N</span><span class="ic">''' + radai_ui.icone('neuro_anatomia') + '''</span></span>
 <h3 data-radai-frase>Plugin NEURO RT</h3>
 <p data-radai-frase>Instalar, atualizar e preparar com uma pasta offline.</p>
 <span class="st" data-radai-frase>Instalação e atualização</span></a>

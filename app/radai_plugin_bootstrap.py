@@ -53,13 +53,7 @@ def _extract(archive, destination, plugin_id, code_only=False):
         if name.casefold() in seen or stat.S_ISLNK(row.external_attr >> 16) or row.flag_bits & 1:
             raise ValueError('O pacote contém entradas inválidas.')
         seen.add(name.casefold())
-    names = {row.filename for row in records}
-    prefix = ''
-    if 'release-manifest.json' not in names:
-        roots = [name[:-len('release-manifest.json')] for name in names if name.endswith('/release-manifest.json') and name.count('/') == 1]
-        if len(roots) != 1 or any(not name.startswith(roots[0]) for name in names):
-            raise ValueError('Escolha um pacote com apenas um plugin na raiz.')
-        prefix = roots[0]
+    prefix = safe.archive_prefix(archive)
     manifest_name = prefix + 'release-manifest.json'
     if archive.getinfo(manifest_name).file_size > 8 * 1024**2:
         raise ValueError('Inventário excede o limite permitido.')
@@ -79,11 +73,13 @@ def _extract(archive, destination, plugin_id, code_only=False):
     code = {row['path']: row for row in manifest['files']}
     assets = {} if code_only else _assets(archive, prefix, code, plugin_id)
     for row in records:
+        if not row.filename.startswith(prefix):
+            continue
         expected = code.get(row.filename[len(prefix):]) or assets.get(row.filename[len(prefix):])
         if expected and row.file_size != expected['size']:
             raise ValueError('Tamanho do arquivo não corresponde à receita autenticada.')
     for row in records:
-        if row.is_dir():
+        if row.is_dir() or not row.filename.startswith(prefix):
             continue
         name = row.filename[len(prefix):]
         selected = name in code or name == 'release-manifest.json'
@@ -164,6 +160,26 @@ def _install_code(root, plugin_id, source, progress):
     return sdk.run_external(plan, progress, suite_root=root, host_python=sys.executable)
 
 
+def seed_for_install(root, plugin_id):
+    import radai_lung_install as safe
+    record = _seed(plugin_id)
+    target = safe._inside(root,'Plugins/'+_IDS[plugin_id]+'/staging/host-code-'+record['sha256'])
+    with _LOCK:
+        if target.is_dir():
+            if plugin_id == 'neuro-rt':
+                import radai_neuro_install as sdk
+            else:
+                sdk = safe
+            sdk.inspect_local_source(target)
+            return target
+        target.parent.mkdir(parents=True,exist_ok=True)
+        with seed_source(plugin_id) as source:
+            temporary = target.with_name(target.name+'-'+str(time.time_ns()))
+            shutil.copytree(source,temporary)
+            os.replace(temporary,target)
+    return target
+
+
 def ensure_base(root, plugin_id, *, progress=None, installed_only=True):
     root = Path(root).absolute()
     if plugin_id not in _IDS:
@@ -179,7 +195,7 @@ def ensure_base(root, plugin_id, *, progress=None, installed_only=True):
             current = tuple(map(int, state['active_version'].split('.')))
             if current >= tuple(map(int, record['version'].split('.'))):
                 return True
-        if state.get('state') not in ('absent', 'ready'):
+        if state.get('state') not in ('absent', 'ready', 'failed'):
             return False
         with seed_source(plugin_id) as source:
             _install_code(root, plugin_id, source, progress)
@@ -219,6 +235,7 @@ def install_selection(root, selection, progress=None):
         plugin_id = row['id']
         emit = lambda event: progress(dict(event, plugin_id=plugin_id)) if progress else None
         try:
+            ensure_base(root,plugin_id,progress=emit,installed_only=False)
             _accept(root, row)
             context = seed_source(plugin_id) if row['source'] == 'online' else local_source(row['source'], plugin_id)
             with context as source:
@@ -227,10 +244,14 @@ def install_selection(root, selection, progress=None):
                     description = sdk.inspect_local_source(source)
                     if row['source'] != 'online' and description.get('kind') != 'offline_bundle':
                         raise ValueError('Escolha o bundle offline completo do NEURO RT, preparado em Pacote para levar.')
-                    plan = sdk.prepare_external_plan(dict(description, action='install'), source_folder=source)
+                    plan = sdk.prepare_external_plan(dict(description,action='install',resources_only=True),source_folder=source)
                 else:
                     import radai_lung_install as sdk
-                    plan = sdk.prepare_external_plan({'reports': True}, source_folder=source)
+                    if row['source']=='online':
+                        state,_ = sdk._active_code(sdk._inside(root,'Plugins/LUNG RT'))
+                        plan = sdk.prepare_external_plan({'resources_only':True,'installed_version':state['active_version']})
+                    else:
+                        plan = sdk.prepare_external_plan({'resources_only':True},source_folder=source)
                     if row['source'] != 'online' and not plan.get('offline'):
                         raise ValueError('Escolha o bundle offline completo do LUNG RT, preparado em Pacote para levar.')
                 result = sdk.run_external(plan, emit, suite_root=root, host_python=sys.executable)

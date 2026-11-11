@@ -753,6 +753,8 @@ a.cfg-card[aria-current="true"]{border-color:var(--accent,#4DA3FF);
     data-radai-frase>Ver as versões publicadas</a>
    @BT_INSTALADOR@
   </div>
+  <p class="sub" id="consultaVersaoOrigens" role="status" style="margin:10px 0 0" hidden></p>
+  <pre class="sub" id="consultaVersaoErro" style="margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere" hidden></pre>
   <p class="sub" style="margin:10px 0 0" data-radai-frase>Sem internet nesta
    estação? Abra o link em outra máquina e traga o arquivo — o instalador
    funciona sem rede.</p>

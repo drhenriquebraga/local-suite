@@ -42,6 +42,8 @@ async def receive_setup(request, root, plugin_id, inspect, max_size):
         raise SetupUploadError('SETUP_TOO_LARGE', 'O ZIP excede o limite de um SETUP leve.', 413)
     inbox = _plain(Path(root) / 'Plugins' / PLUGINS[plugin_id][0] / 'staging/local-setup')
     inbox.mkdir(parents=True, exist_ok=True)
+    if length and shutil.disk_usage(inbox).free < length + 256 * 1024**2:
+        raise SetupUploadError('LOCAL_DISK_FULL', 'Não há espaço livre suficiente para copiar o ZIP local.', 507)
     # Uploads must survive the controlled shutdown. Retain them longer than source
     # IDs so an active transaction can still read the ZIP after the host exits.
     cutoff = time.time() - 24 * 60 * 60
@@ -57,7 +59,7 @@ async def receive_setup(request, root, plugin_id, inspect, max_size):
             async for chunk in request.stream():
                 count += len(chunk)
                 if count > max_size:
-                    raise SetupUploadError('SETUP_TOO_LARGE', 'O ZIP excede o limite de um SETUP leve.', 413)
+                    raise SetupUploadError('SETUP_TOO_LARGE', 'O ZIP excede o limite permitido para esta operação.', 413)
                 stream.write(chunk)
         if not count:
             raise SetupUploadError('EXPECTED_SETUP_ZIP', 'O arquivo ZIP está vazio.')

@@ -1161,14 +1161,33 @@ JS = u"""
  };
 
  var HIST = 'radai_hist', HIST_VOLTA = 'radai_hist_volta', HIST_MAX = 40;
+ function histRota(valor){
+  try{
+   var u = new URL(valor, location.origin);
+   if(u.origin !== location.origin) return null;
+   var p = u.pathname.replace(/\/+$/, '') || '/';
+   if(p === '/suite') return '/';
+   if(p === '/nidus/projecao') return '/neuro/nidus';
+   if(p === '/neuro'){
+    var categoria = u.searchParams.get('category');
+    if(['glioma','metastasis','meningioma','anatomia'].indexOf(categoria) >= 0)
+     return '/neuro/' + categoria;
+   }
+   return p;
+  }catch(e){ return null }
+ }
  function histLer(){
   try{
    var p = JSON.parse(sessionStorage.getItem(HIST) || '[]');
    if(!(p instanceof Array)) return [];
    var ok = [];
-   for(var i = 0; i < p.length; i++)
-    if(p[i] && typeof p[i].u === 'string' && p[i].u.charAt(0) === '/')
-     ok.push({u: p[i].u, t: String(p[i].t || '')});
+   for(var i = 0; i < p.length; i++){
+    if(!p[i] || typeof p[i].u !== 'string' || p[i].u.charAt(0) !== '/') continue;
+    var rota = histRota(p[i].u);
+    if(!rota) continue;
+    if(ok.length && ok[ok.length - 1].u === rota) ok[ok.length - 1].t = String(p[i].t || '');
+    else ok.push({u: rota, t: String(p[i].t || '')});
+   }
    return ok;
   }catch(e){ return [] }
  }
@@ -1195,10 +1214,12 @@ JS = u"""
   }catch(e){ v = null }
   if(!v || typeof v.para !== 'string') return null;
   if(!(Date.now() - (v.em || 0) < 30000)) return null;
+  v.para = histRota(v.para); v.de = histRota(v.de);
+  if(!v.para || !v.de) return null;
   return v;
  }
  function histBotao(p){
-  var aqui = location.pathname;
+  var aqui = histRota(location.href);
   var bts = document.querySelectorAll('[data-radai-voltar]');
   for(var i = 0; i < bts.length; i++){
    var b = bts[i];
@@ -1214,7 +1235,8 @@ JS = u"""
     b.setAttribute('aria-label', rot);
     b.setAttribute('data-radai-destino', 'historico');
    } else {
-    var pai = b.getAttribute('data-radai-pai') || '/';
+    var pai = histRota(b.getAttribute('data-radai-pai') || '/') || '/';
+    if(pai === aqui) pai = '/';
     var t0 = b.getAttribute('data-radai-titulo0') || '';
     var nomePai = b.getAttribute('data-radai-nome-pai') || '';
     if(nomePai){
@@ -1234,7 +1256,7 @@ JS = u"""
   }catch(e){ return }
   var nome = histNome();
   if(nome === null) return;
-  var aqui = location.pathname, p = histLer(), tipo = histTipo(ev);
+  var aqui = histRota(location.href), p = histLer(), tipo = histTipo(ev);
   var v = histVolta();
   var topo = p.length ? p[p.length - 1] : null;
   if(v && v.para === aqui && topo && topo.u === v.de && topo.u !== aqui){
@@ -1268,11 +1290,12 @@ JS = u"""
   if(!a) return;
   if(ev.defaultPrevented || ev.button !== 0 || ev.ctrlKey || ev.metaKey
      || ev.shiftKey || ev.altKey) return;
-  var p = histLer(), aqui = location.pathname;
+  var p = histLer(), aqui = histRota(location.href);
   var temAnt = p.length >= 2 && p[p.length - 1].u === aqui
                && p[p.length - 2].u !== aqui;
   var para = temAnt ? p[p.length - 2].u
-                    : (a.getAttribute('data-radai-pai') || '/');
+                    : (histRota(a.getAttribute('data-radai-pai') || '/') || '/');
+  if(para === aqui) para = '/';
   try{
    sessionStorage.setItem(HIST_VOLTA, JSON.stringify(
     {de: aqui, para: para, sobe: temAnt ? 0 : 1, em: Date.now()}));
