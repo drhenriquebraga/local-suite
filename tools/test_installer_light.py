@@ -292,6 +292,7 @@ def teste_a_etapa_5_roda_de_verdade(alvo):
 NAO_VAO_PELO_ATUALIZAR = {
     u"tools/atualizar_v810_browser.cjs": u"browser regression runner; never executed by the installed station",
     u"tools/plugin_operations_ui_v819_browser.cjs": u"browser regression runner; never executed by the installed station",
+    u"tools/plugin_settings_v820_browser.cjs": u"browser regression runner; never executed by the installed station",
     u"tools/update_sources_v819_browser.cjs": u"browser regression runner; never executed by the installed station",
     u"VERSION.txt": u"o carimbo para quem le; o `entrega.txt` e' o de codigo",
     u"PACKAGE_SIZE.txt": u"o tamanho do pacote completo, lido pelo START_HERE",
