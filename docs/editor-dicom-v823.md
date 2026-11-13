@@ -28,8 +28,9 @@ existentes. Fonte canônica: este checkout; NEURO: Temp/radai-neuro-131.
 - nidus_loading_motion: tela NIDUS, zoom, picker/cache e integração toolbar.
 - nidus_cine_backend: pincel/borracha/mesh do consenso e descoberta temporal.
 - tof_temporal_literature: core/API do editor e preservação RTSTRUCT.
-- O caminho do exemplo real de angiografia ainda não foi informado nesta rodada.
-  Os testes usam dados sintéticos; não constituem validação clínica.
+- Além dos testes sintéticos, foi conferida em somente leitura uma angio-RM
+  fornecida pelo autor: TOF de 204 cortes e 48 fases volumétricas TRICKS.
+  Os arquivos do exame foram preservados; não houve exportação clínica.
 - Interpolação implementada com prévia e aplicação explícita entre dois cortes,
   preservando os cortes desenhados manualmente.
 
@@ -54,6 +55,9 @@ existentes. Fonte canônica: este checkout; NEURO: Temp/radai-neuro-131.
 - Gestos fixam série, ROI, corte, revisão e diâmetro no início; trocas de corte
   durante o desenho são bloqueadas. Requisições canceladas ou antigas não
   aplicam contornos a outra série.
+- A descoberta temporal separa resumos com um plano por fase dos volumes 3D
+  adquiridos. Mantém a recusa de volumes parciais ambíguos e não inventa tempos
+  a partir dos nomes de série quando os metadados temporais não os fornecem.
 
 ## Verificação prevista
 
