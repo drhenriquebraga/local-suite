@@ -4,8 +4,8 @@
     {
       "nome": "CONTOURLAB",
       "repositorio": "drhenriquebraga/contourlab",
-      "tag": "v8.23",
-      "arvore_sha256": "ff5fdc86f6f15cdb3cbddce337d621612923d77398c90318977fb96734040133"
+      "tag": "v8.24",
+      "arvore_sha256": "2efb2a4c73775e74605c1d608e7c6b319a36dde9062aa5a13d73431457b5dc1f"
     },
     {
       "nome": "DICOM_BRIDGE",
@@ -16,20 +16,20 @@
     {
       "nome": "RECON_3D",
       "repositorio": "drhenriquebraga/recon-3d",
-      "tag": "v8.14",
-      "arvore_sha256": "a4be35ae06d52bb62bb58d7f242d8760f6268f65f46d23b72788db39b1bc37c9"
+      "tag": "v8.24",
+      "arvore_sha256": "2b02057eb66f9124190b5178b030eaeb605104355323fa9b4e6877bd5e910886"
     },
     {
       "nome": "ELASTIC_RT",
       "repositorio": "drhenriquebraga/elastic-rt",
-      "tag": "v8.14",
-      "arvore_sha256": "2bfa315214e3f055b4a52aba567a47762e959da17ad8fe1f6bff555d52bb31e2"
+      "tag": "v8.24",
+      "arvore_sha256": "33025293c4281d125447c9b48ae90609f48b557f8859d3cd51db4a8d77d49046"
     },
     {
       "nome": "3D_PRINTED_BOLUS",
       "repositorio": "drhenriquebraga/3d-printed-bolus",
-      "tag": "v8.10",
-      "arvore_sha256": "74507366dd605896ef2960d767cf81313d97afeaf147370b376203d8fc2a2b95"
+      "tag": "v8.24",
+      "arvore_sha256": "da565e033bf1368ec998933cd2f2b8d649a44e96129f5a48cad849ac203d6371"
     }
   ]
 }
