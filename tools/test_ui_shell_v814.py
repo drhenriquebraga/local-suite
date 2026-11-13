@@ -42,6 +42,8 @@ class CatalogTests(unittest.TestCase):
         table = {F.normalizar(row[0]): row for row in F.TABELA}
         for key in ('Ver segmentações', 'Overnight Run · Vigia', 'AutoContorno Neuro',
                     'Laudo sintético', 'Rastreio populacional', 'Segmentar novo caso',
+                    'A seleção expirou. Escolha a pasta novamente.',
+                    'Escolher uma pasta substitui a lista. Adicionar outra pasta preserva as séries já listadas.',
                     'Resolução da projeção', 'A sugestão geométrica exige revisão.'):
             row = table[key]
             self.assertEqual(len(row), 12)
@@ -150,7 +152,7 @@ class BrowserTests(unittest.TestCase):
     def test_completion_real_counts_and_opaque_ticket(self):
         self.assertTrue(self.page.locator("#pick_fora").is_hidden())
         self.assertTrue(self.page.locator("#pick_progresso").is_hidden())
-        self.page.locator('#pick_form button[type=submit]').click()
+        self.page.locator('#pick_pasta').press('Enter')
         self.page.wait_for_function('demo.finished.length===1')
         d=self.page.evaluate('demo.finished[0]')
         self.assertEqual(len(d['rows']),1)

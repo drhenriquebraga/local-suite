@@ -10,6 +10,39 @@ const langs=['pt-BR','en','es','de','fr','it','pl','ja','zh-CN','ar','ko','bn'];
    process.stdout.write('Checking '+kind+'\n');
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.goto(process.env.DICOM_ADAPTER_URL+'/page/'+kind,{waitUntil:'domcontentloaded'});
+   if(kind==='ver')await page.locator('.ua-help').waitFor({state:'attached'});
+   if(['ver','anatomia','torax','elastic'].includes(kind)){
+    const picker=await page.evaluate(kind=>{
+     const calls=[];window.uiExplorador=cfg=>{window.lastFolderChoice=cfg;return{fechar(){}};};
+     let extra;
+     if(kind==='ver'){
+      vrVarrer=()=>calls.push({pasta:document.getElementById('vr_pasta').value});vrProcurar();
+      lastFolderChoice.aoUsar('C:/ONE');
+      extra={redundant:!!document.querySelector('[onclick="vrVarrer()"]'),help:document.querySelector('.ua-help')?.textContent,
+       helpFont:document.querySelector('.ua-help')?getComputedStyle(document.querySelector('.ua-help')).fontSize:null};
+     }else if(kind==='elastic'){
+      elVarrer=append=>calls.push({pasta:document.getElementById('el-pasta').value,append});
+      elProcurar();lastFolderChoice.aoUsar('C:/ONE');
+      document.getElementById('el-mais').click();lastFolderChoice.aoUsar('C:/TWO');
+      extra={redundant:!!document.getElementById('el-buscar')};
+     }else{
+      r3Listar=pasta=>calls.push({pasta});r3Procurar();lastFolderChoice.aoUsar('C:/ONE');
+      extra={redundant:!!document.querySelector('[onclick="r3Outra()"]')};
+     }
+     return{calls,...extra};
+    },kind);
+    assert.equal(picker.redundant,false,kind+' extra series search button');
+    assert.deepEqual(picker.calls,kind==='elastic'?[{pasta:'C:/ONE',append:false},{pasta:'C:/TWO',append:true}]:[{pasta:'C:/ONE'}]);
+    if(kind==='ver'){assert.ok(picker.help?.includes('ContournLab'));assert.equal(picker.helpFont,'12.5px');}
+   }
+   if(kind==='bolus'){
+    await page.keyboard.press('Escape');
+    await page.evaluate(()=>{document.getElementById('bo-corpo').style.display='';});
+    assert.equal(await page.locator('.rdt-viewer-tools').count(),0,'skin workspace must not open the DICOM contour editor');
+    assert.equal(await page.evaluate(()=>typeof window.RadaiContourEditor),'undefined');
+    assert.deepEqual(errors,[],kind+' JavaScript errors');
+    results.push({page:kind,toolbarCount:0});await page.close();continue;
+   }
    await page.waitForFunction(()=>!!window.RadaiDicomAdapters&&!!window.RadaiDicomToolbar);
    await page.evaluate(kind=>{
     window.adapterCalls=[];window.adapterActions=[];

@@ -50,11 +50,6 @@ JS = r'''
       if(receipt&&!receipt.fallback&&receipt.basename&&R3.b===selected.b&&typeof R3M!=='undefined'&&window.r3mEstruturas){R3M.nuvens={};r3mEstruturas(receipt.basename);}
      }});
   }
-  var box=el('bo-corpo')||el('bo-visores')||el('bo-palco');
-  if(box&&!box.dataset.dicomToolbar){
-   register({scope:box,selection:function(){var ticket=imageTicket('bo-i-ax','/api/bolus/corte');return ticket?{b:ticket,source:'thumbnail'}:null;},
-    ready:function(){return !!box.getClientRects().length&&!el('bo-abrir')?.disabled;}});
-  }
   if(typeof EL_SEL!=='undefined'){
    var eroot=el('el-corpo')||el('el-visor')||el('el-img')?.parentElement;
    if(eroot&&!eroot.dataset.dicomToolbar)register({scope:eroot,selection:function(){return EL_SEL.fixa?{b:EL_SEL.fixa.b,source:'thumbnail'}:null;},

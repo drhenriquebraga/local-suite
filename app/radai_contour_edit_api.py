@@ -78,6 +78,8 @@ def montar(app):
             if name=='rename': return session.rename(d.get('roi'),d.get('name'))
             if name=='stroke': return session.stroke(d.get('roi'),d.get('plane'),d.get('index'),d.get('points'),d.get('diameter_mm',5),d.get('operation','brush'))
             if name in ('undo','redo'): return session.history(name=='redo')
+            if name=='center': return session.center(d.get('roi'))
+            if name=='scene': return session.scene(d.get('known'))
             if name=='interpolate':
                 if type(d.get('apply',False)) is not bool:core.fail('INVALID_INPUT','Solicitação inválida.')
                 return session.interpolate(d.get('roi'),d.get('plane'),d.get('start'),d.get('end'),d.get('apply',False),d.get('preview_id'))
@@ -87,7 +89,7 @@ def montar(app):
                 return {'closed':True}
             core.fail('INVALID_OPERATION','Operação inválida.')
 
-    for operation in ('import','new-roi','rename','stroke','undo','redo','interpolate','save','close'):
+    for operation in ('import','new-roi','rename','stroke','undo','redo','interpolate','center','scene','save','close'):
         def handler(name):
             async def endpoint(request:Request):
                 try:

@@ -13,6 +13,8 @@ NEURO=Path(os.environ.get('RADAI_NEURO_ROOT',str(ROOT.parent/'radai-neuro-131'))
 LUNG=Path(os.environ.get('RADAI_LUNG_ROOT',str(ROOT.parent/'radai-lung-release-1.1.1-codex'/'source')))
 sys.path[:0]=[str(ROOT/'app'),str(ROOT.parent/'radai-contourlab-release-v817'/'app'),str(NEURO),str(LUNG/'app')]
 os.environ.setdefault('RADAI_COMPONENTES_DIR',str(ROOT/'_montagem'/'componentes'))
+for key in ('RADAI_RECON_ROOT','RADAI_ELASTIC_ROOT','RADAI_BOLUS_ROOT'):
+    if os.environ.get(key):sys.path.append(str(Path(os.environ[key])/'app'))
 for component in (ROOT/'_montagem'/'componentes').iterdir():
     if (component/'app').is_dir():sys.path.append(str(component/'app'))
 

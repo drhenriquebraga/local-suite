@@ -37,9 +37,17 @@ stale revision is409. Endpoints:
 - `/stroke {roi,plane,index,points,diameter_mm,operation}`; operation brush,
   erase, polygon, polygon-erase. 1–4096 points, normalized pixel-edge coordinates.
 - `/undo`, `/redo` include drawing and metadata creation/renaming.
-- `/interpolate {roi,plane,start,end,apply:false}` returns `preview_id`.
+- `/interpolate {roi,plane,apply:false}` detects all manual anchors in that
+  plane and previews each consecutive interval. Imported contours supply
+  nonempty reference slices when no manual pair is present. The legacy
+  `start,end` API remains supported; the UI no longer exposes these controls.
   `/interpolate {roi,apply:true,preview_id}` applies only the same-revision preview.
   Manual reference planes are preserved. Import never implicitly fills gaps.
+- `/center {roi}` returns the native `indices_zyx` and physical `center_lps`.
+- `/scene {known?:{roi:geometry_revision}}` returns named, colored LPS meshes.
+  Unchanged geometry returns metadata with `unchanged:true`; the client merges
+  it with its previous mesh. Per-ROI invalidation and GPU buffers avoid a full
+  scene rebuild after one brush. Skipped complex/unsupported ROIs are explicit.
 - `/save` returns `basename,download_url,fallback,message`.
 - `/close` releases the session.
 
@@ -92,6 +100,37 @@ these copies to the 2D/3D viewers without adding evidence of AUTO completion.
 The host supplies an XOR reader adapter only for its manual copies; the pinned
 RECON package and the segmentation completion rules remain unchanged. Viewer
 header caches are bounded and invalidate when file metadata changes.
+
+## Editor workspace and NIDUS bridge (8.24)
+
+The header displays source patient ID/name, study and series metadata using
+text nodes. These identities never enter telemetry or public artifacts.
+Layout uses a large acquisition axial plane and coronal, sagittal and 3D
+stacked on the right. Native LPS edge labels remain authoritative for oblique
+acquisitions; no hidden anatomical resampling is introduced.
+
+`RadaiContourEditor.open({b,source,rs?,inlineRoot?,onPreview?,externalScene?,onClose?})`
+supports the NIDUS workspace in the current page. `onPreview` receives complete
+mesh arrays (the host merges API deltas), session/revision and
+`reference:{b,source,uid,frame_uid}`. Consumers must match their active source
+and generation. Each mesh has `geometry_revision` to reuse native GL buffers.
+`externalScene:{element,resize?,request?,center?}` moves the existing NIDUS
+canvas/wrapper into the 3D panel without cloning its renderer. A placeholder
+and original inline style restore it on return; reopening remounts it.
+
+Returning with edits suspends the draft in the current page, without exporting
+or rereading DICOM. Opening the same source/ticket/RTSTRUCT resumes it. Explicit
+discard releases it; clean sessions release memory on return. Normal page
+navigation warns about unsaved edits. Drafts are session memory, not disk
+backups; the existing two-session and one-hour idle resource limits apply.
+`onClose(receipt|null,{draft,lastSavedReceipt,reference,session,revision})`
+distinguishes the current draft from an earlier exported copy. A later brush
+never deletes or replaces that earlier file. Export remains an explicit action
+and retains all atomic-write and voxel round-trip checks.
+
+The standalone 3D viewer is local WebGL with native-grid surfaces, no smoothing
+or resampling, up to 250k faces per ROI and 500k total. ROI crop cap is 12M voxels;
+complex/unsupported surfaces remain editable in MPR and are reported as skipped.
 
 ## Primary standard sources
 

@@ -862,9 +862,7 @@ async def _rodar(pg, root):
            datas and all(_re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$", d)
                          for d in datas), str(datas[:3]))
     odata, onome = ".ui-fp-ord button[data-ord='data']", ".ui-fp-ord button[data-ord='nome']"
-    await pg.click(odata)
-    await pg.wait_for_timeout(700)
-    checar(u"ordenar por data acende o botao, da mais recente para a antiga",
+    checar(u"abrir o explorador já ordena por data, da mais recente para a antiga",
            await pg.get_attribute(odata, "aria-pressed") == u"true"
            and await pg.get_attribute(odata, "data-sentido") == u"desc")
     await pg.click(onome)

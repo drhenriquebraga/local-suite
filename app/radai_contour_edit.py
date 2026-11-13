@@ -218,6 +218,7 @@ class Session:
         self.revision, self.original, self.source_path, self.source_hash = 0, None, None, None
         self.rois, self.masks, self.dirty, self.undo_stack, self.redo_stack = {}, {}, set(), [], []
         self.previews, self.saved, self.renamed, self.anchors = {}, {}, set(), {}
+        self.mesh_cache = {}
         self.source_signatures = {str(p): _signature(p) for p in self.geo['files']}
         a=self.geo['volume'];sample=a.ravel()[::max(1,a.size//200000)]
         lo,hi=np.percentile(sample,[1,99]);self.window={'center':float((hi+lo)/2),'width':float(max(1,hi-lo))}
@@ -247,7 +248,13 @@ class Session:
 
     def state(self):
         a = self.geo['volume']
+        h = self.geo['headers'][0]
+        identity = {key:str(h.get(tag,'')) for key,tag in (
+            ('patient_name','PatientName'),('patient_id','PatientID'),('birth_date','PatientBirthDate'),
+            ('study_description','StudyDescription'),('study_date','StudyDate'),
+            ('series_description','SeriesDescription'),('series_number','SeriesNumber'),('modality','Modality'))}
         return dict(session=self.id, csrf=self.csrf, revision=self.revision,
+                    identity=identity, uid=self.geo['uid'], frame_uid=self.geo['frame'],
                     shape=list(a.shape), spacing=[float(v) for v in self.geo['spacing']],
                     origin=self.geo['origin'].tolist(), direction=self.geo['direction'].tolist(),
                     plane_labels={'axial':'Axial da aquisição','coronal':'Coronal da aquisição','sagittal':'Sagital da aquisição'},
@@ -264,9 +271,12 @@ class Session:
         if type(revision) is not int or revision != self.revision:
             fail('STALE_REVISION','A edição mudou. Atualize a tela antes de continuar.',409)
 
-    def bump(self):
+    def bump(self, number=None, geometry=True):
         self.revision += 1
         self.previews.clear()
+        if geometry:
+            if number is None:self.mesh_cache.clear()
+            else:self.mesh_cache.pop(int(number),None)
         self.touched = time.monotonic()
 
     def _rs(self, key):
@@ -315,6 +325,7 @@ class Session:
     def _memory(self, extra=0):
         used=(self.geo['volume'].nbytes+sum(m.nbytes for m in self.masks.values())
               +sum(p['mask'].nbytes for p in self.previews.values())
+              +sum(len(m['vertices'])*160+len(m['faces'])*180 for m in getattr(self,'mesh_cache',{}).values())
               +sum(self._history_bytes(r) for r in self.undo_stack+self.redo_stack)+extra)
         if used>MAX_MEMORY:
             fail('RESOURCE_LIMIT','O limite de memória desta edição foi atingido. Salve e abra uma nova sessão.')
@@ -451,7 +462,7 @@ class Session:
         roi=dict(name=name,color=color,editable=True)
         self._push_history((number,None,None,copy.deepcopy(roi),False))
         self.rois[number]=roi
-        self.dirty.add(number); self.bump()
+        self.dirty.add(number); self.bump(number)
         return self.state()
 
     def rename(self,number,name):
@@ -463,7 +474,7 @@ class Session:
         old=self.rois[number]['name']
         if name==old:return self.state()
         self._push_history((number,None,old,name,number in self.renamed))
-        self.rois[number]['name']=name;self.renamed.add(number);self.bump()
+        self.rois[number]['name']=name;self.renamed.add(number);self.bump(number,geometry=False)
         return self.state()
 
     def _record(self,number,before,after,anchor=None):
@@ -487,7 +498,7 @@ class Session:
         self._push_history(record)
         before.ravel()[changes]=after.ravel()[changes]
         self.anchors[number]=updated
-        self.dirty.add(number); self.bump()
+        self.dirty.add(number); self.bump(number)
 
     def stroke(self,number,plane,index,points,diameter_mm=5,operation='brush'):
         axis,index=self.plane(plane,index)
@@ -545,7 +556,7 @@ class Session:
                 if redo or was_dirty: self.dirty.add(number)
                 else: self.dirty.discard(number)
                 if len(record)>5:self.anchors[number]=set(record[6 if redo else 5])
-            target.append(record); self.bump()
+            target.append(record); self.bump(number,geometry=not (indices is None and isinstance(value,str)))
         return self.state()
 
     def interpolate(self,number,plane=None,start=None,end=None,apply=False,preview_id=None):
@@ -556,25 +567,51 @@ class Session:
             self._record(int(number),self.mask(number),p['mask'])
             return self.state()
         from scipy.ndimage import distance_transform_edt
-        axis,start=self.plane(plane,start); _,end=self.plane(plane,end)
-        if end-start<2:
-            fail('INVALID_INTERVAL','Escolha dois cortes separados por pelo menos um corte intermediário.')
         m=self.mask(number); self._memory(m.nbytes)
-        a,b=_plane(m,axis,start),_plane(m,axis,end)
-        if not a.any() or not b.any():
-            fail('INVALID_INTERVAL','Os dois cortes de referência precisam conter um contorno.')
+        if plane not in PLANES:fail('INVALID_PLANE','Plano inválido.')
+        axis=PLANES[plane]
+        automatic=start is None and end is None
+        manual=self.anchors.get(int(number),set())
+        if automatic:
+            anchors=sorted(i for p,i in manual if p==axis and _plane(m,axis,i).any())
+            if len(anchors)<2:
+                anchors=np.flatnonzero(np.any(m,axis=tuple(i for i in range(3) if i!=axis))).tolist()
+        else:
+            _,start=self.plane(plane,start); _,end=self.plane(plane,end)
+            anchors=sorted({start,end}|{i for p,i in manual if p==axis and start<i<end})
+            if end-start<2:fail('INVALID_INTERVAL','Não há cortes intermediários para interpolar.')
+        intervals=[(a,b) for a,b in zip(anchors,anchors[1:]) if b-a>=2]
+        if not intervals or any(not _plane(m,axis,i).any() for pair in intervals for i in pair):
+            fail('INVALID_INTERVAL','Desenhe em pelo menos dois cortes do mesmo plano, deixando um corte intermediário.')
         sp=np.delete(np.asarray(self.geo['spacing']),axis)
         def sdf(bits): return distance_transform_edt(bits,sampling=sp)-distance_transform_edt(~bits,sampling=sp)
-        da,db=sdf(a),sdf(b); result=m.copy()
-        protected={index for p,index in self.anchors.get(int(number),()) if p==axis}
-        for i in range(start+1,end):
-            if i in protected:continue
-            t=(i-start)/(end-start)
-            _plane(result,axis,i)[:]=(da*(1-t)+db*t)>=0
+        result=m.copy()
+        for start,end in intervals:
+            da,db=sdf(_plane(m,axis,start)),sdf(_plane(m,axis,end))
+            for i in range(start+1,end):
+                t=(i-start)/(end-start)
+                _plane(result,axis,i)[:]=(da*(1-t)+db*t)>=0
+        # A contour drawn in another MPR plane is still a manual anchor.
+        for protected_axis,index in manual:
+            _plane(result,protected_axis,index)[:]=_plane(m,protected_axis,index)
         key=secrets.token_urlsafe(20)
         self.previews={key:dict(mask=result,roi=int(number),revision=self.revision)}
-        return dict(preview_id=key,revision=self.revision,start=start,end=end,plane=plane,
+        return dict(preview_id=key,revision=self.revision,start=anchors[0],end=anchors[-1],plane=plane,
+                    anchors=anchors,intervals=[list(pair) for pair in intervals],
                     changed_voxels=int(np.count_nonzero(result!=m)),session=self.id)
+
+    def center(self,number):
+        m=self.mask(number)
+        count=int(np.count_nonzero(m))
+        if not count:fail('EMPTY_STRUCTURE','A estrutura ainda não tem volume.')
+        # Projections avoid allocating one coordinate triplet per voxel.
+        indices=np.array([np.dot(np.arange(m.shape[i]),m.sum(axis=tuple(j for j in range(3) if j!=i),dtype=np.int64))/count for i in range(3)])
+        center=self.geo['origin']+self.geo['direction']@(indices[::-1]*np.asarray(self.geo['spacing'][::-1]))
+        return dict(session=self.id,revision=self.revision,roi=int(number),indices_zyx=indices.tolist(),center_lps=center.tolist())
+
+    def scene(self,known=None):
+        from radai_contour_scene import scene
+        return scene(self,known)
 
     def _verify_sources(self):
         for path,signature in self.source_signatures.items():

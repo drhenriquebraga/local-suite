@@ -418,7 +418,7 @@ def aplicar(pagina, ativo="", com_tarefas=True, com_pendencias=False):
     if ativo in ('ver', 'lote', 'recon_anatomia', 'recon_torax', 'recon_vascular',
                  'nidus_projecao', 'neuro_glioma', 'neuro_metastasis',
                  'neuro_meningioma', 'neuro_anatomia', 'elastic_fusao',
-                 'bolus_gerar', 'bolus_aplicador', 'lung_4d', 'lung_nodulos',
+                 'lung_4d', 'lung_nodulos',
                  'lung_laudo', 'lung_rastreio'):
         import radai_dicom_tools
         pagina = radai_dicom_tools.aplicar(pagina)

@@ -1683,6 +1683,10 @@ COMPONENTES = u"""
 .ui-acervo .ua-msg{margin:0;padding:12px 14px;font-size:12.5px;line-height:1.6;
  color:var(--text-dim)}
 .ui-acervo .ua-msg.ruim{color:var(--perigo)}
+.ui-acervo .ua-help{padding:0 14px 12px;color:var(--text-muted);
+ font:400 12.5px/1.6 var(--font-display,Inter,system-ui,'Segoe UI',Arial,sans-serif)}
+.ui-acervo .ua-help p{font:inherit;margin:0 0 6px}
+.ui-acervo .ua-help a{font:inherit;color:var(--accent);text-underline-offset:3px}
 .ui-acervo .ua-sr{position:absolute;width:1px;height:1px;overflow:hidden;
  clip:rect(0 0 0 0);white-space:nowrap}
 
@@ -2979,8 +2983,8 @@ COMPONENTES_JS = u"""
    + '<input type="text" class="ui-fp-busca" spellcheck="false" placeholder="buscar nesta pasta &mdash; trecho do nome ou do prontu&aacute;rio">'
    + '<button type="button" class="ui-bt" data-fp="limpar">' + frase('limpar') + '</button>'
    + '<span class="ui-fp-ord" role="group" aria-label="ordenar">'
-   + '<button type="button" data-ord="nome" aria-pressed="true">' + frase('Nome') + '</button>'
-   + '<button type="button" data-ord="data" aria-pressed="false">' + frase('Data') + '</button></span></div>'
+   + '<button type="button" data-ord="nome" aria-pressed="false">' + frase('Nome') + '</button>'
+   + '<button type="button" data-ord="data" aria-pressed="true">' + frase('Data') + '</button></span></div>'
    + '<div class="ui-fp-cabl">' + frase('Nome') + frase('Modificada em') + '</div>'
    + '<div class="ui-fp-lista" role="listbox" aria-label="pastas"></div>'
    + '<div class="ui-fp-msg"></div></section></div>'
@@ -3133,7 +3137,7 @@ COMPONENTES_JS = u"""
  window.uiExplorador = function(o){
   o = o || {};
   var raiz = fpMontar();
-  FP = {o:o, raiz:raiz, hist:[], pos:-1, pai:'', fav:'', ordem:'nome', sentido:'asc', t:null};
+  FP = {o:o, raiz:raiz, hist:[], pos:-1, pai:'', fav:'', ordem:'data', sentido:'desc', t:null};
   FP.modal = window.uiModal({titulo: o.titulo || 'Escolher a pasta', no: raiz, largura: 940,
    origem: o.origem, classe:'ui-fp-modal'});
   raiz.addEventListener('click', function(e){
@@ -3810,14 +3814,28 @@ VARREDURA_JS = u"""
    return ctl;
   }
   formulario.addEventListener('submit', function(e){ e.preventDefault(); varrer() });
+  campo.addEventListener('keydown', function(e){
+   if(e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); varrer() }
+  });
   $(prefixo + '_procurar').addEventListener('click', function(e){
    window.uiExplorador({inicial: campo.value, origem: e.currentTarget,
-    aoUsar: function(p){ campo.value = p; campo.dispatchEvent(new Event('change', {bubbles:true})) }});
+    aoUsar: function(p){
+     if(!p) return;
+     campo.value = p; campo.dispatchEvent(new Event('change', {bubbles:true})); varrer();
+    }});
   });
   parar.addEventListener('click', function(){ cancelar(false) });
   fora.addEventListener('click', function(){ window.uiDias(prefixo + '_dias', 0); varrer() });
   if(window.uiDiasLigar) window.uiDiasLigar($(prefixo + '_dias'));
-  if(window.uiFavoritaLigar) window.uiFavoritaLigar(raiz.querySelector('[data-ui-fav]'));
+  var favorita = raiz.querySelector('[data-ui-fav]');
+  if(favorita){
+   favorita._uiAoPreencher = function(){ varrer() };
+   if(window.uiFavoritaLigar) window.uiFavoritaLigar(favorita);
+  }
+  var filtro = $(prefixo + '_dias');
+  if(filtro) filtro.addEventListener('change', function(){
+   if(resultado && campo.value.trim()) varrer();
+  });
   var api = {abrir: function(origem){ return popup.abrir(origem) }, fechar: popup.fechar,
    varrer: varrer, parar: function(){ cancelar(false) },
    pasta: function(valor){ if(valor != null) campo.value = String(valor); return campo.value },
@@ -3986,7 +4004,7 @@ def formulario_carregar_imagens(prefixo, pasta=u"", dias=u"7",
              u'placeholder="cole o caminho da pasta, ou use o Procurar ao lado">{favorita}'
              u'<button id="{p}_procurar" class="ui-bt" type="button">{icone}'
              u'<span data-radai-frase>Procurar…</span></button></div>{datas}'
-             u'<button type="submit" class="ui-bt" data-radai-frase>Procurar séries</button></form>'
+             u'</form>'
              u'<div id="{p}_progresso" hidden><div id="{p}_leitura"></div>'
              u'<button id="{p}_parar" class="ui-bt" type="button" '
              u'data-radai-frase>Parar a leitura</button></div>'
