@@ -207,6 +207,8 @@ def mini_pagina(chave):
 
 
 def montar(app):
+    import radai_contour_edit_api
+    radai_contour_edit_api.montar(app)
     import radai_install_profile
     radai_install_profile.montar_portao(app)
     from fastapi.responses import HTMLResponse

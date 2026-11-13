@@ -46,8 +46,8 @@ class PluginBootstrap(unittest.TestCase):
         self.root.mkdir()
         for name in ('radai_panel.py', 'radai_ui.py'):
             (self.root / name).write_text('# synthetic base marker\n')
-        (self.root / 'entrega.txt').write_text('PROJETO=LOCAL_SUITE\nVERSAO=8.22\n')
-        self.headers = {'contract': radai_plugins.HOST_CONTRACT, 'version': '8.22'}
+        (self.root / 'entrega.txt').write_text('PROJETO=LOCAL_SUITE\nVERSAO=8.23\n')
+        self.headers = {'contract': radai_plugins.HOST_CONTRACT, 'version': '8.23'}
 
     def test_actual_embedded_code_bootstraps_both_plugins_without_extra_resources(self):
         keeps = []

@@ -1,0 +1,95 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');const path=require('node:path');const os=require('node:os');
+const {chromium}=require(process.env.NEURO_PLAYWRIGHT_MODULE||'playwright');
+(async()=>{
+ const browser=await chromium.launch({executablePath:'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',headless:true});
+ const page=await browser.newPage({viewport:{width:1600,height:1000},deviceScaleFactor:1});
+ const errors=[],strokes=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
+ page.on('request',request=>{if(request.method()==='POST'&&new URL(request.url()).pathname==='/api/contour-edit/stroke')strokes.push(request.postDataJSON());});
+ try{
+  await page.goto(process.env.DICOM_EDITOR_URL);await page.locator('#open').click();
+  await page.waitForFunction(()=>{const e=RadaiContourEditor.current();return e&&e.session&&!e.busy&&Object.values(e.planes).every(p=>p.loaded)});
+  assert.equal(await page.locator('.rce-rois button').count(),2);
+  await page.locator('[data-dicom-tool=brush]').click();
+  const canvas=page.locator('[data-plane=axial] canvas');await canvas.hover();
+  const before=await page.evaluate(()=>RadaiContourEditor.current().toolbar.diameter);
+  await page.keyboard.press('Period');await page.keyboard.press('Period');await page.keyboard.press('Comma');
+  assert.equal(await page.evaluate(()=>RadaiContourEditor.current().toolbar.diameter),before+.5);
+  await page.keyboard.down('Control');await page.mouse.wheel(0,-100);await page.keyboard.up('Control');
+  assert.equal(await page.evaluate(()=>RadaiContourEditor.current().toolbar.diameter),before+1);
+  const pos=await canvas.boundingBox();const x=pos.x+pos.width*.5,y=pos.y+pos.height*.5;
+  const original=await page.evaluate(()=>{const e=RadaiContourEditor.current();return {index:e.planes.axial.index,roi:e.roi,revision:e.session.revision,diameter:e.toolbar.diameter,coronal:e.planes.coronal.index};});
+  await page.mouse.move(x,y);await page.mouse.down();
+  assert.equal(await page.locator('[data-plane=axial] input[type=range]').isDisabled(),true);
+  assert.equal(await page.locator('[data-dicom-tool=eraser]').isDisabled(),true);
+  await page.keyboard.press('Tab');await page.keyboard.press('ArrowRight');
+  await page.evaluate(()=>{
+   const e=RadaiContourEditor.current(),range=e.planes.axial.range;range.value=Number(range.value)+1;range.dispatchEvent(new Event('input',{bubbles:true}));
+   document.querySelector('.rce-rois button:last-child').click();document.querySelector('[data-dicom-tool=eraser]').click();
+   e.planes.coronal.canvas.dispatchEvent(new WheelEvent('wheel',{deltaY:120,bubbles:true,cancelable:true}));
+   e.planes.coronal.canvas.dispatchEvent(new PointerEvent('pointerdown',{pointerId:2,button:0,bubbles:true}));
+  });
+  assert.deepEqual(await page.evaluate(()=>{const e=RadaiContourEditor.current();return {index:e.planes.axial.index,roi:e.roi,revision:e.session.revision,diameter:e.toolbar.diameter,coronal:e.planes.coronal.index};}),original,'active stroke freezes source, ROI, slice and cross-plane navigation');
+  assert.equal(await page.evaluate(()=>RadaiContourEditor.current().tool),'brush');
+  assert.equal(await page.evaluate(()=>RadaiContourEditor.current().planes.coronal.drag),null);
+  await page.mouse.move(x+22,y+5,{steps:6});await page.mouse.up();
+  await page.waitForFunction(()=>{const e=RadaiContourEditor.current();return !e.busy&&e.session.can_undo&&Object.values(e.planes).every(p=>p.loaded)});
+  assert.equal(strokes.at(-1).index,original.index);assert.equal(strokes.at(-1).roi,original.roi);assert.equal(strokes.at(-1).diameter_mm,original.diameter);
+  const count=strokes.length;
+  await page.mouse.move(x,y);await page.mouse.down();
+  await page.evaluate(()=>{const p=RadaiContourEditor.current().planes.axial;p.canvas.dispatchEvent(new PointerEvent('pointercancel',{pointerId:p.drag.pointer,bubbles:true}));});
+  await page.mouse.up();assert.equal(strokes.length,count,'pointercancel cannot commit a stroke');
+  assert.equal(await page.evaluate(()=>RadaiContourEditor.current().planes.axial.drag),null);
+  assert.equal(await page.locator('[data-plane=axial] input[type=range]').isDisabled(),false);
+  await page.mouse.down();await page.evaluate(()=>RadaiContourEditor.current().planes.axial.serial++);await page.mouse.up();
+  assert.equal(strokes.length,count,'a stale image generation cannot receive the pending stroke');
+  const rev=await page.evaluate(()=>RadaiContourEditor.current().session.revision);
+  await page.locator('[data-dicom-tool=undo]').click();await page.waitForFunction(()=>RadaiContourEditor.current().session.can_redo&&!RadaiContourEditor.current().busy);
+  await page.locator('[data-dicom-tool=redo]').click();await page.waitForFunction(r=>RadaiContourEditor.current().session.revision>r&&!RadaiContourEditor.current().busy,rev);
+  await page.getByRole('tab',{name:'Draw new'}).click();
+  await page.getByLabel('Structure name',{exact:true}).fill('Manual_Test');
+  await page.getByRole('button',{name:'Create structure',exact:true}).click();
+  await page.waitForFunction(()=>{const e=RadaiContourEditor.current();return !e.busy&&e.session.rois.length===3&&Object.values(e.planes).every(p=>p.loaded)});
+  await canvas.click({position:{x:pos.width*.47,y:pos.height*.47}});
+  await page.waitForFunction(()=>{const e=RadaiContourEditor.current();return !e.busy&&e.dirty&&Object.values(e.planes).every(p=>p.loaded)});
+  await page.locator('[data-plane=axial] input[type=range]').evaluate(e=>{e.value='6';e.dispatchEvent(new Event('input',{bubbles:true}));});
+  await page.waitForFunction(()=>RadaiContourEditor.current().planes.axial.loaded);
+  await canvas.click({position:{x:pos.width*.49,y:pos.height*.48}});
+  await page.waitForFunction(()=>{const e=RadaiContourEditor.current();return !e.busy&&Object.values(e.planes).every(p=>p.loaded)});
+  await page.locator('[data-dicom-tool=interpolate]').click();
+  await page.getByLabel('First slice',{exact:true}).fill('5');await page.getByLabel('Last slice',{exact:true}).fill('7');
+  await page.getByRole('button',{name:'Preview',exact:true}).click();
+  await page.waitForFunction(()=>!!RadaiContourEditor.current().preview&&!RadaiContourEditor.current().busy);
+  const unchanged=await page.evaluate(async()=>{const e=RadaiContourEditor.current(),q=new URLSearchParams({s:e.session.session,roi:e.roi,plane:'axial',index:5});return (await (await fetch('/api/contour-edit/overlay?'+q)).json()).polygons.length;});
+  assert.equal(unchanged,0,'Preview must not edit the real mask');
+  await page.getByRole('button',{name:'Apply interpolation',exact:true}).click();
+  await page.waitForFunction(()=>!RadaiContourEditor.current().busy&&!RadaiContourEditor.current().preview);
+  const applied=await page.evaluate(async()=>{const e=RadaiContourEditor.current(),q=new URLSearchParams({s:e.session.session,roi:e.roi,plane:'axial',index:5});return (await (await fetch('/api/contour-edit/overlay?'+q)).json()).polygons.length;});
+  assert.ok(applied>0,'Apply must commit the reviewed preview');
+  await page.getByRole('button',{name:'Save new RTSTRUCT',exact:true}).click();
+  await page.getByRole('link',{name:'Download RTSTRUCT',exact:true}).waitFor();
+  const dl=await page.getByRole('link',{name:'Download RTSTRUCT',exact:true}).getAttribute('href');
+  const response=await page.request.get(new URL(dl,process.env.DICOM_EDITOR_URL).href);assert.equal(response.status(),200);assert.ok((await response.body()).length>1000);
+  await page.locator('[data-dicom-tool=measure]').click();
+  await canvas.click({position:{x:pos.width*.45,y:pos.height*.5}});await canvas.click({position:{x:pos.width*.55,y:pos.height*.5}});
+  assert.match(await page.locator('.rce-main > .rce-status').textContent(),/mm/);
+  await page.locator('[data-dicom-tool=zoomIn]').dblclick();assert.equal(await page.locator('dialog').count(),1);
+  const out=process.env.DICOM_EDITOR_ARTIFACTS||path.join(os.tmpdir(),'dicom-editor-review');fs.mkdirSync(out,{recursive:true});await page.screenshot({path:path.join(out,'editor-en.png')});
+  await page.getByRole('button',{name:'Return to viewer',exact:true}).click();assert.equal(await page.locator('dialog').count(),0);
+  // Every toolbar language is complete and controls have real accessible names.
+  for(const lang of ['pt-BR','en','es','de','fr','it','pl','ja','zh-CN','ko','ar','bn']){
+   const names=await page.evaluate(lang=>{document.documentElement.lang=lang;const b=RadaiDicomToolbar.mount(document.getElementById('host'),{});const n=[...b.element.querySelectorAll('button')].map(x=>x.getAttribute('aria-label'));b.destroy();return n;},lang);
+   assert.equal(names.length,14);assert.ok(names.every(Boolean));
+  }
+  // A failed initial image must not announce readiness or enable drawing.
+  await page.evaluate(()=>document.documentElement.lang='en');
+  await page.route('**/api/contour-edit/image?*',route=>route.fulfill({status:500,body:'failed image'}));
+  await page.locator('#open').click();
+  await page.waitForFunction(()=>{const e=RadaiContourEditor.current();return e&&e.session&&!e.busy});
+  assert.equal(await page.evaluate(()=>RadaiContourEditor.current().initialReady),false);
+  assert.equal(await page.locator('[data-dicom-tool=brush]').isDisabled(),true);
+  assert.equal(await page.locator('.rce-main > .rce-status').getAttribute('data-error'),'true');
+  await page.getByRole('button',{name:'Return to viewer',exact:true}).click();
+  assert.deepEqual(errors,[]);console.log('Browser/API: brush shortcuts, edit, undo/redo, new ROI, explicit interpolation preview/apply, real RTSTRUCT download, measurement, zoom and 12 toolbar languages passed.');
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1)});
