@@ -54,7 +54,7 @@ MODULOS = {
     },
     "lung": {
         "icone": u"pulmoes", "titulo": u"LUNG ", "destaque": u"RT",
-        "frase": u"Anatomia torácica, rastreio de nódulos e estudo do movimento na TC 4D.",
+        "frase": u"Nódulos pulmonares, laudos e estudo do movimento na TC 4D.",
         "linha": u"Processamento local. Os contornos são sugestões para revisão.",
     },
     "elastic": {
@@ -116,26 +116,20 @@ FERRAMENTAS = {
          u"cortes axiais lado a lado, e veja como eles se comportam.", u""),
     ],
     "lung": [
-        ("recon_torax", u"pulmoes", u"Anatomia torácica", "/recon3d/toracica",
-         u"Reconstrua os lobos, mediastino, vasos e vias aéreas a partir das segmentações.", u"",
-         (u"3D", u"estudo torácico")),
-        ("lung_rastreio", u"pulmoes", u"Rastreio populacional", "/lung/rastreio",
+        ("lung_rastreio", u"pulmoes", u"Rastreio populacional de nódulos pulmonares", "/lung/rastreio",
          u"Monitore uma pasta e revise os nódulos encontrados ao longo do tempo.", u""),
         ("lung_laudo", u"manual", u"Laudo sintético", "/lung/laudo",
          u"Gere um pré-laudo torácico local para revisar, a partir de uma série.", u""),
         ("lung_laudo_rx", u"imagem", u"Laudo sintético de raios X", "/lung/laudo/rx",
          u"Abra uma radiografia de tórax e gere um rascunho de laudo para revisão.", u""),
-        ("lung_nodulos", u"olho", u"Rastreio de nódulos pulmonares", "/lung/nodulos",
-         u"Processe uma TC ou vigie uma pasta, usando só a tarefa de nódulos pulmonares.", u"",
+        ("lung_nodulos", u"olho", u"Detectar nódulo pulmonar", "/lung/nodulos",
+         u"Processe uma TC usando apenas a tarefa de nódulos pulmonares.", u"",
          (u"ACHADO", u"RTSTRUCT")),
         ("lung_4d", u"camadas", u"4D CT & ITV", "/lung/4d",
          u"Segmente as fases selecionadas e exporte sugestões de contorno e de ITV na série escolhida.", u"",
          (u"TC 4D", u"SBRT", u"RTSTRUCT")),
     ],
     "recon3d": [
-        ("recon_torax", u"pulmoes", u"Anatomia torácica", "/recon3d/toracica",
-         u"Reconstrua os lobos, mediastino, vasos e vias aéreas a partir das segmentações.", u"",
-         (u"3D", u"estudo torácico")),
         ("recon_anatomia", u"cubo", u"Anatomia geral", "/recon3d/anatomia",
          u"Visualize cada órgão, com ajuste de transparências no visor 3D, "
          u"além da segmentação nos 3 planos (axial, sagital e coronal) e MIP "

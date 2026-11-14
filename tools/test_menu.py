@@ -137,7 +137,7 @@ def teste_marcacao():
                  "bolus_aplicador", "procedencia"):
         h = M.html(tela)
         modulo = M.modulo_de(tela)
-        pagina = {"nidus_projecao": "nidus", "procedencia": "config", "elastic": "elastic_fusao"}.get(tela, tela)
+        pagina = {"nidus_projecao": "nidus", "procedencia": "config", "elastic": "elastic_fusao", "recon_torax": "recon_anatomia"}.get(tela, tela)
         ativos = re.findall(r'<a [^>]*aria-current="page"[^>]*>', h)
         checar("'%s' realca so '%s'" % (tela, pagina),
                len(ativos) == 1

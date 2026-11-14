@@ -4088,11 +4088,16 @@ def popup_de_serie(ident, corpo, titulo=TITULO_DO_POPUP_DE_SERIE,
 
 def cartao_de_serie(ident, popup, titulo, vazio=u"nenhuma série aberta",
                     icone_nome=u"pasta", chave_modulo=u"", contexto=u"",
-                    numero=u"", ident_rot=u""):
+                    numero=u"", ident_rot=u"", acao=u""):
+    import re
+    if acao and not re.fullmatch(r"[A-Za-z_$][A-Za-z0-9_$]*", acao):
+        raise ValueError("ação de carregamento inválida")
+    destino = (u'onclick="%s()"' % acao if acao else
+               u'data-ui-ps-abre="%s"' % _esc(popup))
     cor, fraca = _COR_DO_MODULO.get(chave_modulo, (u"--accent", u"--accent-fraco"))
     marca = _esc(numero) if numero else icone(icone_nome)
     return (u'<button type="button" class="ui-cartao" id="%s" '
-            u'data-ui-ps-abre="%s"%s aria-haspopup="dialog" '
+            u'%s%s aria-haspopup="dialog" '
             u'aria-expanded="false" '
             u'style="--ui-cartao-cor:var(%s);--ui-cartao-fraco:var(%s)">'
             u'<span class="ui-cartao-ic" aria-hidden="true">%s</span>'
@@ -4101,7 +4106,7 @@ def cartao_de_serie(ident, popup, titulo, vazio=u"nenhuma série aberta",
             u'<span data-radai-frase>%s</span></span></span>'
             u'<span class="ui-cartao-seta" aria-hidden="true">%s</span>'
             u'</button>'
-            % (_esc(ident), _esc(popup),
+            % (_esc(ident), destino,
                (u' data-ui-ps-ctx="%s"' % _esc(contexto)) if contexto else u"",
                cor, fraca, marca, _esc(titulo),
                (u' id="%s"' % _esc(ident_rot)) if ident_rot else u"",

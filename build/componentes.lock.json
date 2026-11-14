@@ -4,8 +4,8 @@
     {
       "nome": "CONTOURLAB",
       "repositorio": "drhenriquebraga/contourlab",
-      "tag": "v8.24",
-      "arvore_sha256": "2efb2a4c73775e74605c1d608e7c6b319a36dde9062aa5a13d73431457b5dc1f"
+      "tag": "v8.25",
+      "arvore_sha256": "cfe414af87fc8cbfb240773973ee0efbeb307e4dd1b8fa211ee3305313ec2061"
     },
     {
       "nome": "DICOM_BRIDGE",
@@ -16,8 +16,8 @@
     {
       "nome": "RECON_3D",
       "repositorio": "drhenriquebraga/recon-3d",
-      "tag": "v8.24",
-      "arvore_sha256": "2b02057eb66f9124190b5178b030eaeb605104355323fa9b4e6877bd5e910886"
+      "tag": "v8.25",
+      "arvore_sha256": "b5a7f464f54112a483d77295bbea895f112a76f96d91fd5700ae8f4899afed42"
     },
     {
       "nome": "ELASTIC_RT",

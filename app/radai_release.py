@@ -20,6 +20,10 @@ CSS = u"""<style id="radai-soltar-css">
 .ui-envio.rs-area .ui-envio-est{min-height:0}
 .ui-envio.rs-area .ui-envio-est:empty{display:none}
 .ui-envio.rs-area .ui-envio-est.rs-aviso{color:var(--aviso,#E1B23B)}
+.ui-cartao .ui-envio-est:empty{display:none}
+.ui-cartao .ui-envio-est{font-size:12px;color:var(--text-dim)}
+.ui-cartao .ui-envio-est.rs-aviso{color:var(--aviso,#E1B23B)}
+.ui-cartao.rs-drop-target.sobre{border-color:var(--ui-cartao-cor);background:var(--panel-2)}
 </style>"""
 
 JS = u"""<script id="radai-soltar-js">
@@ -76,8 +80,10 @@ JS = u"""<script id="radai-soltar-js">
   var el = document.getElementById(id);
   if(!el || el.dataset.rsLigado) return;
   el.dataset.rsLigado = '1';
+  var unido = el.type === 'hidden' && id === 'pasta' ? document.getElementById('cd_add') : null;
   var ancora = (el.closest && el.closest('.cam-linha, .vr-busca')) || el;
-  var area = document.createElement('div');
+  var area = unido || document.createElement('div');
+  if(!unido){
   area.className = 'ui-envio rs-area';
   area.id = 'rs_area_' + id;
   area.tabIndex = 0;
@@ -90,6 +96,12 @@ JS = u"""<script id="radai-soltar-js">
   escreve(tit, TITULO); escreve(area.querySelector('.ui-envio-dica'), DICA);
   area.setAttribute('aria-label', TITULO);
   ancora.parentNode.insertBefore(area, ancora.nextSibling);
+  }else{
+   area.classList.add('rs-drop-target');
+   var est = document.createElement('span');
+   est.className = 'ui-envio-est'; est.setAttribute('role', 'status');
+   (area.querySelector('.ui-cartao-tx') || area).appendChild(est);
+  }
 
   var fundo = 0;
   function sobre(v){ area.classList.toggle('sobre', v); if(!v) area.style.setProperty('--dx', '0px') }
@@ -113,9 +125,11 @@ JS = u"""<script id="radai-soltar-js">
     explorar(el, area);
    }, {passive:false});
   });
+  if(!unido){
   area.addEventListener('click', function(){ explorar(el, area) });
   area.addEventListener('keydown', function(e){
    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); explorar(el, area) } });
+  }
  }
 
  function ligarTodos(){ Object.keys(ALVOS).forEach(ligar) }

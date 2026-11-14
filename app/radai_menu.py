@@ -10,7 +10,7 @@ ITENS = [
     ("neuro",       "/neuro",       u"cruzamento", u"NEURO RT", u"ferramentas de estudo do sistema nervoso central"),
     ("nidus",       "/nidus",       u"cruzamento",      u"Nidus RT",      u"projeção vascular: a mesma lesão em duas incidências"),
     ("nidus_projecao", "/nidus/projecao", u"cruzamento", u"NIDUS RT", u"circular na projeção, ver onde as duas se cruzam"),
-    ("lung",        "/lung",        u"pulmoes",    u"LUNG RT",       u"anatomia torácica, nódulos e TC 4D"),
+    ("lung",        "/lung",        u"pulmoes",    u"LUNG RT",       u"Nódulos pulmonares, laudos e estudo do movimento na TC 4D."),
     ("elastic_fusao", "/bridge/elastic", u"malha",  u"Fusão elástica", u"registrar duas séries e medir o campo"),
     ("bolus",       "/bolus",       u"bolus",      u"3D Printed Bolus", u"bólus impresso em 3D: a camada sobre a pele, em STL"),
     ("bolus_gerar", "/bolus/gerar", u"camadas",      u"Bólus e caixa",   u"fechar a caixa no MPR e gerar o STL"),
@@ -147,6 +147,7 @@ body{margin-left:var(--ui-lado) !important}
 
 ALIAS = {
     "elastic": "elastic_fusao",
+    "recon_torax": "recon_anatomia",
     "diagnostico": "config",
     "creditos": "bibliografia",
 }

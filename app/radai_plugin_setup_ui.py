@@ -108,6 +108,7 @@ def _choices(name, ids):
   <div><dt data-radai-frase>Código carregado</dt><dd data-pi-code-version>—</dd></div>
   <div><dt data-radai-frase>Pacote de pesos</dt><dd data-pi-weights-version>—</dd><small data-pi-weights-state></small></div>
 </dl>
+<p class="pi-source" data-pi-weight-check role="status" aria-live="polite" hidden></p>
 </div>
 <div class="pi-panel" data-pi-panel="folder" id="{ids['folder_panel']}" hidden>
   <h3 data-radai-frase>Instalar / atualizar o pacote de pesos offline</h3>
@@ -423,9 +424,44 @@ SCRIPT = r'''
       const names = {ready:'Pesos prontos',missing:'Pesos não instalados',partial:'Pesos incompletos',checking:'Conferindo os pesos…'};
       detail.textContent = t(names[weights.state] || 'Conferindo os pesos…');
     }
+    let checkingWeights = false;
+    async function checkWeights(read) {
+      if (checkingWeights) return;
+      checkingWeights = true;
+      const button = find('[id="neuro-release-refresh"], [id="lp-refresh"]');
+      const output = find('[data-pi-weight-check]');
+      const original = button?.textContent;
+      if (button) {button.disabled = true; button.textContent = t('Conferindo os pesos…');}
+      output.hidden = false;
+      output.dataset.state = 'checking';
+      output.setAttribute('aria-busy', 'true');
+      output.replaceChildren(document.createTextNode(t('Conferindo os pesos…')));
+      const progress = document.createElement('progress');
+      progress.setAttribute('aria-label', t('Conferindo os pesos…'));
+      output.append(' ', progress);
+      try {
+        const [data] = await Promise.all([read(), new Promise(resolve => setTimeout(resolve, 450))]);
+        versions(data);
+        const weights = data?.weights || {};
+        const names = {ready:'Pesos prontos',missing:'Pacote de pesos ainda não instalado.',partial:'Pesos incompletos',checking:'Conferindo os pesos…'};
+        const version = typeof weights.version === 'string' && /^\d+(?:\.\d+)*$/.test(weights.version) ? ' · ' + weights.version : '';
+        output.textContent = t(names[weights.state] || 'Não foi possível conferir os pesos.') + version
+          + ' · ' + new Intl.DateTimeFormat(document.documentElement.lang || 'pt-BR', {hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());
+        output.dataset.state = weights.state === 'ready' ? 'ok' : 'missing';
+        return data;
+      } catch (error) {
+        output.textContent = t('Não foi possível conferir os pesos.');
+        output.dataset.state = 'error';
+        throw error;
+      } finally {
+        checkingWeights = false;
+        output.setAttribute('aria-busy', 'false');
+        if (button) {button.disabled = false; button.textContent = original;}
+      }
+    }
     probe.addEventListener('click', testConnection);
     return {
-      sync, versions, failure, clearFailure, result,
+      sync, versions, checkWeights, failure, clearFailure, result,
       local: () => mode !== 'auto', operation: () => 'weights'
     };
   }

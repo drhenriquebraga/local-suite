@@ -354,6 +354,7 @@ def scripts():
     const labels={ready:'Pesos prontos',partial:'Pesos incompletos',missing:'Pesos não instalados',checking:'Conferindo os pesos…'};
     say(handedOff ? 'A instalação já foi iniciada.' : labels[state.weights?.state] || 'Conferindo os pesos…');
     enable();
+    return state;
   }
   async function action(run) {
     if(busy || checking || handedOff) return;
@@ -361,8 +362,7 @@ def scripts():
     try{await run();}catch(error){setup.failure(error);}finally{busy=false;enable();}
   }
   e('lp-refresh').addEventListener('click',() => action(async () => {
-    say('Conferindo os pesos…');
-    await load();
+    await setup.checkWeights(load);
   }));
   e('lp-install').addEventListener('click',() => action(async () => {
     if(setup.local() && !source) return;
