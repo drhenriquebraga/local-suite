@@ -2,7 +2,9 @@
 
 **Part of the Radioterapia.AI local ecosystem. A study bench for AI segmentation in radiation oncology — teaching and research material, not a medical device.**
 
-`License: Apache-2.0` · `Version: 8.12` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
+`License: Apache-2.0` · `Version: 8.26` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
+
+The 8.26 installer includes the NEURO RT and LUNG RT plugin code. Its [reproducible release build](build/releases/v8_26/README.md) lists the provenance and checksums of the packaged files.
 
 > **Teaching and research material. This is not a medical device.**
 > It is **not** validated for clinical use, it has no ANVISA registration, no

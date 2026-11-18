@@ -1,0 +1,1330 @@
+{
+  "suite": "8.26",
+  "baseline": "8.25.1",
+  "baseline_sha256": "179d9576016aaa8f6d5e0101960b6abcaf5da5458255e3d33cf876c275a63cb7",
+  "setup_sha256": "ec092c9336cf229cbcab762289f9010b853326ea4a1ecd0fd1825992817cc646",
+  "python": "3.10.11",
+  "zlib": "1.2.13",
+  "files": {
+    "README.txt": {
+      "from": "delta",
+      "sha256": "9a6762566e417c7dd051c78508dff04cd6317ed11ca218fb18d64ea1d66492aa"
+    },
+    "START_HERE_TO_INSTALL_LOCAL_SUITE.cmd": {
+      "from": "delta",
+      "sha256": "ec897abef2b4769ed22a224f805b856cc55cb1f315d34bcf9cc96c2711a5bf51"
+    },
+    "programa/LICENSE": {
+      "from": "baseline",
+      "sha256": "3ddf9be5c28fe27dad143a5dc76eea25222ad1dd68934a047064e56ed2fa40c5"
+    },
+    "programa/NOTICE": {
+      "from": "baseline",
+      "sha256": "0072447ebf66d77d8d2e58294834d479e2ab15966a71675b9c3fdac5c5ecae6b"
+    },
+    "programa/PACKAGE_SIZE.txt": {
+      "from": "baseline",
+      "sha256": "8ce88a8842c1584e3d6871e84e166e3b513c3ce2a9da6166760c7af1645dea29"
+    },
+    "programa/VERSION.txt": {
+      "from": "delta",
+      "sha256": "6e5a78871a928df1d2123726b99de0f70302d9e468ffc6dd9f75d8b024f202ae"
+    },
+    "programa/app/RADIOTERAPIA_AI_LOCAL_SUITE.cmd": {
+      "from": "baseline",
+      "sha256": "dfea90eb0f7f6584814376ffe98769b1f144faccde2fb2d85868d97ea287a06e"
+    },
+    "programa/app/data/bibliography.json": {
+      "from": "baseline",
+      "sha256": "ed960551198643ab645e2da158d3188d374db6a3630c37ed0862b5facd6d2ad5"
+    },
+    "programa/app/data/nomes_anatomicos.json": {
+      "from": "baseline",
+      "sha256": "a8e9ba2858b4cf9721b97f47ca04d59837560b9c1484678c9c6aa05a40f5b7ab"
+    },
+    "programa/app/engine.py": {
+      "from": "delta",
+      "sha256": "0635322d2306874303940d07064b3b3ac37e7ffb91d0d0ce24d3b918a13a06b3"
+    },
+    "programa/app/favicon.ico": {
+      "from": "baseline",
+      "sha256": "1de1fff92eafc494de72e3e04e728187a678ea7b5f877a02baf0922280d2ee44"
+    },
+    "programa/app/favicon.png": {
+      "from": "baseline",
+      "sha256": "98fa15c8c9c6c154fa6e3ddb2b94c0bcd5fa9ac159b74ae7f24571991717c31e"
+    },
+    "programa/app/favicon.svg": {
+      "from": "baseline",
+      "sha256": "48e372bb0437c26bb6754eeeead36d967057e9eadb3935173f31abce8add9ea6"
+    },
+    "programa/app/launchers/open_browser.cmd": {
+      "from": "baseline",
+      "sha256": "1d26d120526cae554a3578fdecc277eeba58ba1bba23953e9aee6831f1621d69"
+    },
+    "programa/app/launchers/start_watcher.cmd": {
+      "from": "baseline",
+      "sha256": "e328c928c0d35bd5fac1479d9334d30074cf8ae35229831548c51cc96f5ae87c"
+    },
+    "programa/app/maintenance/PLUGIN_INSTALL.ps1": {
+      "from": "baseline",
+      "sha256": "a56db95e24b5f5ba8560a5307226bff5b187402a9e4d7b9b4c42bb9d93836ec9"
+    },
+    "programa/app/porta/Anton-Regular.ttf": {
+      "from": "baseline",
+      "sha256": "a4ba3a92350ebb031da0cb47630ac49eb265082ca1bc0450442f4a83ab947cab"
+    },
+    "programa/app/porta/local-suite-vidros-v2.png": {
+      "from": "baseline",
+      "sha256": "f0c5df68106b9f84321bd6350706cd9ffab1b7fbfad900353ca36894fe7c4e10"
+    },
+    "programa/app/porta/porta.js": {
+      "from": "baseline",
+      "sha256": "0e51fd9dc1d028d337d96b365d6c99627d6541a2b90e27d1d49ccd496921d673"
+    },
+    "programa/app/radai_archive.py": {
+      "from": "baseline",
+      "sha256": "c59834d1fc5bd30a53df6dfa056c1b04aee3ee3a5446b17d795fa8ebe826a40d"
+    },
+    "programa/app/radai_arranque.py": {
+      "from": "baseline",
+      "sha256": "62eca69dcdaf2a546cecd63fc4ca81f28074dbd434b75d3a16d97f9b1cba5be5"
+    },
+    "programa/app/radai_atualizar.py": {
+      "from": "delta",
+      "sha256": "802ed1cf082a7211a830f0388e0aa74e1098a3b4308cfd4ff45cd900a9bfbb64"
+    },
+    "programa/app/radai_batch.py": {
+      "from": "delta",
+      "sha256": "25d68fe27432f64ecad177f8aa5e6ec787b7478a6ea47beef675c6ff9563b0af"
+    },
+    "programa/app/radai_bibliography.py": {
+      "from": "baseline",
+      "sha256": "ce8757bf86a19383d8fea3a1f53ba86354c32a62fe6165cebf02909eb034a818"
+    },
+    "programa/app/radai_bolus.py": {
+      "from": "baseline",
+      "sha256": "0aa6fcc70e3717ccbb34a313a60aa26ace36ea473c1ff2f5c2bb990efe41740d"
+    },
+    "programa/app/radai_bolus_aplicador.py": {
+      "from": "baseline",
+      "sha256": "0d304b07bc160d585f1781cbb95864de49ad6b1bc4bfde3d1cb07efdcab5ecc5"
+    },
+    "programa/app/radai_bolus_central.py": {
+      "from": "baseline",
+      "sha256": "97317fcb91fff6e99e8ce69baff0ca615f6e12dc1570cba8d47becc0a6511598"
+    },
+    "programa/app/radai_bolus_screen.py": {
+      "from": "delta",
+      "sha256": "599355fa3b1c8193dba85585f226b0098b6ea8ef13948b71102ebcdb45a333b6"
+    },
+    "programa/app/radai_bolus_skin.py": {
+      "from": "baseline",
+      "sha256": "31795e45e549285af9a60b6ae2499983c50f728cbea901879350bfa3310bb2f1"
+    },
+    "programa/app/radai_breadcrumb.py": {
+      "from": "baseline",
+      "sha256": "a77da0d1f00dff054f0f98957ff075c6b75be17d920b48a8c2038ea81b563bb6"
+    },
+    "programa/app/radai_bridge.py": {
+      "from": "delta",
+      "sha256": "2e89c2aadee6a0b15ec07cdb2da4b39927d1a3a1f2a4b49db6e0bf65a46bd9fe"
+    },
+    "programa/app/radai_bridge_entrada.py": {
+      "from": "baseline",
+      "sha256": "7fc319170ff2c8e6a68621789e9de36c605a65fa22acd0ee00f743fd904199f1"
+    },
+    "programa/app/radai_cache_tasks.py": {
+      "from": "delta",
+      "sha256": "b65f81b8cf704e2d647365d9b8c04f2137b2d1ea804bf2ba3d6a7192cffc6f3b"
+    },
+    "programa/app/radai_cads.py": {
+      "from": "baseline",
+      "sha256": "a3fb6a26cad4b8e6912c2b27acb603e09c525e98a0233f68c1f8bbf5fa3989ee"
+    },
+    "programa/app/radai_cads_engine.py": {
+      "from": "delta",
+      "sha256": "385303ec2fb75ff11a14784e3ab202c701ae1c4ad5b3c6dfc2f3e4a92cf3928d"
+    },
+    "programa/app/radai_carregando.py": {
+      "from": "baseline",
+      "sha256": "696121c7a37e7568061b6f03744e285b22fb72fa5f887a546c3edaf696a53be6"
+    },
+    "programa/app/radai_cleaner.py": {
+      "from": "baseline",
+      "sha256": "037995f354c8de7cfe12114351e94f1fa3328d0728f62c08203e1dfc44f5f0f3"
+    },
+    "programa/app/radai_compare.py": {
+      "from": "baseline",
+      "sha256": "09465020e206d0dc5a1af5aa2ecfa97d4411b075bc7ca36b504382750e6ed8ad"
+    },
+    "programa/app/radai_config.py": {
+      "from": "baseline",
+      "sha256": "2812f9f3880a9b114989631c7bf9079205a6d93839162b391a76d4905ba1a84f"
+    },
+    "programa/app/radai_config_estacao.py": {
+      "from": "delta",
+      "sha256": "64ac2440dc1a3e174bdb2bfb0672370f4b132d235e0673d37c9053da816c3905"
+    },
+    "programa/app/radai_consent.py": {
+      "from": "delta",
+      "sha256": "cfa617b715bdc126d33bca363301d3dfaffe000ca17e50bf1215cd2e51d64b9b"
+    },
+    "programa/app/radai_constructs.py": {
+      "from": "delta",
+      "sha256": "91217b118370e616247210cedadb3f3f025a2b7ea0a5f1c79a98dabb78bb4548"
+    },
+    "programa/app/radai_contour_discovery.py": {
+      "from": "baseline",
+      "sha256": "77011fb1be45a00badd262c41754bd073cf8bcdc5f31c507aa175cfa1f1f2d5f"
+    },
+    "programa/app/radai_contour_edit.py": {
+      "from": "baseline",
+      "sha256": "8091ebd3f9c391cf197cf62d02dcb6f7d5871b150843a3ea4136c62f11d678ab"
+    },
+    "programa/app/radai_contour_edit_api.py": {
+      "from": "baseline",
+      "sha256": "17358d854f30cdd95259cee3009687b8a854419b19c96b24eb3d4aea5b1d50ef"
+    },
+    "programa/app/radai_contour_edit_i18n.py": {
+      "from": "baseline",
+      "sha256": "ef21afeb83aa95cfd32dcedc33635065bcbd767d47bc750acc72f6eebeb381b3"
+    },
+    "programa/app/radai_contour_editor_ui.py": {
+      "from": "delta",
+      "sha256": "31f9a95820fa326eb9e3ceadce22f01982a4b186b1f5f07d80ccc6b651f134ea"
+    },
+    "programa/app/radai_contour_scene.py": {
+      "from": "baseline",
+      "sha256": "972ffbe0ad2dc35ce7a44ac7035976490deaed3d16ca5c67f46de0be768528fb"
+    },
+    "programa/app/radai_contour_scene_ui.py": {
+      "from": "baseline",
+      "sha256": "83397ca28c4d78c200710051eb83def66b0ef07d5681f60142370f2ce84966af"
+    },
+    "programa/app/radai_cover.py": {
+      "from": "baseline",
+      "sha256": "9d759bd5ef8e0ff7067f4f85100e2a58c7c86db7349de5a785cd9485cb1b0b9d"
+    },
+    "programa/app/radai_cranio_engine.py": {
+      "from": "delta",
+      "sha256": "1a4ebe5be9ff98b610db3ae58176a9e8f7ee7c816b5620125fc7000db00cdb07"
+    },
+    "programa/app/radai_credits.py": {
+      "from": "baseline",
+      "sha256": "3f26ac6bd75d4b0b0f664d163180eff0154d05fe87410313aff7796d07d31923"
+    },
+    "programa/app/radai_delivery.py": {
+      "from": "baseline",
+      "sha256": "8d499dc3d19e8b4b363ce65d0aed00ab39845ac6662916dbb4746a318a527ed2"
+    },
+    "programa/app/radai_devices.py": {
+      "from": "baseline",
+      "sha256": "a47b13bba3ae8bcc7fa82fd397afcd65cd81af5af062cb326b72c542e91dad37"
+    },
+    "programa/app/radai_dicom.py": {
+      "from": "delta",
+      "sha256": "ab0f833fe22a556e02a7c55d186428f1b339b4b083060025c9641cf844b58f7c"
+    },
+    "programa/app/radai_dicom_adapters.py": {
+      "from": "delta",
+      "sha256": "7b20ef03f3d72eeb9f72bcccfee2d02ba6ebc666357cc695927c6964d13b8827"
+    },
+    "programa/app/radai_dicom_tools.py": {
+      "from": "delta",
+      "sha256": "24a646ebcb93c426e96821dde0cd0ac594f0ff22f49274dc44840f75fc3a216d"
+    },
+    "programa/app/radai_elastic.py": {
+      "from": "baseline",
+      "sha256": "2caf957034a6f7a958abc191d085a5245b7afb072cab1827ed520b8462d726e3"
+    },
+    "programa/app/radai_elastic_screen.py": {
+      "from": "delta",
+      "sha256": "2fe9ac0edc44dfde809ebe6c4ac28fbc6d4068d17a30a1c8dcca1eb50aa08883"
+    },
+    "programa/app/radai_etapas.py": {
+      "from": "baseline",
+      "sha256": "e483ecace0d722e6deac60792617ee7cfbd03a4b57e91dc804a1d2df24343797"
+    },
+    "programa/app/radai_falhas.py": {
+      "from": "baseline",
+      "sha256": "335c9f5d8937be523e1f9a39781b0cb30dadcb2ca01853bfb3c33b4d5b829935"
+    },
+    "programa/app/radai_fichas.py": {
+      "from": "baseline",
+      "sha256": "774c281d03060ca449c29522ec573470ae67c0edb77f430b9c8b683a3d397d6c"
+    },
+    "programa/app/radai_geom.py": {
+      "from": "delta",
+      "sha256": "7d1c0688ec69400988460a88c349562f1b37118c6077a8d5e62a50615f81cf04"
+    },
+    "programa/app/radai_help.py": {
+      "from": "baseline",
+      "sha256": "f9a0e328cde649f3d7347176337d5654c9e47f6aec488d6eec48f7183ed78b4a"
+    },
+    "programa/app/radai_hnlnl.py": {
+      "from": "delta",
+      "sha256": "389cd1692935329d07eca292332c02dabd3c38195c115c58c752204ce5335621"
+    },
+    "programa/app/radai_hnlnl_engine.py": {
+      "from": "delta",
+      "sha256": "f64d4ce05ba8a7243b3ef0f45d9de6dd667a2166e7736bb3ab2a32daa1f129ac"
+    },
+    "programa/app/radai_image.py": {
+      "from": "delta",
+      "sha256": "fa4c3f310371e71eb6c2e77ad0b5a5be37919387218a5227a0a96cdcf3096b13"
+    },
+    "programa/app/radai_image_screen.py": {
+      "from": "baseline",
+      "sha256": "7751ffd3b01dedbd448892adf930121fa4882f075655a2278c4c94f552cafe9e"
+    },
+    "programa/app/radai_install_profile.py": {
+      "from": "baseline",
+      "sha256": "fd4dd3821efe6a01f2ffb52817836ea0ca4d11dbee9e63e31ba3b8589b08f704"
+    },
+    "programa/app/radai_janela.py": {
+      "from": "baseline",
+      "sha256": "6c7b4b1235def59c4a59feaecc9c4f5a0975b79cebc24a40dfd17cca7a3914e3"
+    },
+    "programa/app/radai_lancador.py": {
+      "from": "baseline",
+      "sha256": "370c323a9d7c9b2bd742ec8608d7f705936f785d90d4ac041cfc256e94ff2df3"
+    },
+    "programa/app/radai_languages.py": {
+      "from": "baseline",
+      "sha256": "71382317ed467c6c1ea4c5dad4e1d99dc110ebcd7e3ce527a3dcdcec3fee36f0"
+    },
+    "programa/app/radai_lung.py": {
+      "from": "delta",
+      "sha256": "517e848ba56cbafe36a1c4fba8a389c4a3e56867d8f8ec64dc432c1b4047267d"
+    },
+    "programa/app/radai_lung_4d.py": {
+      "from": "delta",
+      "sha256": "02afbce264dcd331bab3fee60d901d599e463570806e470c511178dcce271f0b"
+    },
+    "programa/app/radai_lung_install.py": {
+      "from": "delta",
+      "sha256": "c8a811f64d5b629b41d4460468cbafba487a54cbb8e9d34e0feee36e532ea673"
+    },
+    "programa/app/radai_lung_plugin.py": {
+      "from": "baseline",
+      "sha256": "adad244271ce37b51c05f8088f5dc5041966c21b5d2022186544be5b6c129fb6"
+    },
+    "programa/app/radai_lung_receipts.py": {
+      "from": "baseline",
+      "sha256": "a0cb1807507858119679914aa18f0b13c435c6bb08d9dc16ae49b9b57d81e89d"
+    },
+    "programa/app/radai_lung_screen.py": {
+      "from": "baseline",
+      "sha256": "7a8870341bd118c2d37d8d1b1a21d241b8a450ead6073e0e6189bc067889df17"
+    },
+    "programa/app/radai_memory_history.py": {
+      "from": "delta",
+      "sha256": "690317bb89bd72ce03d2fefdbcccd5345917e5f224310ced990f326ab9d0784f"
+    },
+    "programa/app/radai_menu.py": {
+      "from": "delta",
+      "sha256": "fdfd66fe744cf51820b8bf39e1af8a928efdfba1ab4dbc5f5c702cbe6c83447d"
+    },
+    "programa/app/radai_models.py": {
+      "from": "baseline",
+      "sha256": "aa125be447d2b62031f75fa7039b57d8eccf9f633b530e231f273255c1342c76"
+    },
+    "programa/app/radai_modes.py": {
+      "from": "delta",
+      "sha256": "4f7919e0668712e7af87ad02099bf9b042a87f261188681d93eb3ff5cc3d0b4b"
+    },
+    "programa/app/radai_modules.py": {
+      "from": "baseline",
+      "sha256": "d8025cabd99d86302c7ad24f025d4e2973e77ea5a3f6c5f16dae9fdd19fbf394"
+    },
+    "programa/app/radai_moose.py": {
+      "from": "baseline",
+      "sha256": "f77bdd477020a8db44689af5538f49f625f1af5008ff0a728cbeed92777b4523"
+    },
+    "programa/app/radai_moose_engine.py": {
+      "from": "delta",
+      "sha256": "936180d061227538786fdf997fb52c5da09ff6cdefa455c6c2e0c8caa31f6df3"
+    },
+    "programa/app/radai_motores_full.py": {
+      "from": "baseline",
+      "sha256": "5b69bbda6cde00315e5617979c87138d125eda75065d0dacc9d0b3d1c0d942a9"
+    },
+    "programa/app/radai_names.py": {
+      "from": "baseline",
+      "sha256": "38113306944388df14545188cbc8fc134e134e155b97fb8e3085d199c1305504"
+    },
+    "programa/app/radai_neuro_install.py": {
+      "from": "delta",
+      "sha256": "405d70b7a6aae137a9604344388bf5511d7177fccb0fe5577b050f951d5fcb20"
+    },
+    "programa/app/radai_notify.py": {
+      "from": "baseline",
+      "sha256": "4b74980fdea7d1d56531ff80b1f0c5e9db45d37a0ca0870fb8e36bffdc67da70"
+    },
+    "programa/app/radai_nv_engine.py": {
+      "from": "delta",
+      "sha256": "c960ddcac4148774ca670db26896de3ee3e8075ed875f3b346fa08d3ce8a6e69"
+    },
+    "programa/app/radai_output.py": {
+      "from": "delta",
+      "sha256": "ca7ebd2c3f028c774c8597b59ab147ece01ce5b531a50b39eca016f575e25347"
+    },
+    "programa/app/radai_overnight.py": {
+      "from": "baseline",
+      "sha256": "13d648d2728dba7a7f2bac500bc1ded9ca0dd0ff00a6342935ce9ea9e9e34887"
+    },
+    "programa/app/radai_panel.py": {
+      "from": "delta",
+      "sha256": "9a6c3c28804dd041ceed5706e2b8ac310cae1b78617dcaa2e468968d6f72fa10"
+    },
+    "programa/app/radai_phase.py": {
+      "from": "baseline",
+      "sha256": "3f1cde0b8fb93a0e3c081b0e76d92176702481940785bb8c705e0f71ba7de10d"
+    },
+    "programa/app/radai_phrases.py": {
+      "from": "delta",
+      "sha256": "5c21af5c34d23b411b686bfa2bc14f833fc9dfb45ff5d13e080882abf281a607"
+    },
+    "programa/app/radai_plausibility.py": {
+      "from": "delta",
+      "sha256": "6e39d4e681ee14a9bb007bbb13527768549a5e6ce3d059616444d2c05db62cae"
+    },
+    "programa/app/radai_plugin_bootstrap.py": {
+      "from": "baseline",
+      "sha256": "5724cfd4e291258166131094dfe6afb632fed701781bfd0d6eb097540a1814c5"
+    },
+    "programa/app/radai_plugin_seeds.py": {
+      "from": "delta",
+      "sha256": "2ede3c8e03def342e732947fc20787ea96892661ea9818b9d6b6f3ce6f17bdbc"
+    },
+    "programa/app/radai_plugin_setup.py": {
+      "from": "baseline",
+      "sha256": "c194468d942eaa3c38718216ddaa84bfca81a4d866964b6a8f8edf0620e85296"
+    },
+    "programa/app/radai_plugin_setup_i18n.py": {
+      "from": "baseline",
+      "sha256": "5e3ee6d186173de0867f30dcf734dc761a2eb6f6e01d2e39f96333a2c828a923"
+    },
+    "programa/app/radai_plugin_setup_ui.py": {
+      "from": "delta",
+      "sha256": "0b16ab5b216ec57b317463d3de6cc9f31bbc565f328ff2ef8665057db1dc56f6"
+    },
+    "programa/app/radai_plugin_sources.py": {
+      "from": "baseline",
+      "sha256": "ec6df30634ff431534084412cb6a0c64a6190fab848e49fd1af788db1cae89e7"
+    },
+    "programa/app/radai_plugins.py": {
+      "from": "delta",
+      "sha256": "2902bb65590f492d4633d09a0cbe3b2717e923ee9ffcbd984329db595e4d9dae"
+    },
+    "programa/app/radai_porta.py": {
+      "from": "baseline",
+      "sha256": "68d2227721ff9c6be8adb3538686fa94490ec9978dfa29c9cd9d00f27d013d45"
+    },
+    "programa/app/radai_prerequisites.py": {
+      "from": "baseline",
+      "sha256": "4a105c117d1b665799856d314bd1952cfdc4f5acc0a33563c2c8c09b30bb1278"
+    },
+    "programa/app/radai_primeiro_uso.py": {
+      "from": "baseline",
+      "sha256": "518ff67daf77b53037a52b38b4db60e834e961c6d7e988156927d4f2c13827ea"
+    },
+    "programa/app/radai_projection.py": {
+      "from": "baseline",
+      "sha256": "08b6e4791bb7edc3970bc57e230072bb28f2a22bc80c40188cf371211b6d42c9"
+    },
+    "programa/app/radai_projection_bone.py": {
+      "from": "baseline",
+      "sha256": "3600436bfe73a14375bece5a1272896a32f6fab9eab91650ab63d70aa40cf732"
+    },
+    "programa/app/radai_projection_consensus.py": {
+      "from": "baseline",
+      "sha256": "363617304f956dd5a235279e2a038e3f7dc789188ba05a7d361f095bb46b4b78"
+    },
+    "programa/app/radai_provenance.py": {
+      "from": "baseline",
+      "sha256": "6a3dc6b243131fcdafdd6a498a9bfb6762db3437c3d6fd545018908b0c5be322"
+    },
+    "programa/app/radai_provenance_screen.py": {
+      "from": "baseline",
+      "sha256": "06715fa019db2961130d5df7bdba36bc30524172414739829ff165b04a1652eb"
+    },
+    "programa/app/radai_pulso.py": {
+      "from": "baseline",
+      "sha256": "5849835e356463acb785c837be26cb7684b982db15de85902a7d2faa2684b79f"
+    },
+    "programa/app/radai_queue.py": {
+      "from": "baseline",
+      "sha256": "ca427ac96696e8263e0220d8198cee44231c9f3a2f7e357f51b0759a676ba6b2"
+    },
+    "programa/app/radai_queue_state.py": {
+      "from": "baseline",
+      "sha256": "da06496e3b957206fa6351b458c33f6065673704974edafa68cd9d76cabcca13"
+    },
+    "programa/app/radai_recon3d.py": {
+      "from": "baseline",
+      "sha256": "a7e0f213285f3526011d4dd45c6d55abce03eca2ea5307750dabac75cbfdaeb4"
+    },
+    "programa/app/radai_recon3d_carm.py": {
+      "from": "baseline",
+      "sha256": "cf38b9f61aedd7da910ea807e35917a80f0c346ead52cccc0eedb804d377d5ef"
+    },
+    "programa/app/radai_recon3d_desenho.py": {
+      "from": "baseline",
+      "sha256": "5ecdb0543dddb3ed318e12dca70e1ec500a709b15e25b5577ff6557d69e1ea03"
+    },
+    "programa/app/radai_recon3d_gl.py": {
+      "from": "baseline",
+      "sha256": "b2c941e217d58c04804220f8d124e465cef7ef9f6ddaf780e664438718799c9f"
+    },
+    "programa/app/radai_recon3d_screen.py": {
+      "from": "delta",
+      "sha256": "0a6d2497a98c78e0a154f547b86ffc5bc137f50b76f9222827b9617693abc45b"
+    },
+    "programa/app/radai_recon3d_vascular.py": {
+      "from": "baseline",
+      "sha256": "df9d7f705e75b2d1c64efb2a095336766557a6c5203b0ef10fd9ba5143e0cafa"
+    },
+    "programa/app/radai_recon3d_vascular_core.py": {
+      "from": "baseline",
+      "sha256": "370b30d043aa9c5958bf7944b07dbb9b3cde9ed746d800e3336ab94a6b991e9d"
+    },
+    "programa/app/radai_records.py": {
+      "from": "baseline",
+      "sha256": "4a4106692b8b2028154118a8f660e355290ef028cbd61e587349e714fc60ad6c"
+    },
+    "programa/app/radai_release.py": {
+      "from": "delta",
+      "sha256": "d79ae1b6a28ad2e5cc6b16cf20f6d4eebc7523ea3aaa15b1a9b30204ed00a9d4"
+    },
+    "programa/app/radai_review.py": {
+      "from": "delta",
+      "sha256": "9399df8d410b5c4b2d9b4e90c7ca1e5778e7c6731b10ab9e35fe73d6c4dca220"
+    },
+    "programa/app/radai_roteiro.py": {
+      "from": "baseline",
+      "sha256": "65d2f4596660fc0ce2b17d9b0e065316c2910e5dc07659c677325cb8fc1c30ef"
+    },
+    "programa/app/radai_rotulos.py": {
+      "from": "delta",
+      "sha256": "b3f10e64c5e63e829e67daa6fda03dbff7a6c7be987cb59cdc7376ed9b00112e"
+    },
+    "programa/app/radai_router.py": {
+      "from": "baseline",
+      "sha256": "708a5d405907af7856b4bc492b9a65ef94d3bd1d8ba1e776b6f76f495dcd115f"
+    },
+    "programa/app/radai_rt.py": {
+      "from": "delta",
+      "sha256": "f2cbdf83f7c1b088ece724154531a61380d5ffdde6a2aa77bb54590b17983506"
+    },
+    "programa/app/radai_series_source.py": {
+      "from": "baseline",
+      "sha256": "b4655a37cf6197df227180c0c6a2585d8a05ddce2399fbdacb31e90cabe8f157"
+    },
+    "programa/app/radai_sets.py": {
+      "from": "baseline",
+      "sha256": "ca08e36a7cadba7a92a6b699a3aaee54ed18efadcfbfa71607bbf010921ba25c"
+    },
+    "programa/app/radai_shutdown.py": {
+      "from": "baseline",
+      "sha256": "fb0f42db2a2a6630d0f1e8ab02ee122ebb3548d5ce44c2af9eb4c15be8d17052"
+    },
+    "programa/app/radai_skin.py": {
+      "from": "delta",
+      "sha256": "ace7488901292fcfc1314c40aa15a78199ef84f6173c7086da75e7a80c2ae84c"
+    },
+    "programa/app/radai_station_check.py": {
+      "from": "baseline",
+      "sha256": "0d1667a83d77369d5c24ff853a0f67b80f9aee960564a52e0b2f5e55a33161ba"
+    },
+    "programa/app/radai_station_report.py": {
+      "from": "delta",
+      "sha256": "b9af89d4f7d1d63a0f5886f02752a465f74efe0b40438241ce36cd4e6f3f8ee6"
+    },
+    "programa/app/radai_tabela_acervo.py": {
+      "from": "baseline",
+      "sha256": "cee47a2126b4815a04907196cb31289cf4425e21560b8bf77f34599fe237b4e2"
+    },
+    "programa/app/radai_tasks.py": {
+      "from": "delta",
+      "sha256": "301176a79c7515d59733bb2da21567617acb222e158d59bb30ca3dd0870182f7"
+    },
+    "programa/app/radai_terms.py": {
+      "from": "baseline",
+      "sha256": "20be6deeadc8100c1c391fc2920ce71ab3d4d3dfa40de032a8d38e6eb1568dcb"
+    },
+    "programa/app/radai_thumbnail.py": {
+      "from": "delta",
+      "sha256": "71d07459bec59cf47ab5efdb800dd0365f18775f7b338c3daf16e33cf67475a0"
+    },
+    "programa/app/radai_todo.py": {
+      "from": "baseline",
+      "sha256": "58108cf3508830509baddffcd163c90cbfffac0af1e3cad4fd108a7a5db36836"
+    },
+    "programa/app/radai_topography.py": {
+      "from": "baseline",
+      "sha256": "bb0491fe299b2c9203e53c136685319704dc3510e0f42c98204ef379d2431e7f"
+    },
+    "programa/app/radai_triage.py": {
+      "from": "baseline",
+      "sha256": "d0dcd9ed0f30c405051c8c7ee8424da268400510540bc740e62aa8545c30d949"
+    },
+    "programa/app/radai_ts_runner.py": {
+      "from": "baseline",
+      "sha256": "84a767d7fb1d3f0ac0ff73fd47c74168732e8d5e78ebf6493a457c37631271de"
+    },
+    "programa/app/radai_ui.py": {
+      "from": "delta",
+      "sha256": "d070eb96b603430f9ab151f899442e9dfd8142bc80d5b2e96fae4251ddd978a3"
+    },
+    "programa/app/radai_validation.py": {
+      "from": "baseline",
+      "sha256": "fe692a25a75775b2cb44751e68ffed84b144c27940da9164e2973d260a969674"
+    },
+    "programa/app/radai_varrer.py": {
+      "from": "delta",
+      "sha256": "055722d64f476a972874b16d457b2c422ae3789544c7cce626e2805f4feaca17"
+    },
+    "programa/app/radai_version.py": {
+      "from": "delta",
+      "sha256": "6b6ff0118f2d326745fc7ab7f23c81082f80bf3e5fa55d537a10cf27a5e391ca"
+    },
+    "programa/app/radai_view.py": {
+      "from": "delta",
+      "sha256": "4ae649ebae6742862b7f6d86aa44e2f9a369fac7dd702a39282abebfdfe2ef23"
+    },
+    "programa/app/radai_viewer.py": {
+      "from": "baseline",
+      "sha256": "e59044707e64276586afa32b1bd7d3e2917169b8fdd28b9b196b64bc87d37439"
+    },
+    "programa/app/radai_viewer3d.py": {
+      "from": "baseline",
+      "sha256": "e537f032407a7da2d2b462bc8264a8aeade4ad406bd44060ff102c5c594b9e2e"
+    },
+    "programa/app/radai_viewseg.py": {
+      "from": "delta",
+      "sha256": "791d0b00fa09cfb66d6fd762db26476ef3f997185d2834265375b324eed2d5b8"
+    },
+    "programa/app/radai_watcher.py": {
+      "from": "delta",
+      "sha256": "0b9ca2a6a4762bfef04fd472d15df776fbee5de6d9928f9e7d503c71160b64ea"
+    },
+    "programa/app/radai_web.py": {
+      "from": "baseline",
+      "sha256": "f3d71c93aefa9e34000d3377dad289ee8e0ef6004619c82ee60e6a8907ded9ed"
+    },
+    "programa/app/radai_zip_split.py": {
+      "from": "baseline",
+      "sha256": "0797978b27987fcd79af8bd087508581d852cf73873b84f31ee957f5e5c195c3"
+    },
+    "programa/app/radioterapia_ai.ico": {
+      "from": "baseline",
+      "sha256": "189dd770ea60b029e0920c2c0b710bc1219c3d7913987998fc1be415d3d4868c"
+    },
+    "programa/app/radioterapia_ai.png": {
+      "from": "baseline",
+      "sha256": "b41a7342b9c92722fa3488af609d1c1d17567e0fc8860b54ca41b04301771cf4"
+    },
+    "programa/build/CONFIGURAR_AMBIENTE.cmd": {
+      "from": "baseline",
+      "sha256": "44c096086aba185ea881a066ca2bf1575661d323184fc51bf4c19392dcbb6291"
+    },
+    "programa/build/artefatos.py": {
+      "from": "baseline",
+      "sha256": "566b2943501c149444a750cab8e6bb93069f874bea063e2730d75dc909c32066"
+    },
+    "programa/build/baixar_componentes.py": {
+      "from": "baseline",
+      "sha256": "bb6876aa9e782649a9f95d7313bb97f7fc75000c5bf2edbbfeeb1ddca1926054"
+    },
+    "programa/build/carimbo.py": {
+      "from": "baseline",
+      "sha256": "6772fa22598562eacd21011a4a5e6f28a1d28f420bc4ba9ed7a2622f450a20da"
+    },
+    "programa/build/componentes.lock.json": {
+      "from": "baseline",
+      "sha256": "498af2dfc67cfd416c3a3f62d1670e5cd133822e3caf7d37bfb08cb0de432232"
+    },
+    "programa/build/configurar_ambiente.py": {
+      "from": "delta",
+      "sha256": "dcfc84cb9603b0933c72cc9c880c9be164d668839b694602e2b40bb59c754d63"
+    },
+    "programa/build/destino_de_entrega.py": {
+      "from": "baseline",
+      "sha256": "a76c3d5c2c081f135e53b29c9f9df99c54ebb049bb65f339b05903fe913b9c9c"
+    },
+    "programa/build/empacotar_instalador.py": {
+      "from": "baseline",
+      "sha256": "9efd0ca9b63dba0788859b812a7ab4109fcab9dcc144d8d82b2cd06a43c43612"
+    },
+    "programa/build/gerar_catalogo.py": {
+      "from": "baseline",
+      "sha256": "684af3317b7b16439d55538ee4ad7afdd2fa066523d042f64fc3788b5061229c"
+    },
+    "programa/build/gerar_icone.ps1": {
+      "from": "baseline",
+      "sha256": "310df59060cc2d789222131cacc3270bd0a25ce5c6afef1ee7236f05b36462a5"
+    },
+    "programa/build/gerar_icone.py": {
+      "from": "baseline",
+      "sha256": "bd282b77d96bc9c1e3ba02f357ee3a4abec8244de3bb16218b2b962e167bf613"
+    },
+    "programa/build/gerar_plugin_seeds.py": {
+      "from": "baseline",
+      "sha256": "d118cbc7367bae8a4f62b039fea37e0ecef1bba105b46ef8cdfbeb188403f69a"
+    },
+    "programa/build/preparar_espelho.py": {
+      "from": "baseline",
+      "sha256": "e81184ca761e00ab5d2af2d364402d067296caadd725f7719450aa65a054c4f7"
+    },
+    "programa/build/requirements-demo.txt": {
+      "from": "baseline",
+      "sha256": "a3b64af0a9b86108668dca938be53662435b2b54b8e297a6c57556d9b013ef6c"
+    },
+    "programa/build/requisitos.py": {
+      "from": "baseline",
+      "sha256": "565791353fc3b99d15d7033500825c2fa4183c55b172a4ac7cc29730e03d741d"
+    },
+    "programa/entrega.txt": {
+      "from": "delta",
+      "sha256": "c8212f2e86487c969abb8528fa450cab6493669720ee5fa13f4199824bfca97c"
+    },
+    "programa/installer/INSTALL.cmd": {
+      "from": "baseline",
+      "sha256": "05048b25a43f7b023ec7e46f123783057b7e38ea48f5b925b30783a9c99f3e82"
+    },
+    "programa/installer/INSTALL.ps1": {
+      "from": "baseline",
+      "sha256": "11ab76358b2b352fe5f96d87010d02d69481af1d6f26a3d15407e3c3c7ef5c04"
+    },
+    "programa/installer/UNINSTALL.cmd": {
+      "from": "baseline",
+      "sha256": "12acbed83747544c2bb440da69c55f4cd0d1587edcb0a97c8708c09f73a71781"
+    },
+    "programa/installer/UNINSTALL.ps1": {
+      "from": "baseline",
+      "sha256": "bdbbc08880750bf80e8499f6e04e0140c39a307569ab43e27f8207beb023c7d1"
+    },
+    "programa/packager/MODELO_LICENCAS_ACEITAS.txt": {
+      "from": "baseline",
+      "sha256": "574214acf9554a535d535c93ed21411d63cdf1084092b8d41a557c116867a635"
+    },
+    "programa/packager/PLUGIN_INSTALL.ps1": {
+      "from": "baseline",
+      "sha256": "a56db95e24b5f5ba8560a5307226bff5b187402a9e4d7b9b4c42bb9d93836ec9"
+    },
+    "programa/packager/PLUGIN_OPTIONS.ps1": {
+      "from": "baseline",
+      "sha256": "6ac6a1b3a5c870a689be0ebfb616131da364bd2110d6db8ccaac6999fad21870"
+    },
+    "programa/packager/PREPARAR_AUTO_CONTORNO.cmd": {
+      "from": "baseline",
+      "sha256": "de3c754a31c5e3373fbff41f54939ec89491da9c39342002f4298f694fa09300"
+    },
+    "programa/packager/README-ROOT.txt": {
+      "from": "baseline",
+      "sha256": "7643bbda70e3e67ea84d02c6daa0071eac2e78b0959c98ed8ebcff0adf03381c"
+    },
+    "programa/packager/README.txt": {
+      "from": "baseline",
+      "sha256": "80019a8328ec801b5762044a32fe1bd20317a85c092fafed59568011c73ed8ae"
+    },
+    "programa/packager/START_HERE.cmd": {
+      "from": "delta",
+      "sha256": "ec897abef2b4769ed22a224f805b856cc55cb1f315d34bcf9cc96c2711a5bf51"
+    },
+    "programa/packager/UPDATE.ps1": {
+      "from": "delta",
+      "sha256": "d55e344e9058a7edc14fd383a89ad0fa56d5ca1f342cf3a61fe3ebfd1e72b9ee"
+    },
+    "programa/packager/catalogo.json": {
+      "from": "baseline",
+      "sha256": "511b56d3a45221410b6a2b11f41432b51504fc6e2187e535d9a5e17e4377d8c1"
+    },
+    "programa/packager/languages.json": {
+      "from": "baseline",
+      "sha256": "4027be2082c3f4c06747be57d813f11bf3b52aee16591d0907ac5db31f455940"
+    },
+    "programa/packager/languages.ps1": {
+      "from": "baseline",
+      "sha256": "1cb54c50de547c5506b1791a91d1491fa4f518fa37c7d85071849419c30abeb8"
+    },
+    "programa/packager/minimize.ps1": {
+      "from": "baseline",
+      "sha256": "78d87b747143b7d32d8705bd1cadd0365ea8a51994f295d42a1377efdcfba4c7"
+    },
+    "programa/packager/plugin-options.json": {
+      "from": "delta",
+      "sha256": "06e334c9c6e59b39e02dea88542cb51eb38fb16a17b0d5774cd0ddf0f227b6c6"
+    },
+    "programa/packager/prepare.ps1": {
+      "from": "delta",
+      "sha256": "98a1467db35ecbbd2c256a02b3003b26dcdefdb5612caaf0b49b8e927392ee36"
+    },
+    "programa/packager/preparer_log.ps1": {
+      "from": "baseline",
+      "sha256": "3f9021f5118dde49a6ede19436d579d1aa2eb5f76beeda534dab89e56c171293"
+    },
+    "programa/tools/DIAGNOSTICO_LOCAL_SUITE.cmd": {
+      "from": "delta",
+      "sha256": "91174187ae8cf1f72caaa169ccb8999c4041b604514d2767f04c946ab38efdca"
+    },
+    "programa/tools/Diagnostico-Local-Suite.ps1": {
+      "from": "delta",
+      "sha256": "43e1cf971d325693d724371127e2c07d656c46188b5f9db35692974ae29fb360"
+    },
+    "programa/tools/_cleanup.py": {
+      "from": "baseline",
+      "sha256": "f03635ad9b4a557fa5965f1f5270404d1c0f836b3140d50066e898f4d95db252"
+    },
+    "programa/tools/_componentes.py": {
+      "from": "baseline",
+      "sha256": "291d9b6d2746969ae5a52f425782c87ac783cbc19dae147691ef720565abf8fd"
+    },
+    "programa/tools/atualizar_v810_browser.cjs": {
+      "from": "baseline",
+      "sha256": "8964e203ca46dd0fe9d657f1676185eb367afef44dbd82b231ef224feacc409c"
+    },
+    "programa/tools/bolus_skin_browser.cjs": {
+      "from": "baseline",
+      "sha256": "c70153b226e0555ebe103a5ab471c1581d2c7b95706f2a1591a69f5c2389a4dd"
+    },
+    "programa/tools/check_project.py": {
+      "from": "baseline",
+      "sha256": "dfc071cf8961ee43494bc48ad710cea347ced6a076d9c59c2961059aa6bca9dd"
+    },
+    "programa/tools/check_ps1_members.ps1": {
+      "from": "baseline",
+      "sha256": "9ad7b03fb44dedf15b2a74141b136137339dee7049ea5102fbd69e44753874ca"
+    },
+    "programa/tools/conferir_referencias_eclipse.py": {
+      "from": "delta",
+      "sha256": "7872be3b2ada78f48ef900e140e85fd68c9959ec92f13412f8db14fb73cfa3a9"
+    },
+    "programa/tools/data/nv_segment_ct_labels.json": {
+      "from": "baseline",
+      "sha256": "4a57a173cdb11c9331bfe860a63cd365df95e5bd2a6bcedadcac1a71530acecc"
+    },
+    "programa/tools/data/velocidade_referencia.json": {
+      "from": "baseline",
+      "sha256": "7930a70d36d0257171170391a56de27e1cec5bcd2b0a491f572962553e30190a"
+    },
+    "programa/tools/gerar_serie_monaco.py": {
+      "from": "baseline",
+      "sha256": "5ca2e33a9db986d50800cff74e874b24ebc7eb842a0eac8baffd3cabe1dd4d87"
+    },
+    "programa/tools/lerantes.ps1": {
+      "from": "baseline",
+      "sha256": "b6f6568d753ad7d24b7dec4e3b48fcf173802fda91d29bd30d7824db63e26dae"
+    },
+    "programa/tools/lerantes_py.py": {
+      "from": "baseline",
+      "sha256": "a1d61d9cd77df33fd56e63ff522e6c11cf94f3f942f0ccab99b79c408be58a98"
+    },
+    "programa/tools/make_test_series.py": {
+      "from": "baseline",
+      "sha256": "c1be6f542e1db98381b794dcb5e1819e1ab5ec792c946b94e05b895c4bf66a8c"
+    },
+    "programa/tools/oficina/bolus.py": {
+      "from": "baseline",
+      "sha256": "fa8fb1dd3719e954aa2151592b4bd193c54d8393b39bf56a597017ff4c15251d"
+    },
+    "programa/tools/plugin_operations_ui_v819_browser.cjs": {
+      "from": "baseline",
+      "sha256": "af8499b536a2983e004dfefa98e3e6b3e83b7be01a4da3665b6d3d70e57a3c48"
+    },
+    "programa/tools/plugin_settings_v820_browser.cjs": {
+      "from": "baseline",
+      "sha256": "b9d2bbb3ab45deafb65c163b6113c3094fac0e4dda8bae284a319cc6c6aa7c84"
+    },
+    "programa/tools/run_core_regression_v814.py": {
+      "from": "baseline",
+      "sha256": "69e1c286cafd636045b878927c5dfaf9cab8e941dd4f43bce712e11df800c68f"
+    },
+    "programa/tools/serve_lung_fixture.py": {
+      "from": "baseline",
+      "sha256": "1cb7410f233d19794a395902e41e0cf012a187db0dcb905e945098acc384d19d"
+    },
+    "programa/tools/test_arranque_devices.py": {
+      "from": "baseline",
+      "sha256": "6fbc8e78fa41c7b268c58824482424320fb0e1862d280c4e6bffd2924a518f4a"
+    },
+    "programa/tools/test_atualizar_v810.py": {
+      "from": "baseline",
+      "sha256": "6c8b67a48e0a28021b252af62b7b00c5416f13209b0500dcb52e1a162dcf97be"
+    },
+    "programa/tools/test_atualizar_v89.py": {
+      "from": "baseline",
+      "sha256": "717df908c990848ceb8fb8c4e668710fdff74694b27b7fabae7b2aa7463bc712"
+    },
+    "programa/tools/test_batch.py": {
+      "from": "baseline",
+      "sha256": "77a722b03285a18ff04622802b2c64110eaf83593225b6db3dbde78088084af2"
+    },
+    "programa/tools/test_bolus.py": {
+      "from": "delta",
+      "sha256": "b99425b2b023024a202c16f36e949d01c95c256efd203e14b1822de2622dee7c"
+    },
+    "programa/tools/test_bolus_aplicador.py": {
+      "from": "baseline",
+      "sha256": "388456cf8d93a4db595e7d8c16b0845d894f9cb2e18c37612e94df086cf5ab6e"
+    },
+    "programa/tools/test_bolus_central.py": {
+      "from": "baseline",
+      "sha256": "a8c43545d2e46bdb908dafd6f13637c06c4447e0e2a440dcb3cea598aa748880"
+    },
+    "programa/tools/test_bridge.py": {
+      "from": "baseline",
+      "sha256": "32314aaeaa53007bf4d232c2ceab0e2123e7f27895a5caa34276e59bfd765344"
+    },
+    "programa/tools/test_bridge_motor.py": {
+      "from": "baseline",
+      "sha256": "5cc3d51f9334d103dbfbc6e561f10070913b9c3388ce1a198dda25ccb87449f2"
+    },
+    "programa/tools/test_bridge_tela.py": {
+      "from": "baseline",
+      "sha256": "643236413492c2f0f4c55c7670f0fdc27531e43dd6078cf1b340d735fbcae28d"
+    },
+    "programa/tools/test_caminho_dos_dados.py": {
+      "from": "baseline",
+      "sha256": "5f8e9116fb40fe599be5a77a4ab863ebbfcd357d075dbdab16f102ad23523552"
+    },
+    "programa/tools/test_campo.py": {
+      "from": "baseline",
+      "sha256": "5e7c77b4fd215be9fb2c2b454d984c71cefb440b2e8d6c797bf00b9dc55be66b"
+    },
+    "programa/tools/test_cleaner.py": {
+      "from": "baseline",
+      "sha256": "f2013a2779778f04f61ffe65df115815a2bc769ae659b2584bd3dce1c562084f"
+    },
+    "programa/tools/test_cleanup.py": {
+      "from": "baseline",
+      "sha256": "ac8fd8e72b2bee159b2f5ab0d9ea9b596c37cd7c1478729c74f3fc03e69fb058"
+    },
+    "programa/tools/test_componentes.py": {
+      "from": "baseline",
+      "sha256": "039a6ef812716895aaf4a73485c3f0d0cb5a4a642ad3edb41972b7580a53b50e"
+    },
+    "programa/tools/test_consent.py": {
+      "from": "delta",
+      "sha256": "d5b12545555d8a697fc963cf32053e2a3874e7f5c4837b10e4f592c663aec7bc"
+    },
+    "programa/tools/test_constructs.py": {
+      "from": "baseline",
+      "sha256": "e1aba5ce2990efb502fad91045099785fbf06517016d84e286da65966e06fe31"
+    },
+    "programa/tools/test_contour_edit_i18n.py": {
+      "from": "baseline",
+      "sha256": "5204637b5f0ba1e48ffe765953f982b290fb6de81515786ad72a77a1f6340488"
+    },
+    "programa/tools/test_conversion.py": {
+      "from": "baseline",
+      "sha256": "83f466fb47ac0fe65ec57a9ba685c593a4c008adf2bb14c5ac51a6603ebbb8be"
+    },
+    "programa/tools/test_cover.py": {
+      "from": "baseline",
+      "sha256": "6315f65836751c879c2f0fbd6f4aa3d29ba973584d7ef9b13f579ed8bc575fec"
+    },
+    "programa/tools/test_credits.py": {
+      "from": "baseline",
+      "sha256": "4e33ebd6e2c7d6184f01c853c41cf396896c54c360079ba8c33eaafd91fe8aff"
+    },
+    "programa/tools/test_delivery.py": {
+      "from": "baseline",
+      "sha256": "57c863f63407d316d3b2b17a49c914db62dc8bef6707657f90e18010c92a33c9"
+    },
+    "programa/tools/test_design.py": {
+      "from": "baseline",
+      "sha256": "84c165a9a40e9d4d4675478505d621ea5d2fafb53b2edb45401d358fb060b43c"
+    },
+    "programa/tools/test_devices.py": {
+      "from": "baseline",
+      "sha256": "152a0d6062702b923239172b1d16b8798fd4be148bf0cd794e094d8b0e8a772f"
+    },
+    "programa/tools/test_dicom.py": {
+      "from": "baseline",
+      "sha256": "40b3d507aee89d8b40574e5fd265bc2b52c319b7be55c819bd9b9fed8904c7b2"
+    },
+    "programa/tools/test_dicom_editor_bridge.py": {
+      "from": "baseline",
+      "sha256": "185663b34a3132fa9be24b6b42c7cbb5fd0177fb58d7e51782a48ba0adc14264"
+    },
+    "programa/tools/test_dryrun.py": {
+      "from": "baseline",
+      "sha256": "1a799d7e6277d52fa27ca29d85e4ce6bdaf3a78781cc4941066b1a86fe981a48"
+    },
+    "programa/tools/test_elastic.py": {
+      "from": "baseline",
+      "sha256": "fe0615605321b43520a4f583e0effd111211baf92bd0b8b059336a6835697b44"
+    },
+    "programa/tools/test_engine.py": {
+      "from": "delta",
+      "sha256": "ceac038aad36523b8660f15ea22e1cedabbe1dd1d782d8ecea19ab4f0568c2ee"
+    },
+    "programa/tools/test_entrada.py": {
+      "from": "baseline",
+      "sha256": "b08a215fc807dbaf852ebed683c7dc9757db30e29999d9a9b184693752dd3df0"
+    },
+    "programa/tools/test_estacao.py": {
+      "from": "baseline",
+      "sha256": "fdd4c41fec55162abe5cfbf61a342bc8243d126c36cba793184550767ad6d6d9"
+    },
+    "programa/tools/test_fichas.py": {
+      "from": "baseline",
+      "sha256": "08630bbff35ae38535e781f6b47860fa9006b5e1f3fac06de1287ae0437fc4db"
+    },
+    "programa/tools/test_fila_simulacao.py": {
+      "from": "baseline",
+      "sha256": "b5cd2f9c714b7f872e4ebdd03afc97fcedc9e606e7f5b0e1f1affb73ffc8c3cf"
+    },
+    "programa/tools/test_full_oar.py": {
+      "from": "baseline",
+      "sha256": "e2ff3a403bee2d5db9ef6816be3441755fa7727d110225d331d30968abc07e19"
+    },
+    "programa/tools/test_geom.py": {
+      "from": "baseline",
+      "sha256": "53eefef6e17b8a1c4028df0f140b6e3638f0944bacd88d5700b394fbb6f76be0"
+    },
+    "programa/tools/test_hn_study_protocol.py": {
+      "from": "baseline",
+      "sha256": "cedd90d6a1d83e12201daefbd955ae669d8e9fc3ac6a1209dfd798796ff0a0d7"
+    },
+    "programa/tools/test_hnlnl.py": {
+      "from": "baseline",
+      "sha256": "4f242e0587f706dcb496732e1567873a6aeae1144ca4bb567cf130afe081b5df"
+    },
+    "programa/tools/test_image.py": {
+      "from": "baseline",
+      "sha256": "0cfd0f29a5fc4606bb8a118049c4b705a88f9b996627cd92e10de97b16d1196b"
+    },
+    "programa/tools/test_inicio.py": {
+      "from": "baseline",
+      "sha256": "2ac447db1efcf65513c6d5f72fadc43e9acd067389a1d02d1cd5206aa7406421"
+    },
+    "programa/tools/test_instalar_direto.py": {
+      "from": "baseline",
+      "sha256": "e66e299f3f35dcd37fa3e14578a4d735cd064db527864d3e37fd4fd2bcc26a82"
+    },
+    "programa/tools/test_installer.py": {
+      "from": "baseline",
+      "sha256": "d99b54c25435715f25df3ecbac93affd75faad7769f0f3f1ebcb384c6fc4b18b"
+    },
+    "programa/tools/test_installer_light.py": {
+      "from": "baseline",
+      "sha256": "eb7e67a7cd93483162eba8989cc4148fa5ad1403221804ecee84b472b6277ede"
+    },
+    "programa/tools/test_interactions.py": {
+      "from": "baseline",
+      "sha256": "916a60edb145b66751b0e735f113e76ff79a1acab51b782ecd91a397a60dd5e1"
+    },
+    "programa/tools/test_lacunas.py": {
+      "from": "baseline",
+      "sha256": "61be4693a0300bc9dcb0d525fe96917064e40b1bb42e0a495a19a8dcef41abeb"
+    },
+    "programa/tools/test_languages.py": {
+      "from": "baseline",
+      "sha256": "b5e23e8aade5e94a420cc74f142ef5c46dd46c3e69fce1d0180ab297b9603492"
+    },
+    "programa/tools/test_languages_installer.py": {
+      "from": "baseline",
+      "sha256": "756ae6294ef4eef43c6b26ca67990031c1c41858cd8d56fac28d5b5d2a0b5caf"
+    },
+    "programa/tools/test_large_lung_bundle_v819.py": {
+      "from": "baseline",
+      "sha256": "a4922a237aabc3477de0051f92aeba3e063a5bbc1fba5e7e6316058e564d7ab1"
+    },
+    "programa/tools/test_levels.py": {
+      "from": "baseline",
+      "sha256": "a00f041b5d06d466c2a0f53f1fbe0fdca3ddc34d99379cf05e929f887e60427f"
+    },
+    "programa/tools/test_lifecycle.py": {
+      "from": "baseline",
+      "sha256": "76bcaa90efb3a146176244f6661774b055d19a957cd4d1e9b59910b385ba8f01"
+    },
+    "programa/tools/test_loop.py": {
+      "from": "baseline",
+      "sha256": "ade87864832554f999087c99fec56aefd824d7dd1aa4b76e042039d09e433824"
+    },
+    "programa/tools/test_lung_install.py": {
+      "from": "baseline",
+      "sha256": "dee1aa3ca7dc51de6720e6f5a99febd5b9289774f4fdaa291999abbd013f5596"
+    },
+    "programa/tools/test_lung_navigation_v819.py": {
+      "from": "baseline",
+      "sha256": "115452568e8f3ff8ec98936d383f5bf2bcda12ea610caf5c3a48b0a9c23c8dca"
+    },
+    "programa/tools/test_lung_ui_v814.py": {
+      "from": "baseline",
+      "sha256": "04c18e45b4ea17914638b5d34d1ee9ae565fdb2aabc41ba3a361829eee6e6343"
+    },
+    "programa/tools/test_lung_v814.py": {
+      "from": "baseline",
+      "sha256": "4afb7232108b0d87cab4b98da8dddc5a901123c367d9eda6be86ce77ec6691e6"
+    },
+    "programa/tools/test_menu.py": {
+      "from": "baseline",
+      "sha256": "69322319e379e747cc158432d344b1d2eb4b30d4c801bb2750411e06e6b10b34"
+    },
+    "programa/tools/test_modelos_v84.py": {
+      "from": "baseline",
+      "sha256": "fc4bbb4d643f2ffd0adca10e8426ee86658f4aa9263da01da3f1fca676e1cbd8"
+    },
+    "programa/tools/test_moose.py": {
+      "from": "delta",
+      "sha256": "7e76bb6bf6032cbbee1d5abc963e80c98d2ce9275a9d85421ce5b02deab30b1d"
+    },
+    "programa/tools/test_motor2.py": {
+      "from": "baseline",
+      "sha256": "b525c121e69ea8f63b04fceb8334885e7eff39d78a731cda61497ba098f0bc2f"
+    },
+    "programa/tools/test_motor_v810.py": {
+      "from": "baseline",
+      "sha256": "90167daa0321f096f6b8078e5044f524f6db3ce0da03780d498e55a367407139"
+    },
+    "programa/tools/test_motor_v89.py": {
+      "from": "baseline",
+      "sha256": "d7051b2eec6b7cfc02674fbf6d7a49a757457d824f32e09afde0bb29a55cbf58"
+    },
+    "programa/tools/test_mr_lazy_masks.py": {
+      "from": "baseline",
+      "sha256": "171001b330c1913407e7ec896b19e2034f8aab4223ca5363f4a05a085d704928"
+    },
+    "programa/tools/test_names.py": {
+      "from": "baseline",
+      "sha256": "da7511d589a423df2ffed3ef3c76a7114b4767efd37ff5612a1b2721b21327cc"
+    },
+    "programa/tools/test_neb_telas.py": {
+      "from": "delta",
+      "sha256": "191a9f3509a2da2a7aaa997ba4aa81c7dd35599b975b29d4b9d4a017ad2c4506"
+    },
+    "programa/tools/test_neuro_base_access.py": {
+      "from": "delta",
+      "sha256": "f5e4408ea4e643197b3b888a6eac47c8b6d155606d5e0c23d92ca7eb3967c4f5"
+    },
+    "programa/tools/test_neuro_integrity.py": {
+      "from": "baseline",
+      "sha256": "c6b66956d7c01884e5ef5f65037581065cb05577b6fe9f5f1037fa8cac446840"
+    },
+    "programa/tools/test_neuro_plugin.py": {
+      "from": "baseline",
+      "sha256": "bd0b788551caca8286d5f21305110ab103c20d4e28c4de07dc9e3b7dec1ca807"
+    },
+    "programa/tools/test_neuro_queue_models.py": {
+      "from": "baseline",
+      "sha256": "fcf11ff4f84abede75dd402a422c6224d9e6aa7d61db86a422bcee57d7f268e8"
+    },
+    "programa/tools/test_neuro_restart.py": {
+      "from": "baseline",
+      "sha256": "d5f03599d463ee514e927b673a55db34cdc8d9bc34dc56d433c1f7996ca05a3d"
+    },
+    "programa/tools/test_nomes_no_tps.py": {
+      "from": "baseline",
+      "sha256": "90b16fd2a66b066b9ee72695b2bd3549cd6cddd9b4600627c26de1b951e9c35b"
+    },
+    "programa/tools/test_nomes_proprios.py": {
+      "from": "baseline",
+      "sha256": "92c8db5099683115b988e3a673a1c89f465bff58b60e5b7ae07225a21d66ee9a"
+    },
+    "programa/tools/test_nv_segment.py": {
+      "from": "baseline",
+      "sha256": "d4db3b592f35c067988f735d6b5719db85253db9a927774057c43a2071b9763d"
+    },
+    "programa/tools/test_overnight.py": {
+      "from": "baseline",
+      "sha256": "54bf4e3767b3cc05b3b02e86e20707fd1d297c7f998bb8e52baf8f28406ac9ca"
+    },
+    "programa/tools/test_packager.py": {
+      "from": "baseline",
+      "sha256": "07674873ef9e3eaae47d80b29a7310453ace8182bf10c82c05a2073e99cd3e1b"
+    },
+    "programa/tools/test_panel.py": {
+      "from": "delta",
+      "sha256": "978f53974ec8676baef84fdf6837bf777f4f1964f1dc16a19c1bbf2d25a434b8"
+    },
+    "programa/tools/test_plausibility.py": {
+      "from": "baseline",
+      "sha256": "9e33cccedafac936da1a81ab69a624a5e0a03c6cc46a3f1f2eeac24e7999a631"
+    },
+    "programa/tools/test_plugin_bootstrap.py": {
+      "from": "baseline",
+      "sha256": "f9da98c3ee076fd845fa1a0106e8d827ef714414a7088942a66adb855077207f"
+    },
+    "programa/tools/test_plugin_download_diagnostics.py": {
+      "from": "baseline",
+      "sha256": "cfeefd1f66d7d8e971dc09ffe88bfc0e51f00dacf1cb9f229ae29062877f744f"
+    },
+    "programa/tools/test_plugin_management.py": {
+      "from": "baseline",
+      "sha256": "52e3bcb8f0a3c7e7dfdb6d14bba2d3dd54619a660f87dd23e86b8082797324d9"
+    },
+    "programa/tools/test_plugin_operation_binding_v819.py": {
+      "from": "baseline",
+      "sha256": "2d263a0378890ef1d88874b1c5ffb888ee344f279a37f1624bd7f68596c6a71c"
+    },
+    "programa/tools/test_plugin_operations_ui_v819.py": {
+      "from": "baseline",
+      "sha256": "1c732a0888f771652fc9876ee554242b6a953d02cdf4513389d79dfc72b99a2b"
+    },
+    "programa/tools/test_plugin_optional_resources.py": {
+      "from": "baseline",
+      "sha256": "e7af9e7722c6d34d375f3c4bd9915aa0f1a0a606e22e35ad4ed7b379ab7a5bb7"
+    },
+    "programa/tools/test_plugin_settings_v820.py": {
+      "from": "baseline",
+      "sha256": "8ced17b4f560d0ced64df30cc5ad56d92cc8e7ea884c16caeb3a267fa1c36198"
+    },
+    "programa/tools/test_plugin_setup.py": {
+      "from": "baseline",
+      "sha256": "4e04c3710f86ae9a30c5262aae40e9031e2a8c0155fde391fe3ec9c1af19b9be"
+    },
+    "programa/tools/test_plugin_upload_transport.py": {
+      "from": "baseline",
+      "sha256": "8d8f0d7bb2ce3101cf8182755ebc2135ab097e1579b664fffbb09d771b9034af"
+    },
+    "programa/tools/test_porta.py": {
+      "from": "baseline",
+      "sha256": "8ffa66aa29bcfbcb3d973e1c286a2623ea5f1c357830c0cb4619a35a21a812b2"
+    },
+    "programa/tools/test_prepare_profiles.py": {
+      "from": "baseline",
+      "sha256": "737779fe6b544db5b8e832120e289c07b831285005bb73ed498876639141b793"
+    },
+    "programa/tools/test_provenance.py": {
+      "from": "baseline",
+      "sha256": "adff960fec16c44128f5942e223062a19e9149adaf8b8e8cb0b3e1ed88fc4f30"
+    },
+    "programa/tools/test_queue.py": {
+      "from": "baseline",
+      "sha256": "c931a727028e834888fe2509bcf87acb0e6808e60d40d542253a7a31f5b6f4de"
+    },
+    "programa/tools/test_recon3d.py": {
+      "from": "delta",
+      "sha256": "d82a4a3c541c390123b98e89e55ed0d62b868a670a21d0c6f9591fd5b4c26e63"
+    },
+    "programa/tools/test_recon3d_v84.py": {
+      "from": "baseline",
+      "sha256": "03c777117bed016cb46def701df244f87475fe008cbf1a591878c0c3e9383dff"
+    },
+    "programa/tools/test_records.py": {
+      "from": "baseline",
+      "sha256": "e7aef1554af69f5dd6cd358e1d4986e2193377d29594ad0dac80da3cffe93aa1"
+    },
+    "programa/tools/test_retorno_v88.py": {
+      "from": "baseline",
+      "sha256": "259fe17e82ead2ee8d384e31c3b14e8b3b2ded01abf6ec4b0d3618d6a56c5e16"
+    },
+    "programa/tools/test_rodar.py": {
+      "from": "baseline",
+      "sha256": "1154bd45bbf5a364f64a86f833fcb5f6eaef6851966b3b5983b95ddaedd24a98"
+    },
+    "programa/tools/test_rotulos.py": {
+      "from": "baseline",
+      "sha256": "d938c1b2f4de353a26ad2b8f780320ed12770a4b803b710a1e589990a3b4e3c4"
+    },
+    "programa/tools/test_rt.py": {
+      "from": "delta",
+      "sha256": "96d31a5a5677f3a247273875bb3692439894310c12d0b7b537ea9442fb97fef8"
+    },
+    "programa/tools/test_shutdown.py": {
+      "from": "baseline",
+      "sha256": "32e3090a5528e17f60e17211f09ecb784a447824bdf6219acf80deaf3b63caa5"
+    },
+    "programa/tools/test_skin.py": {
+      "from": "baseline",
+      "sha256": "cd95e3218eed8bcfc097d247dbaeb4d9d93b672e930b11a36afab7e4aca6ae4c"
+    },
+    "programa/tools/test_starter_contract.py": {
+      "from": "baseline",
+      "sha256": "5d72e1a342d59f3dd14012c9dd867cf73c3a15b06674f91472ae1b0191f1155f"
+    },
+    "programa/tools/test_suite.py": {
+      "from": "baseline",
+      "sha256": "64b4d8f72da5fe7a9f84b8ad56e6be09ea6315a0cc3ddf03982d1998dce3728a"
+    },
+    "programa/tools/test_suite_integration_v814.py": {
+      "from": "baseline",
+      "sha256": "e26c6a3946dbb4d3a3daa3841f1d412b5831ad2f2997483a5472d3685d1554c2"
+    },
+    "programa/tools/test_tasks.py": {
+      "from": "baseline",
+      "sha256": "3dca2fc3e57e96282dda59f9f6ab37cad18f4d2e21f78bd7bb9f0cdd41ec919d"
+    },
+    "programa/tools/test_thumbnail.py": {
+      "from": "delta",
+      "sha256": "99a63618e683d7d2895f39acf9a46ef217c8c9ce2a385a8cd8a0536178b1e994"
+    },
+    "programa/tools/test_todo.py": {
+      "from": "baseline",
+      "sha256": "6c3b4ca9d9ac7950105d99459e91a275e715bc5e1fff865f0fa30163f88c715b"
+    },
+    "programa/tools/test_ts_runner.py": {
+      "from": "baseline",
+      "sha256": "2bc1ad1d387b6372f418c3007b6202e291eba490dd116ea16bda6346bdc3f0a4"
+    },
+    "programa/tools/test_ui.py": {
+      "from": "delta",
+      "sha256": "2c6e367d713c6b4cc169d0c8777984b0b54c5342cc2ec09594a9c8b476b39b5e"
+    },
+    "programa/tools/test_ui_interacao.py": {
+      "from": "delta",
+      "sha256": "0d570e12c6dadff28fd9072d5fb36a0a8bc3ddf4dd470dfd13f8f017a68a52bf"
+    },
+    "programa/tools/test_ui_shell_v814.py": {
+      "from": "baseline",
+      "sha256": "34acd5cf6bbff806779b0dab74259a22b436e36f15619ff0e67bbe85a46e44da"
+    },
+    "programa/tools/test_update_sources_v819.py": {
+      "from": "baseline",
+      "sha256": "bd1083a191fc4f603457d060cf331b757ed751022fccceb1a74f8248a2e8da0e"
+    },
+    "programa/tools/test_v813_lung_update.py": {
+      "from": "baseline",
+      "sha256": "b9b44e962ae130824d02dd949a1b1415c7ea3e149a0d8a5ed4edc4c5ad05262d"
+    },
+    "programa/tools/test_validation.py": {
+      "from": "baseline",
+      "sha256": "13aa31a65da7b3554b61329ccf2692aeb3d1869e7eecd5f6e8ae4932030cc058"
+    },
+    "programa/tools/test_varrer.py": {
+      "from": "baseline",
+      "sha256": "870d907545bb2c088bb471cd306da11daa2987a55a986368444d4536d1c92e8e"
+    },
+    "programa/tools/test_vascular_native.py": {
+      "from": "baseline",
+      "sha256": "4462c04de2215bb5a5c4efe6a4cabade7f42a71daef3a788cf006b56877f3951"
+    },
+    "programa/tools/test_velocidade.py": {
+      "from": "baseline",
+      "sha256": "f1e69b4cf78d55e9006a1651700a4d4d37c92a576712586392571ecf1d11d0e0"
+    },
+    "programa/tools/test_verseg.py": {
+      "from": "delta",
+      "sha256": "145fa723934cbddda727dccbb12cb18cd73910b7f2d21fa3dd368cd56b5d1cf7"
+    },
+    "programa/tools/test_version.py": {
+      "from": "baseline",
+      "sha256": "4097b0739547e36987b6c088b8ace080670159ee352a77095a2ce0a8f88e6cf4"
+    },
+    "programa/tools/test_watcher.py": {
+      "from": "baseline",
+      "sha256": "bd4ae1634cd8b8765b560688d86180978a612706df7343b8d821d7fa894e35f0"
+    },
+    "programa/tools/test_weight_operations_v819.py": {
+      "from": "baseline",
+      "sha256": "c66aa1a236bb13edeadd5833ec85faf92143a7288f3058d50236b2d404ac59ce"
+    },
+    "programa/tools/test_weights.py": {
+      "from": "baseline",
+      "sha256": "c9defbec7a70576bd9744bf8b87926467b719b98b35886df1055a2753f040f34"
+    },
+    "programa/tools/test_zip_split.py": {
+      "from": "baseline",
+      "sha256": "91ca4049b59fe8c019b3c7d802b4497143c768f1e73375ecb0881d0ef3cad7cc"
+    },
+    "programa/tools/update_sources_v819_browser.cjs": {
+      "from": "baseline",
+      "sha256": "e2625c9984d73dd7d602c59a6e8b0f480110db9802596585c24420254f4d868e"
+    }
+  }
+}
