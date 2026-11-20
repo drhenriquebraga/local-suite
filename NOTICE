@@ -71,8 +71,11 @@ TotalSegmentator
   nada.
 
   AS TAREFAS DE ACHADO (lung_nodules, liver_lesions, liver_lesions_mr) vem
-  no pacote e nao rodam de fabrica: rodam por ato declarado de quem opera, e o
-  log anuncia com a palavra ACHADO. O derrame pleural e pericardico
+  no pacote. Na TC, dependem da tarefa ou do protocolo escolhido. No Vigia,
+  a busca de nodulos inicia desligada a cada turno, requer LUNG RT instalado
+  e so roda nas TCs com torax identificado quando o operador a liga. Na RM
+  fora do FAST, a identificacao do figado aciona a segmentacao de segmentos
+  e lesoes hepaticas. O log anuncia as tarefas de achado com a palavra ACHADO. O derrame pleural e pericardico
   (pleural_pericard_effusion) e anatomia do torax: alimenta o conjunto
   completo e o entregue.
 

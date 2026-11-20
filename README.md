@@ -2,18 +2,18 @@
 
 **Part of the Radioterapia.AI local ecosystem. A study bench for AI segmentation in radiation oncology — teaching and research material, not a medical device.**
 
-`License: Apache-2.0` · `Version: 8.26` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
+`License: Apache-2.0` · `Version: 8.27` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
 
-The 8.26 installer includes the NEURO RT and LUNG RT plugin code. Its [reproducible release build](build/releases/v8_26/README.md) lists the provenance and checksums of the packaged files.
+The 8.27 installer includes the NEURO RT and LUNG RT plugin code. Its [reproducible release build](build/releases/v8_27/README.md) lists the provenance and checksums of the packaged files.
 
 > **Teaching and research material. This is not a medical device.**
 > It is **not** validated for clinical use, it has no ANVISA registration, no
 > CE mark and no FDA clearance, and it must not be used as a production
 > contouring tool. Every structure it writes is an **unapproved suggestion**;
 > reviewing and approving it is a physician's act, in the planning system.
-> Detection of findings ships in the package and never runs by default: it
-> runs only by a declared act of whoever operates it, series by series. The
-> model that recognises anatomy here — [TotalSegmentator][ts] — says the same
+> Lung nodule detection in the night watcher requires an explicit choice for
+> each run. On MRI outside FAST, identifying liver automatically triggers
+> liver segment and lesion processing. The model that recognises anatomy here — [TotalSegmentator][ts] — says the same
 > thing about itself, in its own README: *"This is not a medical device and is
 > not intended for clinical usage."* This project inherits that position and
 > does not soften it. See [NOTICE](NOTICE).
@@ -206,23 +206,25 @@ four tasks so far: the base itself, `trunk_cavities`, `breasts` and
 `abdominal_muscles`. Every other task carries an estimate from the model's
 shape, shown with a `~` in front, and an estimate never says ultra‑slow.
 
-**Detection is available, and never on by default.** The third‑party models
-include tasks that look for findings (lung nodules, liver lesions). None of
-them runs by omission: the region table never contains one, no RT protocol
-switches one on, FAST never runs one, and the night watcher always runs AUTO
-and takes no task list from the configuration file. Switching one on is a
-declared act, and the ways to do it live in the CUSTOM panel of a series. One is
-turning on its own switch, where it starts off and marked as a finding: what
-it returns goes to a file of its own and — when the raw set is requested
-too — raw, to the TotalSegmentator set (`RadAI_TS`), like every output of the
-model. Explicitly requested lung nodules also go to the complete set; other findings never to the complete set. None goes to the delivered set. Another is a
-custom protocol of the workstation that includes a finding: it asks for the
-declaration every time the series is sent to the queue, the start dialog
-shows it as an alert, and without it the finding does not run. The last is
-asking for a 3D Reconstructions study protocol, which writes no RTSTRUCT at
-all, only a label map in the series' `_RadAI` folder. Either way the log
-announces it with the word `ACHADO`. Outside the study protocols there is no
-"select all" button. The pleural and pericardial effusion task is anatomy of
+**When the Suite looks for findings.** In CUSTOM, the operator may select a
+finding task or use a workstation protocol that includes one. The protocol asks
+for the declaration each time the series is sent to the queue. Thoracic Anatomy
+includes lung nodule detection. A 3D Reconstructions study protocol writes
+RTSTRUCTs and a label map for reconstruction in the series' `_RadAI` folder.
+
+For Overnight Run, lung nodule detection starts off for each new run.
+Installing the LUNG RT module enables the switch, including on a compact
+screening installation without the optional report models. Turning it on
+adds the task to CT series in which the watcher identifies the thorax during
+that run. Running nodule detection alone in LUNG RT leaves the series eligible
+for full anatomical segmentation in ContourLab.
+
+On MRI outside FAST, identifying liver automatically triggers the liver segment
+and lesion tasks. When present, CT lung nodules and MR liver lesions are
+included in both `RadAI_FULL` and `RadAI_STUDY`. The CT liver lesion task writes
+a separate findings file and contributes to a requested raw TotalSegmentator
+set. CT liver lesions are excluded from FULL and STUDY. The log identifies
+finding tasks with `ACHADO`. The pleural and pericardial effusion task is anatomy of
 the chest here: it runs in FAST and AUTO when the chest is in the field, and
 the effusions themselves go to the complete set only — in the delivered
 sets the pericardial effusion is inside the radiotherapy heart, and the lungs
@@ -392,8 +394,12 @@ panel opens at `http://127.0.0.1:8777/`.
    same choice *Run now* makes; an MR is suggested only when the exam has no
    CT —, processes them one by one, reads the folder again when the queue
    empties, and sleeps until the next reading when nothing is new. While the
-   run is open the workstation is kept awake. It does not touch the
-   workstation's programs or services.
+   run is open the workstation is kept awake. At queue confirmation, dedicated
+   processing is selected by default on enabled workstations. Save open work
+   and review the proposed actions before confirming. In this mode the Suite
+   can close eligible programs and temporarily stop selected services when
+   running with administrator rights. The summary lists programs you can reopen.
+   You can turn dedicated processing off before starting the queue.
 4. **Review.** *View segmentation* puts two files side by side; then import
    the RTSTRUCT in the planning system, and review it there.
 5. **Open and close.** There is no console window: the browser opens at
