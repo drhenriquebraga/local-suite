@@ -2316,8 +2316,9 @@ def checar_padrao_de_fabrica():
            _ordem_ct == ["cranio", "cabeca_pescoco", "torax_mama", "sbrt",
                          "abdome", "pelve", "coluna"], str(_ordem_ct))
     _ordem_mr = [p["cod"] for p in md.protocolos_de("MR")]
-    checar("  e os da RM sao Coluna e Abdomen",
-           _ordem_mr == ["coluna_rm", "abdome_rm"], str(_ordem_mr))
+    checar("  RM oferece SNC, Coluna e Abdômen, e a TC não oferece SNC RM",
+           _ordem_mr == ["snc_rm", "coluna_rm", "abdome_rm"] and "snc_rm" not in _ordem_ct,
+           str(_ordem_mr))
     _cmp = [c["cod"] for c in (_opc_t.get("comparacao") or ())]
     checar("  a Comparacao de modelos traz o TS cru, o NV-Segment-CT, o CADS "
            "e o MOOSE", _cmp == ["ts", "nv", "cads", "mse"], str(_cmp))
@@ -2878,108 +2879,41 @@ def checar_full_antes_dos_plugins():
                    "termina sem o arquivo que a revisao usa" % (i_p, i_full))
 
 
-def _retirados_do_output():
-    import ast
-    METODO = {"nv": "nv", "cads": "cads", "mse": "moose",
-              "hnl": "niveis_cervicais", "pel": "pelvicos"}
-    try:
-        arv = ast.parse(io.open(_componentes.fonte(no_app("radai_output.py")),
-                                encoding="utf-8", errors="replace").read())
-    except Exception:
-        return set()
-    corpos = {}
-    for no in ast.walk(arv):
-        if isinstance(no, ast.FunctionDef):
-            corpos[no.name] = no
-    saida = set()
-    for cod, nome in METODO.items():
-        f = corpos.get(nome)
-        if f is None:
-            continue
-        rets = [n for n in ast.walk(f) if isinstance(n, ast.Return)]
-        if not rets:
-            continue
-        so_none = all(
-            r.value is None
-            or (isinstance(r.value, ast.Constant) and r.value.value is None)
-            for r in rets)
-        if so_none:
-            saida.add(cod)
-    return saida
-
-
 def checar_promessa_bate_com_quem_grava():
-    print(NL + "[14g] O que a revisao promete e' o que aquela porta grava")
-    sys.path.insert(0, APP)
-    try:
-        import radai_review as RV
-        import radai_sets as RS
-    except Exception as e:
-        checar("radai_review e radai_sets importam", False, str(e)[:120])
+    print(NL + "[14g] A revisão, o destino por série e os níveis cervicais")
+    revisao, saida, conjuntos = (_importar_do_app(n) for n in ("radai_review", "radai_output", "radai_sets"))
+    if any(m is None for m in (revisao, saida, conjuntos)):
+        checar("os módulos de revisão e entrega importam", False)
         return
-    finally:
-        sys.path.pop(0)
 
-    GRAVA = {"nv": "sd.vista3d(", "cads": "sd.cads(", "mse": "sd.moose(",
-             "hnl": "sd.niveis_cervicais(", "pel": "sd.pelvicos("}
-    OUTRO_NOME = {"nv": "sd.nv("}
-    PORTA = {"radai_batch.py": "lote", "radai_watcher.py": "vigia"}
+    def chamadas(no):
+        return [n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", "")
+                for n in ast.walk(no) if isinstance(n, ast.Call)]
 
-    for arq, origem in sorted(PORTA.items()):
-        try:
-            txt = io.open(_componentes.fonte(no_app(arq)),
-                          encoding="utf-8", errors="replace").read()
-        except Exception:
-            checar("%s pode ser lido" % arq, False)
-            continue
-        codigo = NL.join(l for l in txt.splitlines()
-                         if not l.lstrip().startswith("#"))
-        _comp = origem != "vigia"
-        prometidos = RV._conjuntos_previstos(
-            incluir_nv=_comp, incluir_cads=_comp, incluir_hnlnl=True,
-            elegivel_tx=True, incluir_moose=_comp, origem=origem)
-        vistos = set()
-        for item in prometidos:
-            cod = str(item["cod"])
-            vistos.add(cod)
-            chamada = GRAVA.get(cod)
-            if chamada is None:
-                continue
-            if not item.get("sai"):
-                continue
-            checar(u"[%s] promete `%s` e chama `%s`"
-                   % (arq, cod, chamada[3:-1]), chamada in codigo
-                   or OUTRO_NOME.get(cod, u"\0") in codigo,
-                   u"a tela diz que sai e o arquivo nao grava — o operador "
-                   u"procura defeito numa serie que esta certa")
-        for cod, chamada in sorted(GRAVA.items()):
-            if (chamada not in codigo
-                    and OUTRO_NOME.get(cod, u"\0") not in codigo):
-                continue
-            if cod in _retirados_do_output():
-                continue
-            item = [i for i in prometidos if str(i["cod"]) == cod]
-            checar(u"[%s] grava `%s` e a revisao o promete" % (arq, cod),
-                   bool(item) and bool(item[0].get("sai")),
-                   u"o arquivo sai e a tela disse que nao sairia")
-        if origem == "vigia":
-            _h = [i for i in prometidos if str(i["cod"]) == "hnl"]
-
-            def _hnl_so_no_full(cod_):
-                return (bool(_h) and not _h[0].get("sai")
-                        and GRAVA["hnl"] not in cod_)
-            checar(u"[%s] o `hnl` NAO sai no vigia (o AUTO: os niveis vao so "
-                   u"ao FULL), e a revisao diz isso" % arq,
-                   _hnl_so_no_full(codigo),
-                   str(_h[0] if _h else u"a revisao nao descreve o `hnl`"))
-            checar(u"  isca: o vigia gravando o `HNL_` de novo e acusado",
-                   not _hnl_so_no_full(codigo + NL + u"    sd.niveis_cervicais("
-                                                u"_HNLNL_DA_VEZ[\"masks\"])"))
-        checar(u"[%s] a revisao descreve os %d conjuntos do registro"
-               % (arq, len(RS.CONJUNTOS)),
-               vistos == set(str(c["cod"]) for c in RS.CONJUNTOS),
-               u"faltou: %s" % sorted(set(str(c["cod"])
-                                          for c in RS.CONJUNTOS) - vistos))
+    for arquivo, entrada, origem in (("radai_batch.py", "_uma_serie", "lote"),
+                                     ("radai_watcher.py", "process_series", "vigia")):
+        no = _funcao_ast(ler(no_app(arquivo)), entrada)
+        usadas = chamadas(no)
+        antigas = {"niveis_cervicais", "totalsegmentator_cru", "_entregar_motores",
+                   "pelvicos", "vista3d", "cads", "moose", "plugins"}
+        checar(arquivo + ": executa uma única entrega e incorpora os resultados opcionais",
+               usadas.count("full_e_oar") == 1 and not (antigas & set(usadas)),
+               repr(antigas & set(usadas)))
+        for opcoes, esperado in (
+                ({"modo":"auto", "anatomia_geral_full":True}, "oar"),
+                ({"modo":"perso", "protocolos":["cabeca_pescoco"]}, "oar"),
+                ({"modo":"perso", "anatomia_geral_full":True}, "full" if origem == "lote" else "oar")):
+            previstos = revisao._conjuntos_previstos(origem=origem, series=[opcoes],
+                incluir_nv=True, incluir_cads=True, incluir_hnlnl=True, incluir_moose=True)
+            checar("%s: revisão de %s" % (origem, opcoes),
+                   [(c["cod"], c["sai"], c["entregue"]) for c in previstos] == [(esperado, True, True)],
+                   repr(previstos))
+    checar("a união cervical é elegível no STUDY", "LNL_UNION" in conjuntos.PERMITIDOS_NO_OAR)
+    for modo, protocolo, esperado in (("auto", "", False), ("perso", "cabeca_pescoco_simples", False),
+                                      ("perso", "cabeca_pescoco", True)):
+        niveis = saida.niveis_no_study(modo, "CT", (protocolo,), {"Lvl_Ia": True})
+        checar("níveis separados dentro da entrega em %s/%s" % (modo, protocolo),
+               ("Lvl_Ia" in niveis) == esperado)
 
 
 def checar_todo_gravador_declara_o_desconto():
@@ -3328,15 +3262,14 @@ def checar_cadeia_do_full():
                          "    return {'femur_oar_left': m}\n",
                          "_construir_femur_oar",
                          "DESCRICAO_FEMUR_SEM_RECORTE"))
-    checar("a falha do entregue encadeia a causa (`raise ... from e`) e diz "
-           "o tipo (`motivo_do_erro`)",
-           _levanta_encadeado(ro, "full_e_oar")
-           and _usa_nome(ro, "full_e_oar", "motivo_do_erro"))
-    checar("  (isca) o `raise` sem `from` e acusado",
-           not _levanta_encadeado(
-               "def full_e_oar(s):\n    try:\n        x()\n"
-               "    except Exception as e:\n"
-               "        raise RuntimeError(str(e))\n", "full_e_oar"))
+    checar("a falha da entrega registra o motivo e preserva a exceção de origem",
+           _falha_preserva_a_origem(ro, "full_e_oar"))
+    exemplo = "def f():\n    try: x()\n    except Exception as e:\n        log(motivo_do_erro(e))\n        "
+    for ato, esperado in (("raise", True), ("raise RuntimeError() from e", True),
+                          ("raise RuntimeError()", False), ("pass", False)):
+        checar("isca de rastreamento: " + ato, _falha_preserva_a_origem(exemplo + ato, "f") == esperado)
+    checar("isca: relançar sem registrar o motivo é detectado",
+           not _falha_preserva_a_origem(exemplo.replace("log(motivo_do_erro(e))", "pass") + "raise", "f"))
 
 
 def _funcao_ast(fonte, nome):
@@ -3386,21 +3319,28 @@ def _parametros(fonte, funcao):
     return tuple(x.arg for x in (a.args + a.kwonlyargs))
 
 
-def _levanta_encadeado(fonte, funcao):
-    import ast as _ast
-    f = _funcao_ast(fonte, funcao)
-    if f is None:
+def _falha_preserva_a_origem(fonte, funcao):
+    no = _funcao_ast(fonte, funcao)
+    if no is None:
         return False
-    achou = False
-    for h in _ast.walk(f):
-        if not isinstance(h, _ast.ExceptHandler):
+    for tratador in (n for n in ast.walk(no) if isinstance(n, ast.ExceptHandler)):
+        if not (isinstance(tratador.type, ast.Name) and tratador.type.id == "Exception"):
             continue
-        for r in _ast.walk(h):
-            if isinstance(r, _ast.Raise) and r.exc is not None:
-                achou = True
-                if r.cause is None:
-                    return False
-    return achou
+        for i, passo in enumerate(tratador.body):
+            if not isinstance(passo, ast.Expr) or not isinstance(passo.value, ast.Call):
+                continue
+            log = passo.value
+            nome = getattr(log.func, "attr", None) or getattr(log.func, "id", "")
+            if nome != "log" or not any(
+                    isinstance(c, ast.Call) and getattr(c.func, "id", "") == "motivo_do_erro"
+                    and c.args and isinstance(c.args[0], ast.Name) and c.args[0].id == tratador.name
+                    for c in ast.walk(log)):
+                continue
+            for seguinte in tratador.body[i + 1:]:
+                if isinstance(seguinte, ast.Raise):
+                    return (seguinte.exc is None or isinstance(seguinte.cause, ast.Name)
+                            and seguinte.cause.id == tratador.name)
+    return False
 
 
 def _fontes_do_app(fontes=None):

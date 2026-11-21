@@ -108,7 +108,7 @@
     {
       "name": "programa/VERSION.txt",
       "source": "delta",
-      "sha256": "61b10db9b361a0965b0c51ca2732a5c39338481abaf6d1f9f393b4ea2348fce8",
+      "sha256": "204af5166df3b3b3d2286232c0cc18f8a50ae7d55140c1b6f60cc953d97f880f",
       "time": [
         2026,
         11,
@@ -3628,7 +3628,7 @@
     {
       "name": "programa/entrega.txt",
       "source": "delta",
-      "sha256": "6aaae2e91a891490fd3abb1f77d32c85570a90015d49b2319b996070e648b4e6",
+      "sha256": "e4cac9223cbbbfae3527c64c429aab854484a4a14a708fa35358d9db15005845",
       "time": [
         2026,
         11,
@@ -4148,7 +4148,7 @@
     {
       "name": "programa/tools/check_project.py",
       "source": "delta",
-      "sha256": "f4d63d5a1efc0e7dd1c41ab18142533a432ffba5be6e953b5f7419a15ffb046c",
+      "sha256": "cf0798c8066a03caa86e9dfc895d0eab0c8908c9495cb2369a33bf85bb39deac",
       "time": [
         2026,
         11,
@@ -6826,5 +6826,5 @@
       "level": 6
     }
   ],
-  "setup_sha256": "82e235609d9125a06d54b392252fa1096bdb3ee4215bf5dd44b65f44f3d8f19c"
+  "setup_sha256": "a2aab3e6d6b98c8a42d2149987818bfa505351d66909b43c17c115b7e292b0e4"
 }
