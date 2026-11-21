@@ -49,7 +49,7 @@ TotalSegmentator
             head_glands_cavities, head_muscles, headneck_bones_vessels,
             headneck_muscles, hip_implant, liver_lesions, liver_lesions_mr,
             liver_segments, liver_segments_mr, lung_nodules, lung_vessels,
-            lung_vessels_LEGACY, oculomotor_muscles,
+            oculomotor_muscles,
             pleural_pericard_effusion, teeth, total, total_mr, total_v3,
             trunk_cavities, vertebrae_body, vertebrae_mr
 
@@ -222,16 +222,14 @@ Niveis linfonodais de cabeca e pescoco
 
   QUANDO RODA: no modo AUTO -- o vigia e o "Rodar agora" -- quando o pescoco
   e detectado (as vertebras cervicais C2, C3 e C4 no campo, medidas na base),
-  e no PERSONALIZADO pelo protocolo Cabeca e Pescoco avancado ou pela chave
-  dele; nunca no FAST. E so em serie de TC em que a cabeca aparece. Quando
-  roda, os niveis entram no conjunto completo (RadAI_FULL); ao entregue
-  (RadAI_STUDY) vao so a uniao (LNL_UNION_ai, que NAO E OAR NEM CTV; antes
+  e no PERSONALIZADO pelos protocolos Cabeca e Pescoco Simples e Avancado ou
+  pela selecao da tarefa. O avancado inclui tambem os niveis cervicais individuais.
+  O STUDY inclui a uniao (LNL_UNION_ai, que NAO E OAR NEM CTV; antes
   dela, o nivel IVb de cada lado perde a clavicula do mesmo lado) e a parotida
   do nivel VIII menos o esternocleidomastoideo, quando o lado se confirma e
   ela e plausivel como a glandula; sem ela, o entregue sai sem parotida, e a
   do TotalSegmentator nunca vai ao entregue (fica no RadAI_FULL como
-  Parotid_L_ts e Parotid_R_ts). O arquivo proprio deles (RS_RadAI_HNL_*) so sai no
-  PERSONALIZADO.
+  Parotid_L_ts e Parotid_R_ts).
 
   MODIFICACAO DOS PESOS. A CC0 nao pede que ela seja indicada, e ela esta
   aqui assim mesmo: nos pacotes montados a partir da v8.7 -- e nao na
@@ -647,19 +645,16 @@ APROVADA (`ApprovalStatus = UNAPPROVED`), com sufixo de procedencia no nome:
   _lnl   niveis linfonodais cervicais (Weissmann et al., 2023)
 
   Com as tags proprias da estacao, uma estrutura do conjunto entregue
-  (RadAI_STUDY, e RadAI_STUDY_Fast no FAST) pode sair com o nome que a
+  (RadAI_STUDY) pode sair com o nome que a
   estacao escolheu, sem o sufixo; a descricao dela (ROIDescription) guarda o
   nome padrao e "sugestao IA nao aprovada", e ela continua UNAPPROVED.
 
-  E cada PLUGIN -- uma tarefa opcional do TotalSegmentator que nao alimenta o
-  conjunto completo -- grava o seu arquivo (rotulo RadAI_ e o codigo dele,
-  como RadAI_ORB), com o nosso pos-processamento e um sufixo proprio de tres
-  letras:
+  As tarefas opcionais marcadas contribuem para o conjunto escolhido.
+  As identificacoes de origem incluem:
 
   _orb   orbita: musculos extraoculares, globos e nervos opticos
   _tth   dentes
   _lvs   vasos e vias aereas do pulmao
-  _lvl   vasos do pulmao, modelo de 2023
   _nod   nodulos pulmonares (ACHADO)
   _lsg   segmentos hepaticos
   _lls   lesoes hepaticas (ACHADO)

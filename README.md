@@ -2,9 +2,9 @@
 
 **Part of the Radioterapia.AI local ecosystem. A study bench for AI segmentation in radiation oncology — teaching and research material, not a medical device.**
 
-`License: Apache-2.0` · `Version: 8.27` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
+`License: Apache-2.0` · `Version: 8.28` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
 
-The 8.27 installer includes the NEURO RT and LUNG RT plugin code. Its [reproducible release build](build/releases/v8_27/README.md) lists the provenance and checksums of the packaged files.
+The 8.28 installer includes the NEURO RT and LUNG RT plugin code. Its [reproducible release build](build/releases/v8_28/README.md) lists the provenance and checksums of the packaged files.
 
 > **Teaching and research material. This is not a medical device.**
 > It is **not** validated for clinical use, it has no ANVISA registration, no
@@ -12,7 +12,7 @@ The 8.27 installer includes the NEURO RT and LUNG RT plugin code. Its [reproduci
 > contouring tool. Every structure it writes is an **unapproved suggestion**;
 > reviewing and approving it is a physician's act, in the planning system.
 > Lung nodule detection in the night watcher requires an explicit choice for
-> each run. On MRI outside FAST, identifying liver automatically triggers
+> each run. On abdominal MRI, identifying liver automatically triggers
 > liver segment and lesion processing. The model that recognises anatomy here — [TotalSegmentator][ts] — says the same
 > thing about itself, in its own README: *"This is not a medical device and is
 > not intended for clinical usage."* This project inherits that position and
@@ -72,20 +72,16 @@ wall, a bowel bag, a femur cut at the ischial tuberosity.
    That step is not the program's, and there is no path through the program
    that approves anything. Before any queue starts, the start dialog says so.
 
-### Three modes, series by series
+### Run modes and RTSTRUCT delivery
 
-<p align="center">
-  <img src="docs/img/modos.png" alt="Three modes: FAST writes only RadAI_STUDY_Fast; AUTO, the default and the night watcher's, writes RadAI_FULL and RadAI_STUDY; CUSTOM adds the sets you ask for, or uses your own protocol" width="100%">
-</p>
+| Mode | Output |
+|---|---|
+| **AUTO** | Delivers one `RadAI_STUDY` for the detected anatomy. The night watcher uses AUTO. |
+| **CUSTOM** | The protocol, selected tasks and selected structures determine the STUDY. **General anatomy (FULL)** changes the single output to `RadAI_FULL` for the selected tasks. |
 
-| mode | where | what runs | what it writes |
-|---|---|---|---|
-| **FAST** | *Run now* | the anatomy base; chest tasks for heart, breast and effusions; head-gland and CT-brain sources for eyes, lenses, optic nerves, brainstem and chiasm when the head is in the field | only `RadAI_STUDY_Fast`: no bowel bag, anus, skin, chest walls, ribs, sternum or costal-cartilage ROIs; necessary heart-cropping inputs remain internal; the same dense point writer as STUDY and FULL |
-| **AUTO** | *Run now*, and always the night watcher | the base, then the tasks of each region it found (the head‑and‑neck tasks only when the neck is confirmed, vertebrae and mandible), the CT brain model when the brain is in the field, and the cervical nodal levels when the head and neck are in the field | `RadAI_FULL` + `RadAI_STUDY` |
-| **CUSTOM** | *Run now* | protocols switch their tasks on, and any task can be switched off; or a *custom protocol* of the workstation chooses the delivered structures; model comparison on request; any structure can be dropped from the delivered set, for that series only | `RadAI_FULL` + `RadAI_STUDY` + the sets you asked for |
+Every newly selected protocol starts with **STANDARD** finishing. The operator can choose **FAST** manually in the fourth column. The writer targets half the contour vertices where the geometry permits. Small rings, narrow boundaries, anatomical exclusions and inputs used to form other structures keep their safeguards. The two profiles use the same inference resolution.
 
-FAST is not a second post‑processing: it runs the same one, filtered to what
-its file carries. Sternum remains an internal heart input when needed and remains in AUTO/custom STUDY and FULL. Aorta yields overlapping voxels to the final esophagus before the GreatArteries union; the final union also excludes the esophagus.
+Skeletal anatomy still contributes to the heart boundary when required. Crops, margins and unions retain their inputs until the dependent structure is complete. A structure with no output or dependency can be discarded. In cranial MRI, an available NEURO RT plugin can deliver a dedicated ten-ROI STUDY on a compatible native T1 series.
 
 Settings includes **Check for updates** for an application already running. A machine-only update decision keeps its response available to the application; if that decision fails, the interface can open the installer it already downloaded and verified.
 
@@ -97,8 +93,8 @@ Settings provides an explicit update check and a local folder option for a compa
 
 | | |
 |---|---|
-| **DicomBridge** | one card, one pipeline that opens step by step — load (files, a folder read in the background with the series appearing as they are found, **Load a CD**, which reads the whole disc, folders and subfolders, without writing to it, or **Import image**, a JPEG, PNG, TIFF or BMP picked in the Windows file dialog), choose each series and its segmentation (none, FAST, AUTO or CUSTOM), a diagnosis made of alerts only, convert, deliver, and segment through the workstation's single queue —: what stops a study from being accepted by a planning system, the conversion that fixes it (colour images turned to greyscale, each forced choice written into the DICOM as an alert), delivered into a new folder, and the RTSTRUCT written beside the converted series when its segmentation finishes. A JPEG or PNG image goes through the same pipeline, without segmentation: its adjustment (a mandatory slice thickness, a pixel scale you type or measure with two clicks on a known distance in the image itself, a slice order you can reverse, both confirmed next to an MPR that shows any distortion before converting, the orientation read from the series description) lives in the diagnosis step, and it is delivered with the DICOM series, always with a new Frame of Reference, so the fusion has to be registered in the planning system and is never assumed |
-| **ContourLab** | *Run now*, in the three modes — the folder is read in the background, the series appear as they are found, and the pop‑up closes on its own when the reading ends —, and *View segmentation*, on CT and MR: two views side by side, one file per viewer, with slice, window and zoom locked together |
+| **DicomBridge** | one card, one pipeline that opens step by step — load (files, a folder read in the background with the series appearing as they are found, **Load a CD**, which reads the whole disc, folders and subfolders, without writing to it, or **Import image**, a JPEG, PNG, TIFF or BMP picked in the Windows file dialog), choose each series and its segmentation (none, AUTO or CUSTOM), a diagnosis made of alerts only, convert, deliver, and segment through the workstation's single queue —: what stops a study from being accepted by a planning system, the conversion that fixes it (colour images turned to greyscale, each forced choice written into the DICOM as an alert), delivered into a new folder, and the RTSTRUCT written beside the converted series when its segmentation finishes. A JPEG or PNG image goes through the same pipeline, without segmentation: its adjustment (a mandatory slice thickness, a pixel scale you type or measure with two clicks on a known distance in the image itself, a slice order you can reverse, both confirmed next to an MPR that shows any distortion before converting, the orientation read from the series description) lives in the diagnosis step, and it is delivered with the DICOM series, always with a new Frame of Reference, so the fusion has to be registered in the planning system and is never assumed |
+| **ContourLab** | *Run now*, in AUTO or CUSTOM — the folder is read in the background, the series appear as they are found, and the pop‑up closes on its own when the reading ends —, and *View segmentation*, on CT and MR: two views side by side, one file per viewer, with slice, window and zoom locked together |
 | **3D Reconstructions** | three planes, MIP and MinIP, and each segmented structure as a 3D mesh with its own transparency, drawn in WebGL (a point cloud where WebGL is missing), with *See‑through*, LAO/RAO and CRA/CAU bars and eight projections by button, in the C‑arm convention of Nidus RT; an RTSTRUCT drawn on sagittal, coronal or oblique slices becomes a mesh in place; a synthetic angiography (*Vascular*) takes the bone out through the segmentation ContourLab already wrote for the series, with a 700 HU threshold only as a fallback the screen names; a video of the viewer (MP4 or WebM) is the only export, recorded by a declared act each time — and it may show the patient's face; no mesh or STL export |
 | **NEURO RT · optional plugin, Nidus tool** | vascular projection in a free incidence, on angio‑CT or contrast MR, in one C‑arm convention (LAO puts the detector on the patient's left; Towne is CRA 30 and Caldwell CAU 15): a projection that can follow a box, a low‑resolution preview while an angle is dragged (the pencil waits for the full projection), a map of projections, a 3D view of the box (detector view, see‑through; the meshes stay in memory and are never exported) and an illustrative room with a C‑arm drawn in code; bone is removed through the segmentation ContourLab already wrote for the series (or a "segment first" through the queue — bone is never guessed from density), saved incidences can form an editable voxel consensus, from their union at 0% to their common intersection at 100%, with explicit export through the shared RTSTRUCT writer as an unapproved suggestion; axial, coronal or sagittal views can be enlarged in the main viewer |
 | **Elastic RT** | deformable registration measured by AAPM TG‑132, on CT, MR or PET; nothing is read when the screen opens — two cards, one for the image to be deformed and one for the target, each pick a series from the local archive or a folder you point to, read in the background with a filter by date, and the fusion starts only when you click Fuse; the report flags where one CT has gas and the other tissue (no deformation is physically right there) and gives the round‑trip residual of the inverted field — and it comes out with the image, never without it |
@@ -121,7 +117,7 @@ real screens, with *Skip guide* on every step.
 
 ### What each series gets
 
-**The complete set** (`RadAI_FULL`) is where all the post‑processing happens
+**The optional complete set** (`RadAI_FULL`) includes the selected tasks’ full post-processing
 — parts and composites, a margin on every vessel and on the trachea, the body
 cavities and the mediastinum, the breasts as the TotalSegmentator draws them
 (smoothed), and the structures built from others: the radiotherapy heart
@@ -147,17 +143,7 @@ their thin shape (no mask smoothing), and the ventricles and the midline
 stay inside the brain. The 26th vertebral label of the
 model is merged into the sacrum in every file; the sacrum, the adrenals,
 the pelvic‑muscle composite, the common carotids and the pleural and
-pericardial effusions are kept in the complete set only. **The delivered
-set** (`RadAI_STUDY`) is an exact **selection** of the complete one: the
-structures on an allow‑list, copied without rewriting — with `Bag_Bowel_OAR`
-as its bowel bag, and lungs without the pleural effusion —, minus what the
-anatomy of the series takes out (on a head and neck series, a list of
-head and neck structures stays in the complete set only, and on one without
-the chest the summed lungs stand for the two lungs; the brain drawn on an MR
-stays in the complete set only). In FAST the delivered set is
-`RadAI_STUDY_Fast`, with no complete set beside it, no bowel bag, anus, skin,
-chest walls, ribs, sternum or costal-cartilage ROIs. Necessary skeletal inputs still
-protect the existing radiotherapy Heart boundary. SpinalCord is split at the first
+pericardial effusions are kept in the complete set only. **The delivered set** (`RadAI_STUDY`) includes the protocol's selected outputs. In SBRT of the chest and liver the thoracic extras include skin, chest walls, grouped ribs, costal cartilage and sternum when present. The skeletal inputs used to protect the heart stay available whenever needed. SpinalCord is split at the first
 superior slice of L2: that slice and the caudal remainder become
 `CaudaEquina_ai`; without an identified L2, the original cord is retained.
 A workstation can give the delivered structures its own names (*Settings →
@@ -166,10 +152,7 @@ again when written; each structure keeps its standard name and the words
 "sugestao IA nao aprovada" — unapproved AI suggestion — in its description,
 and the complete set never takes a custom name), and can deliver its own selection in CUSTOM (a custom protocol, with
 unions of structures). Sets written by earlier versions, labelled
-`RadAI_OAR`, `RadAI_OAR_Fast` and `STUDY_full`, are still read. The raw
-TotalSegmentator set (`RadAI_TS`, no post‑processing at all) and the three
-comparison engines are written only when asked for, in CUSTOM; each optional
-task writes a file of its own.
+`RadAI_OAR`, `RadAI_OAR_Fast` and `STUDY_full`, are still read. Historical `RadAI_STUDY_Fast` files can still be read. Optional comparison structures selected in CUSTOM are identified by source in the requested RTSTRUCT.
 
 **What the program removes, and says so.** Before post‑processing, four
 rules drop a structure or a piece of it: a large organ that appears only in
@@ -185,32 +168,12 @@ registry, with the rule and the volume, and nothing about it is written into
 the RTSTRUCT. What the four rules do not name is delivered as the model drew
 it.
 
-**Choosing what runs.** Each series in *Run now* has its own mode, and the
-night watcher always runs AUTO. The anatomy base (`total_v3` on CT, or
-`total_mr` on MR) always runs first; in AUTO the program then reads what the
-base drew (head, head and neck, chest, abdomen, pelvis) and adds that
-region's anatomy tasks — the text of the exam adds nothing —; FAST adds the
-chest sources and, for a head CT, head glands and the CT-brain model; CUSTOM opens a panel under
-the series with protocols, a switch per task, model comparison and, computed
-by the server, the list of what each file will contain. Each protocol switches
-on its own tasks only; touching a task by hand turns the protocol off and
-"free selection" on. A task the workstation has no memory for is skipped on
-the spot, the rest is delivered, and the card says which one, how much it
-asked for and how much there was; when the workstation is idle and the task
-fits, it runs again on its own and replaces the partial files. The delivered
-set is written before the complete one, and each file comes out whole or not
-at all. Each task's «?» shows
-how long it takes (fast / regular / slow / ultra‑slow). The label is the
-ratio to the base on the same series and machine where that was measured —
-four tasks so far: the base itself, `trunk_cavities`, `breasts` and
-`abdominal_muscles`. Every other task carries an estimate from the model's
-shape, shown with a `~` in front, and an estimate never says ultra‑slow.
+**Choosing what runs.** The MEASURED badge identifies four tasks so far: the base itself (`total_v3`), `trunk_cavities`, `breasts`, and `abdominal_muscles`. Other task times are estimates. On CT, AUTO uses the detected anatomy to select tasks. On MRI, a compatible cranial T1 can use NEURO RT. CUSTOM can select additional tasks and individual structures. If some requested structures are missing and a valid RTSTRUCT was delivered, the queue records a warning. If no structure has valid contours for the intended delivery, the queue explains the failure.
 
 **When the Suite looks for findings.** In CUSTOM, the operator may select a
 finding task or use a workstation protocol that includes one. The protocol asks
 for the declaration each time the series is sent to the queue. Thoracic Anatomy
-includes lung nodule detection. A 3D Reconstructions study protocol writes
-RTSTRUCTs and a label map for reconstruction in the series' `_RadAI` folder.
+includes lung nodule detection. The reconstruction viewer opens the RTSTRUCT selected in the series, including compatible imported files.
 
 For Overnight Run, lung nodule detection starts off for each new run.
 Installing the LUNG RT module enables the switch, including on a compact
@@ -219,15 +182,12 @@ adds the task to CT series in which the watcher identifies the thorax during
 that run. Running nodule detection alone in LUNG RT leaves the series eligible
 for full anatomical segmentation in ContourLab.
 
-On MRI outside FAST, identifying liver automatically triggers the liver segment
+On abdominal MRI, identifying liver automatically triggers the liver segment
 and lesion tasks. When present, CT lung nodules and MR liver lesions are
-included in both `RadAI_FULL` and `RadAI_STUDY`. The CT liver lesion task writes
-a separate findings file and contributes to a requested raw TotalSegmentator
-set. CT liver lesions are excluded from FULL and STUDY. The log identifies
+included in the selected delivery. Optional findings requested in a custom run are recorded with their source. The log identifies
 finding tasks with `ACHADO`. The pleural and pericardial effusion task is anatomy of
-the chest here: it runs in FAST and AUTO when the chest is in the field, and
-the effusions themselves go to the complete set only — in the delivered
-sets the pericardial effusion is inside the radiotherapy heart, and the lungs
+the chest here: it runs in AUTO when the chest is in the field, and
+the effusions can be delivered as individual ROIs in FULL or by explicit CUSTOM selection. In AUTO the pericardial effusion is inside the radiotherapy heart, and the lungs
 come without the pleural effusion. The anatomy model does draw
 renal cysts by default, as a structure of their own beside the kidney;
 drawing is not diagnosing.
@@ -240,13 +200,11 @@ that reaches the neck is not a head‑and‑neck CT. The levels come out with th
 names of the consensus of Grégoire et al. 2014 (the 2013 update), through the
 label map the model's authors publish with the weights (`Lvl_Ia` to
 `Lvl_VIII`), one colour per level, after the authors' own post‑processing;
-with weights of another version the neutral names come back. They go to the
-complete set. **Two things from them go to the delivered set, and that is a
-declared risk:** `LNL_UNION_ai`, the union of levels Ia to VIIb, described in
+with weights of another version the neutral names come back. The advanced head-and-neck protocol also delivers the individual levels. **AUTO and the simple protocol include the following structures:** `LNL_UNION_ai`, the union of levels Ia to VIIb, described in
 the file as an unapproved anatomical union that is **neither an OAR nor a
 CTV** — the elective volume is a medical decision —, and the parotid glands
 of level VIII minus the sternocleidomastoid — the only parotids in the
-delivered set: without the levels (in FAST, for example) the delivered set
+delivered set: without the levels the delivered set
 has no parotid, and the TotalSegmentator parotids stay in the complete set
 as `Parotid_L_ts` and `Parotid_R_ts`, for comparison. Nothing stops a planning
 system from using the union as a dose constraint; that is the reviewer's
@@ -286,9 +244,7 @@ after uninstalling — the Privacy Policy in the app lists what stays and where.
 **Nothing comes out approved.** `ApprovalStatus = UNAPPROVED` in the file and
 a provenance suffix on every structure name (`_ai`, `_ts`, `_nv`, `_cds`,
 `_mse`, `_lnl`, and a three‑letter one for each optional task, listed in
-`NOTICE`). The delivered set names itself an unapproved suggestion; the
-comparison sets carry a `RadAI_<engine>` label (`RadAI_TS`, `RadAI_NV`…) and
-say they are not the delivered one.
+`NOTICE`). The chosen delivery carries the STUDY or FULL label. Requested comparisons share this file and identify the model by an ROI prefix (`TS_`, `NV_`, `CADS_`, or `MOOSE_`).
 There is no path through the program that produces an approved structure.
 
 A fourth property is worth stating with them: **the metrics measure divergence
@@ -517,8 +473,7 @@ comparison engines run only when asked for, series by series. The CT brain
 model draws the brainstem and the optic chiasm (which go to the delivered
 set) and the cerebellum, the ventricles and the midline (complete set only),
 on CT and only with the brain in the field; the brain itself and the optic
-nerves stay those of the TotalSegmentator. On FAST head CT, brainstem and
-chiasm are included without writing the full set.
+nerves stay those of the TotalSegmentator. The CT brainstem and chiasm can be delivered directly in the STUDY.
 
 `LICENSE` and `NOTICE` are a condition of the Apache‑2.0 licence; the
 packagers abort without them. `NOTICE` carries the name and address of the
