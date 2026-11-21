@@ -1,0 +1,14 @@
+Figuras no botão de ajuda das tarefas
+
+O catálogo público identifica a fonte e a licença de cada figura. A legenda
+“Atlas anatômico de referência” indica anatomia ilustrada. A comparação de
+modelos na articulação costovertebral usa duas capturas específicas em um
+complemento facultativo de estação.
+
+Quem dispõe das capturas e de autorização para usá-las na estação pode
+copiar costelas-modelos.png e costelas-complemento.png para a subpasta
+ajudas-locais do acervo da suíte. O mesmo recurso aceita as capturas locais
+da-rocards.png e pulmoes.png. Cada nome corresponde a uma impressão SHA-256
+pré-registrada no programa. A ajuda exibe imagens locais apenas no navegador
+da própria estação. Os arquivos ficam fora da exportação de configurações e
+podem ser retirados dessa subpasta a qualquer momento.

@@ -1,0 +1,353 @@
+{
+  "nervo-optico": {
+    "tasks": [
+      "head_glands_cavities"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Nervus opticus sinister",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA50878.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "mandibula": {
+    "tasks": [
+      "craniofacial_structures"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Mandibula",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA52748.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "esternocleidomastoideo": {
+    "tasks": [
+      "headneck_muscles"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Musculus sternocleidomastoideus dexter",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA13408.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "hioide": {
+    "tasks": [
+      "headneck_bones_vessels"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Os hyoideum",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA52749.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "masseter": {
+    "tasks": [
+      "head_muscles"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Musculus masseter dexter · pars superficialis",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA49001.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "diafragma": {
+    "tasks": [
+      "trunk_cavities"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Diaphragma · limite toracoabdominal",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA13295.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "reto-abdominal": {
+    "tasks": [
+      "abdominal_muscles"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Musculus rectus abdominis sinister",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA13378.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "vertebra-lombar": {
+    "tasks": [
+      "vertebrae_body",
+      "vertebrae_mr"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Vertebra lumbalis III",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA13074.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "disco-intervertebral": {
+    "tasks": [
+      "vertebrae_body",
+      "vertebrae_mr"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Discus intervertebralis L3–L4",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA16035.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "canino": {
+    "tasks": [
+      "teeth"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Dens caninus mandibularis dexter",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA55686.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "cerebelo": {
+    "tasks": [
+      "cranio_ct"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Cerebellum",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA67944.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "mama": {
+    "tasks": [
+      "breasts"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Mamma · secção sagital",
+    "autor": "National Cancer Institute (SEER) · YolanC",
+    "url": "https://commons.wikimedia.org/wiki/File:Breast_anatomy_drawing.png",
+    "licenca": "Public domain",
+    "licenca_url": "https://creativecommons.org/publicdomain/mark/1.0/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "musculos-orbitarios": {
+    "tasks": [
+      "oculomotor_muscles"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Musculi externi bulbi oculi",
+    "autor": "Dennis M. DePace, PhD",
+    "url": "https://commons.wikimedia.org/wiki/File:Extraocular_Eye_Muscles.png",
+    "licenca": "CC0",
+    "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "segmentos-hepaticos": {
+    "tasks": [
+      "liver_segments",
+      "liver_segments_mr"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Couinaud · I–VIII",
+    "autor": "Bernd Brägelmann Braegel Mit freundlicher Genehmigung von Prof. Dr. Hans-Holger Jend",
+    "url": "https://commons.wikimedia.org/wiki/File:Lebersegmente.png",
+    "licenca": "CC BY 3.0",
+    "licenca_url": "https://creativecommons.org/licenses/by/3.0",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "nodulo-pulmonar": {
+    "tasks": [
+      "lung_nodules"
+    ],
+    "tipo": "Imagem radiológica de referência",
+    "titulo": "Nódulo pulmonar solitário · CT",
+    "autor": "Lourens Willekes, Cherif Boutros and Michael A. Goldfarb · Stevenfruitsmaak",
+    "url": "https://commons.wikimedia.org/wiki/File:Solitary_pulmonary_nodule_CT_arrow.jpg",
+    "licenca": "CC BY 2.0",
+    "licenca_url": "https://creativecommons.org/licenses/by/2.0",
+    "transformacao": "Recorte centrado no pulmão e na seta, sem as anotações periféricas do aparelho."
+  },
+  "metastases-tc": {
+    "tasks": [
+      "liver_lesions"
+    ],
+    "tipo": "Imagem radiológica de referência",
+    "titulo": "Metástases hepáticas · CT",
+    "autor": "Hellerhoff",
+    "url": "https://commons.wikimedia.org/wiki/File:MANEC_Leberfiliae_49jm.jpg",
+    "licenca": "CC BY-SA 3.0",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/3.0",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "proteses-quadril": {
+    "tasks": [
+      "hip_implant"
+    ],
+    "tipo": "Segmentação publicada pelos autores",
+    "titulo": "Hip implant",
+    "autor": "Wasserthal et al. · TotalSegmentator",
+    "url": "https://github.com/wasserth/TotalSegmentator/blob/88060518cc3d556fbcf1894d05f1d1e65de52277/resources/imgs/overview_subclasses_2.png",
+    "licenca": "Apache-2.0",
+    "licenca_url": "https://www.apache.org/licenses/LICENSE-2.0",
+    "transformacao": "Recorte e redimensionamento"
+  },
+  "derrame-pleural-pericardico": {
+    "tasks": [
+      "pleural_pericard_effusion"
+    ],
+    "tipo": "Segmentação publicada pelos autores",
+    "titulo": "Pericardial effusion · Pleural effusion",
+    "autor": "Wasserthal et al. · TotalSegmentator",
+    "url": "https://github.com/wasserth/TotalSegmentator/blob/88060518cc3d556fbcf1894d05f1d1e65de52277/resources/imgs/overview_subclasses_2.png",
+    "licenca": "Apache-2.0",
+    "licenca_url": "https://www.apache.org/licenses/LICENSE-2.0",
+    "transformacao": "Recorte e redimensionamento"
+  },
+  "vasos-e-vias-aereas": {
+    "tasks": [
+      "lung_vessels"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Lung vessels & airways · TotalSegmentator",
+    "autor": "Wasserthal et al. · TotalSegmentator",
+    "url": "https://github.com/wasserth/TotalSegmentator/blob/88060518cc3d556fbcf1894d05f1d1e65de52277/resources/imgs/overview_subclasses_2.png",
+    "licenca": "Apache-2.0",
+    "licenca_url": "https://www.apache.org/licenses/LICENSE-2.0",
+    "transformacao": "Recorte e redimensionamento"
+  },
+  "base-rm": {
+    "tasks": [
+      "total_mr"
+    ],
+    "tipo": "Segmentação publicada pelos autores",
+    "titulo": "TotalSegmentator MR · total_mr",
+    "autor": "Wasserthal et al. · TotalSegmentator",
+    "url": "https://github.com/wasserth/TotalSegmentator/blob/88060518cc3d556fbcf1894d05f1d1e65de52277/resources/imgs/overview_classes_mr.png",
+    "licenca": "Apache-2.0",
+    "licenca_url": "https://www.apache.org/licenses/LICENSE-2.0",
+    "transformacao": "Recorte e redimensionamento"
+  },
+  "niveis-cervicais": {
+    "tasks": [
+      "hnlnl"
+    ],
+    "tipo": "Segmentação publicada pelos autores",
+    "titulo": "Níveis cervicais · Fig. 2",
+    "autor": "Weissmann et al., 2023",
+    "url": "https://doi.org/10.3389/fonc.2023.1115258",
+    "licenca": "CC BY 4.0",
+    "licenca_url": "https://creativecommons.org/licenses/by/4.0/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "metastases-rm": {
+    "tasks": [
+      "liver_lesions_mr"
+    ],
+    "tipo": "Imagem radiológica de referência",
+    "titulo": "Metástases hepáticas · MR · Fig. 2",
+    "autor": "Granata et al., 2025",
+    "url": "https://doi.org/10.3389/fonc.2025.1630424",
+    "licenca": "CC BY 4.0",
+    "licenca_url": "https://creativecommons.org/licenses/by/4.0/",
+    "transformacao": "Preparação da figura para exibição em PNG"
+  },
+  "descendente-anterior-atlas": {
+    "tasks": [
+      "rocards_lad"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Ramus interventricularis anterior arteriae coronariae sinistrae",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA3862nsn.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "PNG original do atlas BodyParts3D",
+    "sha256": "b9cea3d61b716e878f64b92bb9411090bcca27dd98643ee7c9adfcc2c0b4eee6"
+  },
+  "arco-costal-atlas": {
+    "tasks": [
+      "moose_ribs"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Costa VII dextra",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA8229.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "PNG original do atlas BodyParts3D",
+    "sha256": "8888ec18ccb754cb9cf24ab302e5d6f40d827a97df5abd49541aa33994aaeccc"
+  },
+  "pulmao-atlas": {
+    "tasks": [
+      "total_v3"
+    ],
+    "tipo": "Atlas anatômico de referência",
+    "titulo": "Lobus superior pulmonis dextri",
+    "autor": "BodyParts3D © The Database Center for Life Science · K. M. Moerman",
+    "url": "https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/png/FMA7333.png",
+    "licenca": "CC BY-SA 2.1 JP",
+    "licenca_url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+    "transformacao": "PNG original do atlas BodyParts3D",
+    "sha256": "7fd07ea4059382c468a897af41c9939309b89fcb8c1c2597e0e002afe19441e7"
+  },
+  "reto-jhu": {
+    "tasks": [
+      "jhu_rectum"
+    ],
+    "tipo": "TC de planejamento prostático sem contorno e com o reto segmentado pelo Johns Hopkins.",
+    "titulo": "Prostate Anatomical Edge Cases (v1, 2023)",
+    "autor": "Thompson RF, Kanwar A, Merz B, Cohen E, Fisher H, Rana S, Claunch C, Hung A · The Cancer Imaging Archive",
+    "url": "https://doi.org/10.7937/QSTF-ST65",
+    "licenca": "CC BY 4.0",
+    "licenca_url": "https://creativecommons.org/licenses/by/4.0/",
+    "transformacao": "Inferência do modelo pélvico Johns Hopkins em TC de planejamento pública.",
+    "publicacao": "https://doi.org/10.1016/j.phro.2023.100413",
+    "repositorio": "https://doi.org/10.1007/s10278-013-9622-7",
+    "sha256": "256197289d41d975e963e54f5e10c86cb9104c3873f7a66f39c25d0542a39d44"
+  },
+  "reto-inferior": {
+    "tasks": [
+      "jhu_rectum"
+    ],
+    "tipo": "Tuberosidades isquiáticas no limite inferior do exemplo.",
+    "titulo": "Prostate Anatomical Edge Cases (v1, 2023)",
+    "autor": "Thompson RF, Kanwar A, Merz B, Cohen E, Fisher H, Rana S, Claunch C, Hung A · The Cancer Imaging Archive",
+    "url": "https://doi.org/10.7937/QSTF-ST65",
+    "licenca": "CC BY 4.0",
+    "licenca_url": "https://creativecommons.org/licenses/by/4.0/",
+    "transformacao": "Seleção de cortes para ilustrar os marcos ósseos.",
+    "publicacao": "https://doi.org/10.1016/j.phro.2023.100413",
+    "repositorio": "https://doi.org/10.1007/s10278-013-9622-7",
+    "sha256": "6c08134d416a1eb09b00738c157c714aed0291cc8f4a04d5c5d6f65a175bbe70"
+  },
+  "reto-superior": {
+    "tasks": [
+      "jhu_rectum"
+    ],
+    "tipo": "Transição entre reto e sigmoide no exemplo pélvico.",
+    "titulo": "Prostate Anatomical Edge Cases (v1, 2023)",
+    "autor": "Thompson RF, Kanwar A, Merz B, Cohen E, Fisher H, Rana S, Claunch C, Hung A · The Cancer Imaging Archive",
+    "url": "https://doi.org/10.7937/QSTF-ST65",
+    "licenca": "CC BY 4.0",
+    "licenca_url": "https://creativecommons.org/licenses/by/4.0/",
+    "transformacao": "Seleção de cortes e sobreposição para ilustrar o limite superior.",
+    "publicacao": "https://doi.org/10.1016/j.phro.2023.100413",
+    "repositorio": "https://doi.org/10.1007/s10278-013-9622-7",
+    "sha256": "61ac525d69166dbfc7aa78780ff76b512095d21c4ee7b1a473404b48987e6858"
+  }
+}

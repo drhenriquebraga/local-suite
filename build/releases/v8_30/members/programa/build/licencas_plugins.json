@@ -1,0 +1,668 @@
+[
+  {
+    "id": "neuro-rt-plugin",
+    "titulo": "NEURO RT",
+    "finalidade": "Execução e revisão das ferramentas de anatomia encefálica, tumores e projeções biplanares.",
+    "licenca_codigo": "MIT",
+    "licenca_pesos": "Sem pesos próprios.",
+    "fontes": [
+      {
+        "rotulo": "Código e licença",
+        "url": "https://github.com/drhenriquebraga/neuro-rt"
+      },
+      {
+        "rotulo": "Distribuição 1.3.13",
+        "url": "https://github.com/drhenriquebraga/neuro-rt/releases/tag/v1.3.13"
+      }
+    ],
+    "autoria": "Radioterapia.AI e colaboradores",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Radioterapia.AI",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "1.3.13"
+    ],
+    "observacoes": "O SETUP é disponibilizado como opção. As dez entradas de recursos do plugin se preparam separadamente do código. A instalação presente na estação pode ter versão diferente.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "base"
+  },
+  {
+    "id": "neuro-raidionics-engine",
+    "titulo": "RaidionicsSeg",
+    "finalidade": "Inferência de modelos ONNX de neuro-oncologia e etapas de preparação.",
+    "licenca_codigo": "BSD-2-Clause",
+    "licenca_pesos": "Sem pesos próprios.",
+    "fontes": [
+      {
+        "rotulo": "Código",
+        "url": "https://github.com/dbouget/raidionics_seg_lib"
+      },
+      {
+        "rotulo": "Distribuição do motor",
+        "url": "https://pypi.org/project/raidionicsseg/1.5.2/"
+      },
+      {
+        "rotulo": "Artigo",
+        "url": "https://doi.org/10.1038/s41598-023-42048-7"
+      }
+    ],
+    "autoria": "SINTEF Digital, Health Research",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "1.5.2"
+    ],
+    "observacoes": "Motor técnico da receita de recursos de NEURO RT.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "recursos-modelos"
+  },
+  {
+    "id": "neuro-mri-brain",
+    "titulo": "Raidionics · encéfalo",
+    "finalidade": "Máscara auxiliar da região encefálica usada no preparo.",
+    "licenca_codigo": "BSD-2-Clause (RaidionicsSeg)",
+    "licenca_pesos": "BSD-2-Clause (Raidionics-models)",
+    "fontes": [
+      {
+        "rotulo": "Pesos e versões",
+        "url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0"
+      },
+      {
+        "rotulo": "Licença dos pesos",
+        "url": "https://github.com/raidionics/Raidionics-models/blob/78a810e490412614dc554158236ee9930a8193f1/LICENSE"
+      },
+      {
+        "rotulo": "Motor de inferência",
+        "url": "https://github.com/dbouget/raidionics_seg_lib"
+      }
+    ],
+    "autoria": "David Bouget e colaboradores; SINTEF Digital",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "1.2.0"
+    ],
+    "observacoes": "MRI_Brain consta na receita de recursos 1.3.0 para o plugin 1.3.13.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "recursos-modelos"
+  },
+  {
+    "id": "neuro-mri-gbm",
+    "titulo": "Raidionics · glioblastoma pré-operatório",
+    "finalidade": "Segmentação de glioblastoma na RM pré-operatória.",
+    "licenca_codigo": "BSD-2-Clause (RaidionicsSeg)",
+    "licenca_pesos": "BSD-2-Clause (Raidionics-models)",
+    "fontes": [
+      {
+        "rotulo": "Pesos e versões",
+        "url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0"
+      },
+      {
+        "rotulo": "Licença dos pesos",
+        "url": "https://github.com/raidionics/Raidionics-models/blob/78a810e490412614dc554158236ee9930a8193f1/LICENSE"
+      },
+      {
+        "rotulo": "Motor de inferência",
+        "url": "https://github.com/dbouget/raidionics_seg_lib"
+      }
+    ],
+    "autoria": "David Bouget e colaboradores; SINTEF Digital",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "1.2.0"
+    ],
+    "observacoes": "MRI_GBM consta na receita de recursos 1.3.0 para o plugin 1.3.13.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "recursos-modelos"
+  },
+  {
+    "id": "neuro-mri-lgglioma",
+    "titulo": "Raidionics · glioma de baixo grau",
+    "finalidade": "Segmentação de glioma de baixo grau na RM.",
+    "licenca_codigo": "BSD-2-Clause (RaidionicsSeg)",
+    "licenca_pesos": "BSD-2-Clause (Raidionics-models)",
+    "fontes": [
+      {
+        "rotulo": "Pesos e versões",
+        "url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0"
+      },
+      {
+        "rotulo": "Licença dos pesos",
+        "url": "https://github.com/raidionics/Raidionics-models/blob/78a810e490412614dc554158236ee9930a8193f1/LICENSE"
+      },
+      {
+        "rotulo": "Motor de inferência",
+        "url": "https://github.com/dbouget/raidionics_seg_lib"
+      }
+    ],
+    "autoria": "David Bouget e colaboradores; SINTEF Digital",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "1.2.0"
+    ],
+    "observacoes": "MRI_LGGlioma consta na receita de recursos 1.3.0 para o plugin 1.3.13.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "recursos-modelos"
+  },
+  {
+    "id": "neuro-mri-meningioma",
+    "titulo": "Raidionics · meningioma",
+    "finalidade": "Segmentação de meningioma na RM.",
+    "licenca_codigo": "BSD-2-Clause (RaidionicsSeg)",
+    "licenca_pesos": "BSD-2-Clause (Raidionics-models)",
+    "fontes": [
+      {
+        "rotulo": "Pesos e versões",
+        "url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0"
+      },
+      {
+        "rotulo": "Licença dos pesos",
+        "url": "https://github.com/raidionics/Raidionics-models/blob/78a810e490412614dc554158236ee9930a8193f1/LICENSE"
+      },
+      {
+        "rotulo": "Motor de inferência",
+        "url": "https://github.com/dbouget/raidionics_seg_lib"
+      }
+    ],
+    "autoria": "David Bouget e colaboradores; SINTEF Digital",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "1.2.0"
+    ],
+    "observacoes": "MRI_Meningioma consta na receita de recursos 1.3.0 para o plugin 1.3.13.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "recursos-modelos"
+  },
+  {
+    "id": "neuro-mri-metastasis",
+    "titulo": "Raidionics · metástase",
+    "finalidade": "Segmentação de metástase encefálica na RM.",
+    "licenca_codigo": "BSD-2-Clause (RaidionicsSeg)",
+    "licenca_pesos": "BSD-2-Clause (Raidionics-models)",
+    "fontes": [
+      {
+        "rotulo": "Pesos e versões",
+        "url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0"
+      },
+      {
+        "rotulo": "Licença dos pesos",
+        "url": "https://github.com/raidionics/Raidionics-models/blob/78a810e490412614dc554158236ee9930a8193f1/LICENSE"
+      },
+      {
+        "rotulo": "Motor de inferência",
+        "url": "https://github.com/dbouget/raidionics_seg_lib"
+      }
+    ],
+    "autoria": "David Bouget e colaboradores; SINTEF Digital",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "1.2.0"
+    ],
+    "observacoes": "MRI_Metastasis consta na receita de recursos 1.3.0 para o plugin 1.3.13.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "recursos-modelos"
+  },
+  {
+    "id": "neuro-mri-gbm-postop-fv-1p",
+    "titulo": "Raidionics · glioblastoma pós-operatório (uma sequência)",
+    "finalidade": "Segmentação pós-operatória de glioblastoma na RM.",
+    "licenca_codigo": "BSD-2-Clause (RaidionicsSeg)",
+    "licenca_pesos": "BSD-2-Clause (Raidionics-models)",
+    "fontes": [
+      {
+        "rotulo": "Pesos e versões",
+        "url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0"
+      },
+      {
+        "rotulo": "Licença dos pesos",
+        "url": "https://github.com/raidionics/Raidionics-models/blob/78a810e490412614dc554158236ee9930a8193f1/LICENSE"
+      },
+      {
+        "rotulo": "Motor de inferência",
+        "url": "https://github.com/dbouget/raidionics_seg_lib"
+      }
+    ],
+    "autoria": "David Bouget e colaboradores; SINTEF Digital",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "1.2.0"
+    ],
+    "observacoes": "MRI_GBM_Postop_FV_1p consta na receita de recursos 1.3.0 para o plugin 1.3.13.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "recursos-modelos"
+  },
+  {
+    "id": "neuro-mri-gbm-postop-fv-3p",
+    "titulo": "Raidionics · glioblastoma pós-operatório (três sequências)",
+    "finalidade": "Segmentação pós-operatória com T1 pós-contraste, T1 e FLAIR alinhadas.",
+    "licenca_codigo": "BSD-2-Clause (RaidionicsSeg)",
+    "licenca_pesos": "BSD-2-Clause (Raidionics-models)",
+    "fontes": [
+      {
+        "rotulo": "Pesos e versões",
+        "url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0"
+      },
+      {
+        "rotulo": "Licença dos pesos",
+        "url": "https://github.com/raidionics/Raidionics-models/blob/78a810e490412614dc554158236ee9930a8193f1/LICENSE"
+      },
+      {
+        "rotulo": "Motor de inferência",
+        "url": "https://github.com/dbouget/raidionics_seg_lib"
+      }
+    ],
+    "autoria": "David Bouget e colaboradores; SINTEF Digital",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "1.2.0"
+    ],
+    "observacoes": "MRI_GBM_Postop_FV_3p consta na receita de recursos 1.3.0 para o plugin 1.3.13.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "recursos-modelos"
+  },
+  {
+    "id": "neuro-glioma-attention-unet3d",
+    "titulo": "Attention U-Net 3D · glioma",
+    "finalidade": "Segmentação de glioma com quatro sequências de RM.",
+    "licenca_codigo": "MIT (integração original); Apache-2.0 (MONAI)",
+    "licenca_pesos": "MIT, conforme cartão do checkpoint",
+    "fontes": [
+      {
+        "rotulo": "Implementação",
+        "url": "https://github.com/motazalqaoud/Brain-Tumor-Segmentation/tree/df041271344dcab6bd52a584bbbff5f4bf8103b1"
+      },
+      {
+        "rotulo": "Checkpoint e licença",
+        "url": "https://huggingface.co/motazalqaoud/brain-tumor-segmentation-weights/tree/d36aa60aa5535fcc25fe935282586c8453ab255e"
+      },
+      {
+        "rotulo": "MONAI",
+        "url": "https://github.com/Project-MONAI/MONAI"
+      }
+    ],
+    "autoria": "Motaz Alqaoud; MONAI Consortium",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "df041271344dcab6bd52a584bbbff5f4bf8103b1",
+      "d36aa60aa5535fcc25fe935282586c8453ab255e"
+    ],
+    "observacoes": "Requer T1, T1c, T2 e FLAIR. Integra a receita de recursos do NEURO RT.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "recursos-modelos"
+  },
+  {
+    "id": "neuro-anatomy-synthseg",
+    "titulo": "SynthSeg · anatomia encefálica",
+    "finalidade": "Parcelação da anatomia encefálica em RM. A suíte pode agrupar os rótulos para o STUDY.",
+    "licenca_codigo": "Apache-2.0 (arquitetura SynthSeg); BSD-3-Clause (adaptação DIPY)",
+    "licenca_pesos": "Apache-2.0, conforme arquivo do checkpoint preparado",
+    "fontes": [
+      {
+        "rotulo": "Arquitetura e licença",
+        "url": "https://github.com/BBillot/SynthSeg/tree/2a2aa3bbfccb83f8253a51ca8b329b9938a2646d"
+      },
+      {
+        "rotulo": "Porta PyTorch usada",
+        "url": "https://github.com/dipy/dipy/blob/407e9319cbfe3d05304682d317363ecd09a83fdc/dipy/nn/torch/synthseg.py"
+      },
+      {
+        "rotulo": "Referência científica",
+        "url": "https://doi.org/10.1073/pnas.2216399120"
+      }
+    ],
+    "autoria": "Benjamin Billot e colaboradores; DIPY",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "407e9319cbfe3d05304682d317363ecd09a83fdc"
+    ],
+    "observacoes": "A implementação PyTorch compatível com a receita corresponde a 33 canais, incluindo fundo. As licenças de arquitetura, DIPY e pesos acompanham o recurso.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "recursos-modelos"
+  },
+  {
+    "id": "neuro-anatomy-cerebra-ants",
+    "titulo": "CerebrA, MNI-ICBM152 e ANTsPy",
+    "finalidade": "Transferência dos rótulos anatômicos do atlas para a RM do indivíduo por registro.",
+    "licenca_codigo": "Apache-2.0 (ANTsPy)",
+    "licenca_pesos": "Atlas CerebrA CC0-1.0. Template MNI ICBM152 sob a licença própria de Louis Collins/McGill, com conservação do aviso de copyright. Sem pesos de rede.",
+    "fontes": [
+      {
+        "rotulo": "Atlas e termos",
+        "url": "https://doi.gin.g-node.org/10.12751/g-node.be5e62/"
+      },
+      {
+        "rotulo": "Template MNI",
+        "url": "https://www.bic.mni.mcgill.ca/ServicesAtlases/ICBM152NLin2009"
+      },
+      {
+        "rotulo": "Licença de ANTsPy",
+        "url": "https://github.com/ANTsX/ANTsPy/blob/v0.6.3/LICENSE"
+      }
+    ],
+    "autoria": "Manera et al.; Louis Collins e McConnell Brain Imaging Centre/McGill; ANTsX",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "cerebra-mni2009c-sym-v1",
+      "ANTsPy 0.6.3"
+    ],
+    "observacoes": "LICENSE.template-MNI.txt acompanha os arquivos de imagem fixados na receita do plugin.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "recursos-modelos"
+  },
+  {
+    "id": "neuro-metastasis-qtim",
+    "titulo": "QTIM Brain-Mets-Seg · candidato",
+    "finalidade": "Método alternativo para pesquisa em metástases cerebrais.",
+    "licenca_codigo": "Apache-2.0",
+    "licenca_pesos": "Apache-2.0, como declarado pelos autores",
+    "fontes": [
+      {
+        "rotulo": "Código e termos dos pesos",
+        "url": "https://github.com/QTIM-Lab/Brain-Mets-Seg"
+      }
+    ],
+    "autoria": "QTIM Lab",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Pesquisa experimental · ausente da distribuição"
+    ],
+    "versoes": [
+      "Candidato, sem revisão de pesos no SETUP 1.3.13"
+    ],
+    "observacoes": "Entrada experimental do catálogo. A receita distribuída não instala o método.",
+    "perfis": [],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "fora-da-distribuicao"
+  },
+  {
+    "id": "neuro-nidus-projecoes",
+    "titulo": "Nidus RT · projeções biplanares",
+    "finalidade": "Construção geométrica da interseção dos desenhos manuais em duas projeções.",
+    "licenca_codigo": "Apache-2.0 para o módulo Nidus original; MIT para o invólucro do plugin",
+    "licenca_pesos": "Sem pesos próprios.",
+    "fontes": [
+      {
+        "rotulo": "Nidus RT",
+        "url": "https://github.com/drhenriquebraga/nidus-rt"
+      },
+      {
+        "rotulo": "NEURO RT",
+        "url": "https://github.com/drhenriquebraga/neuro-rt"
+      }
+    ],
+    "autoria": "Radioterapia.AI e colaboradores",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Radioterapia.AI",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "4067bddc3c875af62c6917362661d3d3d1d0036b",
+      "NEURO RT 1.3.13"
+    ],
+    "observacoes": "A ferramenta usa os traçados manuais e o algoritmo geométrico. O aviso Apache-2.0 do Nidus acompanha o plugin.",
+    "perfis": [
+      "plugin-neuro"
+    ],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "base"
+  },
+  {
+    "id": "neuro-ct-sintetica-piloto",
+    "titulo": "TotalSynth MR e ImpactSeg · piloto de TC sintética",
+    "finalidade": "Piloto experimental para estimar uma TC a partir de RM antes do Buti.",
+    "licenca_codigo": "Apache-2.0 na implementação de referência",
+    "licenca_pesos": "Condições divergentes para os pesos. O cartão TotalSynth indica Apache-2.0 e a distribuição impact-synth-konfai indica CC BY-NC 4.0.",
+    "fontes": [
+      {
+        "rotulo": "ImpactSynth",
+        "url": "https://huggingface.co/VBoussot/ImpactSynth/tree/b8c114de2eb805a620c16c21d6b27a1af70d531e"
+      },
+      {
+        "rotulo": "ImpactSeg",
+        "url": "https://huggingface.co/VBoussot/ImpactSeg/tree/8307240006e0414e317516586fcb946804b732b8"
+      },
+      {
+        "rotulo": "Termos da distribuição",
+        "url": "https://pypi.org/project/impact-synth-konfai/"
+      }
+    ],
+    "autoria": "Valentin Boussot e colaboradores",
+    "integracao": "NEURO-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Pesquisa experimental · ausente da distribuição"
+    ],
+    "versoes": [
+      "Piloto de desenvolvimento 1.2.0"
+    ],
+    "observacoes": "O catálogo distribuído do NEURO RT 1.3.13 e sua receita não incluem essa capacidade. A versão de desenvolvimento a registra separadamente.",
+    "perfis": [],
+    "ferramenta": "neuro-rt",
+    "selecao_plugin": "fora-da-distribuicao"
+  },
+  {
+    "id": "lung-rt-plugin",
+    "titulo": "LUNG RT",
+    "finalidade": "Rastreio e acompanhamento pulmonar, revisão de nódulos, séries 4D e pré-laudos experimentais.",
+    "licenca_codigo": "MIT",
+    "licenca_pesos": "Sem pesos próprios.",
+    "fontes": [
+      {
+        "rotulo": "Código e licença",
+        "url": "https://github.com/drhenriquebraga/lung-rt"
+      },
+      {
+        "rotulo": "Distribuição 1.1.14",
+        "url": "https://github.com/drhenriquebraga/lung-rt/releases/tag/v1.1.14"
+      }
+    ],
+    "autoria": "Radioterapia.AI e colaboradores",
+    "integracao": "LUNG-RT · módulo opcional da Local Suite",
+    "origem": "Radioterapia.AI",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "1.1.14"
+    ],
+    "observacoes": "As rotinas de rastreio usam os serviços do host. Recursos de laudo têm aceite e preparo próprios.",
+    "perfis": [
+      "plugin-lung"
+    ],
+    "ferramenta": "lung-rt",
+    "selecao_plugin": "base"
+  },
+  {
+    "id": "lung-nv-reason-ct",
+    "titulo": "NV-Reason-CT · pré-laudos em TC",
+    "finalidade": "Geração de rascunho experimental de laudo de TC em execução local.",
+    "licenca_codigo": "OpenMDW-1.1 (referência NVIDIA) e MIT (implementação web de jarrelscy)",
+    "licenca_pesos": "OpenMDW-1.1 (pesos NVIDIA e conversão ONNX int4)",
+    "fontes": [
+      {
+        "rotulo": "Modelo e licença NVIDIA",
+        "url": "https://huggingface.co/nvidia/NV-Reason-CT/blob/main/LICENSE"
+      },
+      {
+        "rotulo": "Implementação web",
+        "url": "https://github.com/jarrelscy/nv-reason-ct-web/tree/ce6bbe93cebc0ade5a6f1210ee8cef50fff4ead2"
+      },
+      {
+        "rotulo": "Pesos ONNX",
+        "url": "https://huggingface.co/jarrelscy/nv-reason-ct-onnx/tree/83b49f5557298933f71bc0db9c8cbc20653c6032"
+      }
+    ],
+    "autoria": "NVIDIA e afiliadas; implementação web e conversão por jarrelscy",
+    "integracao": "LUNG-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "83b49f5557298933f71bc0db9c8cbc20653c6032",
+      "ce6bbe93cebc0ade5a6f1210ee8cef50fff4ead2"
+    ],
+    "observacoes": "O SETUP de código não contém os pesos. A preparação completa do plugin após aceite inclui a receita de laudos. As saídas são rascunhos experimentais.",
+    "perfis": [
+      "plugin-lung"
+    ],
+    "ferramenta": "lung-rt",
+    "selecao_plugin": "laudo"
+  },
+  {
+    "id": "lung-medgemma",
+    "titulo": "MedGemma 1.5 4B · pré-laudos em radiografia",
+    "finalidade": "Geração local de rascunho experimental para radiografias de tórax.",
+    "licenca_codigo": "Implementação do plugin MIT; runtime llama.cpp MIT",
+    "licenca_pesos": "Health AI Developer Foundations (HAI-DEF) Terms of Use; Terms of Use e Prohibited Use Policy aplicáveis à conversão GGUF",
+    "fontes": [
+      {
+        "rotulo": "Cartão do modelo",
+        "url": "https://huggingface.co/google/medgemma-1.5-4b-it"
+      },
+      {
+        "rotulo": "Termos HAI-DEF",
+        "url": "https://developers.google.com/health-ai-developer-foundations/terms"
+      },
+      {
+        "rotulo": "Conversão distribuída",
+        "url": "https://huggingface.co/unsloth/medgemma-1.5-4b-it-GGUF/tree/3855f948626b7ae42bccd082757f15078c53e758"
+      },
+      {
+        "rotulo": "llama.cpp",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/tag/b12212"
+      }
+    ],
+    "autoria": "Google; Unsloth (conversão GGUF); ggml-org",
+    "integracao": "LUNG-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "MedGemma 1.5 4B",
+      "GGUF 3855f948626b7ae42bccd082757f15078c53e758",
+      "llama.cpp b12212"
+    ],
+    "observacoes": "O SETUP de código não contém estes pesos. Ao preparar o plugin completo, a receita RX acompanha a de laudo de TC e inclui modelo GGUF, projetor e runtime.",
+    "perfis": [
+      "plugin-lung"
+    ],
+    "ferramenta": "lung-rt",
+    "selecao_plugin": "laudo_rx"
+  },
+  {
+    "id": "lung-runtime-web",
+    "titulo": "ONNX Runtime Web e Tokenizers.js",
+    "finalidade": "Inferência e tokenização locais para o fluxo experimental de laudos de TC.",
+    "licenca_codigo": "MIT (ONNX Runtime Web); Apache-2.0 (Hugging Face Tokenizers)",
+    "licenca_pesos": "Sem pesos próprios.",
+    "fontes": [
+      {
+        "rotulo": "ONNX Runtime",
+        "url": "https://github.com/microsoft/onnxruntime/blob/main/LICENSE"
+      },
+      {
+        "rotulo": "Tokenizers",
+        "url": "https://github.com/huggingface/tokenizers/blob/main/LICENSE"
+      }
+    ],
+    "autoria": "Microsoft e colaboradores; Hugging Face",
+    "integracao": "LUNG-RT · módulo opcional da Local Suite",
+    "origem": "Terceiros",
+    "ambientes": [
+      "Windows x64 · plugin opcional"
+    ],
+    "versoes": [
+      "Atrelados ao snapshot web ce6bbe93cebc0ade5a6f1210ee8cef50fff4ead2"
+    ],
+    "observacoes": "A distribuição do plugin preserva os textos de terceiros em web/vendor/nvreason.",
+    "perfis": [
+      "plugin-lung"
+    ],
+    "ferramenta": "lung-rt",
+    "selecao_plugin": "base"
+  }
+]
