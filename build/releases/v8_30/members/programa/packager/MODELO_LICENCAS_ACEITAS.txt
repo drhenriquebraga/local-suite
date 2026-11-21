@@ -1,0 +1,94 @@
+MODELO - LICENCAS ACEITAS
+================================================================
+
+ESTE ARQUIVO E UM MODELO. Ele existe para o caminho excepcional descrito no
+LEIA-ME.txt: a maquina tem diretiva de dominio bloqueando PowerShell, a tela
+de licencas nao abre, e o preparo precisa ser disparado por linha de comando.
+
+Normalmente voce NAO usa este arquivo: o preparador grava a versao real
+sozinho, com o que voce marcou na tela.
+
+COMO USAR
+
+  1. Copie este arquivo para a sua pasta de trabalho
+  2. Renomeie para  LICENCAS_ACEITAS.txt
+  3. Preencha os campos e marque [ACEITA] ou [RECUSADA] em cada componente
+  4. Rode:  python build\configurar_ambiente.py --preparo <sua pasta>
+
+Sem este arquivo o preparo se recusa a rodar, e isso e proposital: o aceite
+e a evidencia juridica, e pular a tela nao pode virar pular o aceite.
+
+E TUDO OU NADA: TODAS as linhas precisam ficar [ACEITA]. Uma unica [RECUSADA]
+derruba o preparo -- este programa nao tem versao reduzida. Recusar nao produz
+um pacote menor; produz nao poder usar o aplicativo.
+
+----------------------------------------------------------------
+
+Preparado por ....: <SEU NOME>
+Maquina ..........: <NOME DA MAQUINA>
+Data e hora ......: <AAAA-MM-DD HH:MM:SS>
+Preparador versao : 1.0 (linha de comando)
+
+----------------------------------------------------------------
+
+[ACEITA]   Python
+           versao ..: 3.10.11
+           licenca .: PSF License
+           origem ..: https://www.python.org/ftp/python/
+
+[ACEITA]   TotalSegmentator
+           versao ..: 2.18.0
+           licenca .: Apache-2.0
+           origem ..: https://github.com/wasserth/TotalSegmentator
+
+[ACEITA]   nnU-Net
+           versao ..: 2.7.0
+           licenca .: Apache-2.0
+           origem ..: https://github.com/MIC-DKFZ/nnUNet
+
+[ACEITA]   PyTorch e bibliotecas de apoio
+           versao ..: 2.5.1+cu121
+           licenca .: BSD-3-Clause, MIT, Apache-2.0
+           origem ..: https://pypi.org
+
+[ACEITA]   MONAI (código do bundle de inferência)
+           versao ..: 1.4.0
+           licenca .: Apache-2.0
+           origem ..: https://github.com/Project-MONAI/VISTA
+
+[ACEITA]   NV-Segment-CT (NVIDIA) — PESOS
+           versao ..: vista3d_pretrained_model
+           licenca .: NVIDIA Open Model License Agreement
+           origem ..: https://huggingface.co/nvidia/NV-Segment-CT
+
+[ACEITA]   CADS (variante open) — PESOS
+           versao ..: v1.0.0 · Dataset556_GC256
+           licenca .: CC BY-SA 4.0
+           origem ..: https://github.com/murong-xu/CADS
+
+[ACEITA]   ROCardS — artéria descendente anterior
+           versao ..: 40b80a6
+           licenca .: CC BY-NC 4.0
+           origem ..: https://github.com/AIM-Harvard/ROCardS#license
+           termos ..: Os autores destinam código e pesos à pesquisa não comercial.
+
+[INFORMATIVA]   JHU-MICA — pesos pélvicos
+           versao ..: models
+           licenca .: Não especificada para os pesos
+           origem ..: https://github.com/JHU-MICA/TwoStepMalePelvicCTSeg/releases/tag/models
+
+[ACEITA]   MOOSE (ENHANCE.PET) — PESOS
+           versao ..: moosez-v.3.1.3 · Dataset888_Cardiac, Dataset778_Body_composition e Dataset444_Ribs
+           licenca .: CC BY 4.0
+           origem ..: https://github.com/ENHANCE-PET/MOOSE
+
+[ACEITA]   Níveis linfonodais de cabeça e pescoço (Weissmann et al.)
+           versao ..: Task110_HNLNFixed
+           licenca .: CC0-1.0
+           origem ..: https://github.com/putzfn/HNLNL_autosegmentation_trained_models
+
+[ACEITA]   CT Brain Segmentation Radiotherapy (Buti et al.) — PESOS
+           versao ..: nnUNetTrainer__nnUNetPlans__3d_fullres
+           licenca .: MIT
+           origem ..: https://huggingface.co/GregoryButi/CT_Brain_Segmentation_Radiotherapy
+

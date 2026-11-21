@@ -2,9 +2,9 @@
 
 **Part of the Radioterapia.AI local ecosystem. A study bench for AI segmentation in radiation oncology — teaching and research material, not a medical device.**
 
-`License: Apache-2.0` · `Version: 8.28` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
+`Suite code: Apache-2.0` · `Version: 8.30` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
 
-The 8.28 installer includes the NEURO RT and LUNG RT plugin code. Its [reproducible release build](build/releases/v8_28/README.md) lists the provenance and checksums of the packaged files.
+Version 8.30 adds experimental CT delineation of the left anterior descending coronary artery (LAD, `DA_ai`). It uses the final `Heart_ai` contour to define a box with a 10 mm margin. ROCardS is available for noncommercial research under the authors’ terms. The release notes cover selection, attribution and rebuilding the lightweight installer. [Local Suite 8.30](build/releases/v8_30/README.md)
 
 > **Teaching and research material. This is not a medical device.**
 > It is **not** validated for clinical use, it has no ANVISA registration, no
@@ -267,10 +267,9 @@ Download the light installer from **[Releases][rel]** — a few megabytes, with
 no model weights. The permanent link to the most recent one is
 **[`releases/latest/download/RADIOTERAPIA_AI_LOCAL_SUITE_SETUP_LATEST.zip`][latest]**:
 it always points to the newest release, while the link shown on a release
-page stays pinned to that release's tag. No example images or segmentations
-ship with the program.
+page stays pinned to that release's tag. The installer includes documentation illustrations with their source and attribution.
 
-Extract it and run `START_HERE.cmd`. Its first screen has one big button,
+Extract it and run `START_HERE_TO_INSTALL_LOCAL_SUITE.cmd`. Its first screen has one big button,
 **Install / Update app on this machine**: it checks whether the program is
 already there (by the mark in the folder and the installation record); if it
 is not, it installs everything straight into the final folder, and if it is,
@@ -294,12 +293,7 @@ replaces the program's code first closes the running program of that folder
 checked as the Python of that installation —, and asks first only if it is
 processing a series, or if it cannot close it. When only the code was
 replaced, the preparer goes straight to its last step, with a green button
-that opens the program, and the desktop and Start menu shortcuts remade. On a machine with internet
-access, the preparer shows one line per licence (component, licence, what it
-allows, and a link to its origin), lets you accept them one by one or all at
-once (each acceptance is still recorded on its own line), downloads Python,
-the pinned libraries and every model weight from the original sources, and
-assembles the program.
+that opens the program, and the desktop and Start menu shortcuts remade. On a connected machine, the installer presents each tool with its component licences and links to its providers. It records the operator’s choices and obtains the selected dependencies and weights directly from their providers. An offline workstation verifies the package and asks its operator for the applicable terms. Existing custom names and protocols are preserved.
 
 What it checks, and against what, is not the same for every download — and
 saying "every file is hash‑checked" would be the one claim here that nobody
@@ -322,7 +316,7 @@ panel opens at `http://127.0.0.1:8777/`.
 
 1. **First use.** The first screen has the language (twelve, by flag) and
    the theme (dark by default; light or the system's) in the top corner from
-   the start; then come the Terms of Use and the Privacy Policy, and a
+   the start. The app asks for its own teaching and research agreement and presents a searchable catalogue with links to the source terms. The Privacy Policy is available on this screen. Next comes a
    favourite folder, which is optional — the starting point of every folder
    picker, never the folder the night watcher processes — with *Skip for
    now*; then the getting‑started guide. How rings are drawn for the
@@ -401,6 +395,10 @@ panel opens at `http://127.0.0.1:8777/`.
 
 ## Build from source
 
+For the exact public 8.30 SETUP, use the versioned rebuild instructions. The manifest records the source and SHA-256 of every member. [Rebuild the 8.30 installer](build/releases/v8_30/README.md)
+
+### Developing the component repositories
+
 This repository is meant to be adapted. If you are a health service, the
 sensible path is to fork it, adjust it to your protocols, validate it against
 your own cases, and build your own package — nothing needs to come back here.
@@ -462,13 +460,15 @@ plan uses, and putting the results next to each other.
 | [MOOSE][moose] | Apache‑2.0 | CC BY 4.0 — attribution required |
 | [Head & neck nodal levels][hnlnl] (Weissmann et al., 2023) | CC0‑1.0 | CC0‑1.0 |
 | [CT brain structures][buti] (Buti et al., 2025) | — | MIT |
+| [ROCardS](https://github.com/AIM-Harvard/ROCardS) | CC BY-NC 4.0 | CC BY-NC 4.0. The authors specify noncommercial research. |
+| [JHU pelvic CT](https://github.com/JHU-MICA/TwoStepMalePelvicCTSeg) | MIT | The authors’ release does not specify separate checkpoint terms. |
 
 Making a model reachable is not a neutral act — it is what turns an available
 library into something used in a clinic. That is why the unapproved status,
 the provenance suffix and every refusal live inside the functions that write
 the files, and not in a screen.
 
-**No component of the package is for non‑commercial use only.** The three
+The installer’s catalogue identifies the applicable terms for each model, its weights and its dependencies. The three
 comparison engines run only when asked for, series by series. The CT brain
 model draws the brainstem and the optic chiasm (which go to the delivered
 set) and the cerebellum, the ventricles and the midline (complete set only),
