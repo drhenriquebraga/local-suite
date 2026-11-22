@@ -1,0 +1,92 @@
+{
+  "thorax-0.png": {
+    "points": {
+      "breast_l_ai": 123,
+      "breast_r_ai": 124,
+      "heart_ai": 194,
+      "lung_l_ai": 281,
+      "lung_r_ai": 274
+    },
+    "sha256": "fea5a4ce7b01fcedafe8497073e194e6f1176db7e53eeb1803d90e6b8e29e10f",
+    "slice": 14
+  },
+  "thorax-1.png": {
+    "points": {
+      "breast_l_ai": 77,
+      "breast_r_ai": 73,
+      "heart_ai": 194,
+      "lung_l_ai": 152,
+      "lung_r_ai": 137
+    },
+    "sha256": "d1fba56f3091bb26d04b263b25f38de17f1a3b8e52eaa62559b2adb67904f44d",
+    "slice": 14
+  },
+  "thorax-2.png": {
+    "points": {
+      "breast_l_ai": 68,
+      "breast_r_ai": 69,
+      "heart_ai": 194,
+      "lung_l_ai": 147,
+      "lung_r_ai": 144
+    },
+    "sha256": "afab77816aef1f43fbc9368416374d485ded88e04124a128590c5896f7bef88e",
+    "slice": 14
+  },
+  "thorax-3.png": {
+    "points": {
+      "breast_l_ai": 69,
+      "breast_r_ai": 68,
+      "heart_ai": 194,
+      "lung_l_ai": 147,
+      "lung_r_ai": 144
+    },
+    "sha256": "839db0be8fd0a681a0f3891a93925c81d56f4ef4837e96dedb741c346bbc4c76",
+    "slice": 14
+  },
+  "thorax-4.png": {
+    "points": {
+      "breast_l_ai": 68,
+      "breast_r_ai": 69,
+      "heart_ai": 194,
+      "lung_l_ai": 147,
+      "lung_r_ai": 144
+    },
+    "sha256": "afab77816aef1f43fbc9368416374d485ded88e04124a128590c5896f7bef88e",
+    "slice": 14
+  },
+  "bowel-0.png": {
+    "points": {
+      "bag_bowel_oar_ai": 436
+    },
+    "sha256": "451905114b51f0d01532109892d612ceee14361bcb9ac487d40f0e18d7f0869d",
+    "slice": 14
+  },
+  "bowel-1.png": {
+    "points": {
+      "bag_bowel_oar_ai": 185
+    },
+    "sha256": "c3395a4078186596687a36100314f079a516d2870af82c1b5c1467ae5b1c1e9c",
+    "slice": 14
+  },
+  "bowel-2.png": {
+    "points": {
+      "bag_bowel_oar_ai": 176
+    },
+    "sha256": "98c7879dcb03b1b23e95a0c5897098e37fb1578a0e474e2277b8d0394e8ce6a3",
+    "slice": 14
+  },
+  "bowel-3.png": {
+    "points": {
+      "bag_bowel_oar_ai": 226
+    },
+    "sha256": "34529216d15eb88d0f317d611874fdcf8baa85b59ee368f7b3a486c7f0535bca",
+    "slice": 14
+  },
+  "bowel-4.png": {
+    "points": {
+      "bag_bowel_oar_ai": 236
+    },
+    "sha256": "71bbb5521bc6a308e87576d2bda0c1fcd5a70baf53ca7e8b4f147b524291e678",
+    "slice": 14
+  }
+}
