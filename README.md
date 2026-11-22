@@ -2,9 +2,9 @@
 
 **Part of the Radioterapia.AI local ecosystem. A study bench for AI segmentation in radiation oncology — teaching and research material, not a medical device.**
 
-`Suite code: Apache-2.0` · `Version: 8.30.1` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
+`Suite code: Apache-2.0` · `Version: 8.30.2` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
 
-Version 8.30.1 fixes installation of the ROCardS worker during upgrades from older workstations. The Windows installer reuses valid agreements, shows new conditions together, and continues an online update when the installed bundle needs new dependencies. [Local Suite 8.30.1 release notes](build/releases/v8_30_1/README.md)
+Version 8.30.2 simplifies installation on connected and offline workstations. The first-use agreement covers the listed tools in one decision. A single References and licenses page brings together publications, model provenance and the workstation’s recorded acceptance. [Local Suite 8.30.2 release notes](build/releases/v8_30_2/README.md)
 
 > **Teaching and research material. This is not a medical device.**
 > It is **not** validated for clinical use, it has no ANVISA registration, no
@@ -395,7 +395,7 @@ panel opens at `http://127.0.0.1:8777/`.
 
 ## Build from source
 
-For the exact public 8.30.1 SETUP, use the versioned rebuild instructions. The manifest records the source and SHA-256 of every member. [Rebuild the 8.30.1 installer](build/releases/v8_30_1/README.md)
+For the exact public 8.30.2 SETUP, use the versioned rebuild instructions. The manifest records the source and SHA-256 of every member. [Rebuild the 8.30.2 installer](build/releases/v8_30_2/README.md)
 
 ### Developing the component repositories
 
