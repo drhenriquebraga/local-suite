@@ -1,0 +1,51 @@
+{
+ "_leia": "Impressao do que exige rede: bibliotecas, pesos e runtime. Se ela bate com a do pacote novo, a atualizacao e' copia de codigo -- sem internet e sem administrador. Ver build/requisitos.py.",
+ "impressao": "904b72cfd6a437b44c8b3f23dc5457ba0790ab7219de060e8f801f44330c21bf",
+ "linhas_requirements": 21,
+ "modelos": {
+  "cads_open": "fa1570fbfb4639a7",
+  "cranio_buti": "2c40fcd18ce0fa17",
+  "hnlnl": "d6cef4a013d91751",
+  "jhu_rectum": "e24e25c341476c62",
+  "moose": "d4bac151f6b069d8",
+  "moose_ribs": "4631ea5a60810097",
+  "nv_segment_ct": "0120d9cb9bf5693a",
+  "rocards_lad": "fae2cc9cd610876b",
+  "totalsegmentator": "6ad826db695c884d"
+ },
+ "tasks": [
+  "abdominal_muscles",
+  "breasts",
+  "craniofacial_structures",
+  "head_glands_cavities",
+  "head_muscles",
+  "headneck_bones_vessels",
+  "headneck_muscles",
+  "hip_implant",
+  "liver_lesions",
+  "liver_lesions_mr",
+  "liver_segments",
+  "liver_segments_mr",
+  "lung_nodules",
+  "lung_vessels",
+  "oculomotor_muscles",
+  "pleural_pericard_effusion",
+  "teeth",
+  "total_mr",
+  "total_v2",
+  "total_v3",
+  "trunk_cavities",
+  "vertebrae_body",
+  "vertebrae_mr"
+ ],
+ "versao": "8.30.3",
+ "versoes": {
+  "keras_rocards": "2.10.0",
+  "monai": "1.4.0",
+  "nnunetv2": "2.7.0",
+  "python": "3.10.11",
+  "tensorflow_rocards": "2.10.0",
+  "torch": "2.5.1+cu121",
+  "totalsegmentator": "2.18.0"
+ }
+}

@@ -713,3 +713,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ROCardS, AIM-Harvard (commit 40b80a6, sete redes de inferência). Os autores destinam código e pesos à pesquisa não comercial, CC BY-NC 4.0. Fonte e termos: https://github.com/AIM-Harvard/ROCardS#license . Adaptação da Local Suite: recorte em torno de Heart_ai e exportação da DA. A licença integral acompanha os pesos em modelos/rocards/models/LICENSE_WEIGHTS.
+
+BodyParts3D / Anatomography — ilustrações anatômicas da ajuda das tarefas
+
+BodyParts3D, © 2008 The Database Center for Life Science.
+As figuras PNG foram obtidas da distribuição de K. M. Moerman e preparadas
+para exibição na ajuda da Local Suite. As figuras e suas adaptações são
+distribuídas sob Creative Commons Attribution-ShareAlike 2.1 Japan
+(CC BY-SA 2.1 JP). A ficha de cada imagem em data/ajuda-tasks/fontes.json
+identifica seu título, crédito, arquivo de origem e transformação.
+Licença: https://creativecommons.org/licenses/by-sa/2.1/jp/
+Distribuição utilizada: https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/tree/2c83c698788cff57f6317bddcf712e7acfbea7d8
+Aviso da distribuição: https://github.com/Kevin-Mattheus-Moerman/BodyParts3D/blob/2c83c698788cff57f6317bddcf712e7acfbea7d8/assets/BodyParts3D_data/LICENSE_content
