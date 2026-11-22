@@ -1,0 +1,66 @@
+{
+ "_leia": "Impressao do que exige rede: bibliotecas, pesos e runtime. Se ela bate com a do pacote novo, a atualizacao e' copia de codigo -- sem internet e sem administrador. Ver build/requisitos.py.",
+ "base_sem_perfis_ct": "3f73d83811b252605f060d52435f6381802f8de7353641c34a86a4eb853a945a",
+ "impressao": "bed90047d511d7d42e27c124daf95bf5757091dbe059bb0c9b2934f34f42a433",
+ "linhas_requirements": 21,
+ "modelos": {
+  "cads_open": "fa1570fbfb4639a7",
+  "cranio_buti": "2c40fcd18ce0fa17",
+  "hnlnl": "d6cef4a013d91751",
+  "jhu_rectum": "e24e25c341476c62",
+  "moose": "d4bac151f6b069d8",
+  "moose_ribs": "4631ea5a60810097",
+  "nv_segment_ct": "0120d9cb9bf5693a",
+  "totalsegmentator": "6ad826db695c884d"
+ },
+ "resolucoes_total_v3": {
+  "3": {
+   "bytes": 242248414,
+   "dataset": 836,
+   "sha256": "45574e4573b1c1f1430c4b6f02e84d78f2443a2999027ba8bf1991fa972f6477"
+  },
+  "6": {
+   "bytes": 132026264,
+   "dataset": 837,
+   "sha256": "45381db2e7686b613d9ade95114f9c0f6e947d6620f6e63a34206fa8426ad01f"
+  },
+  "body_ultra": {
+   "bytes": 233211222,
+   "dataset": 299,
+   "sha256": "d51d68e7f183fed966c122b0cb3dece7bebcdb685d28aeecc62202168e431674"
+  }
+ },
+ "tasks": [
+  "abdominal_muscles",
+  "breasts",
+  "craniofacial_structures",
+  "head_glands_cavities",
+  "head_muscles",
+  "headneck_bones_vessels",
+  "headneck_muscles",
+  "hip_implant",
+  "liver_lesions",
+  "liver_lesions_mr",
+  "liver_segments",
+  "liver_segments_mr",
+  "lung_nodules",
+  "lung_vessels",
+  "oculomotor_muscles",
+  "pleural_pericard_effusion",
+  "teeth",
+  "total_mr",
+  "total_v2",
+  "total_v3",
+  "trunk_cavities",
+  "vertebrae_body",
+  "vertebrae_mr"
+ ],
+ "versao": "8.30.7",
+ "versoes": {
+  "monai": "1.4.0",
+  "nnunetv2": "2.7.0",
+  "python": "3.10.11",
+  "torch": "2.5.1+cu121",
+  "totalsegmentator": "2.18.0"
+ }
+}
