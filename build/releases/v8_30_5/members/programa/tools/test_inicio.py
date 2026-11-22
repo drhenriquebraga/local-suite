@@ -1354,7 +1354,7 @@ def teste_o_guia_e_o_popup_no_navegador():
                 checar(u"o guia abre com foco de teclado na janela do app", pg.locator(
                     ".rt-next").evaluate("(b) => document.activeElement === b"))
                 if telas:
-                    pg.screenshot(path=os.path.join(telas,"guia-primeira-inicializacao.png"))
+                    pg.screenshot(path=os.path.join(telas,"guia-primeira-inicializacao.png"), animations="disabled")
                 for passo in range(1,4):
                     pg.click(".rt-next")
                     pg.wait_for_selector(".rt-tour[data-step='%d'][open]" % passo, timeout=15000)
@@ -1362,13 +1362,13 @@ def teste_o_guia_e_o_popup_no_navegador():
                         checar(u"o guia conduz ao DicomBridge real", pg.url.endswith("/bridge/laudo"))
                 if telas:
                     pg.wait_for_function("document.querySelector('.rt-tour img').naturalWidth>0")
-                    pg.screenshot(path=os.path.join(telas,"guia-fast.png"))
+                    pg.locator('.rt-tour').screenshot(path=os.path.join(telas,"guia-fast.png"), animations="disabled")
                 pg.click(".rt-skip")
                 pg.wait_for_selector(".rt-tour[data-tip='fast'][open]")
                 checar(u"a primeira dica segue imediatamente ao guia",
                        "GUIA_VISTO=2" in io.open(cfg,encoding="utf8").read())
                 if telas:
-                    pg.screenshot(path=os.path.join(telas,"dica-primeira-inicializacao.png"))
+                    pg.locator('.rt-tour').screenshot(path=os.path.join(telas,"dica-primeira-inicializacao.png"), animations="disabled")
                 pg.click(".rt-next")
                 pg.goto(base + "/")
                 pg.reload()
@@ -1393,6 +1393,17 @@ def teste_o_guia_e_o_popup_no_navegador():
                 outra.wait_for_timeout(250)
                 checar(u"rever o guia não consome dica", outra.locator(".rt-tour").count()==0)
                 outra.close()
+                rtl = nav.new_context(viewport={"width":390,"height":780}, reduced_motion="reduce")
+                rtl.add_init_script("localStorage.setItem('radai_idioma','ar')")
+                ar = rtl.new_page()
+                ar.goto(base + "/config#ps_geral")
+                ar.evaluate("window.radaiGuiaAbrir()")
+                ar.wait_for_selector(".rt-tour[lang=ar][dir=rtl][open]")
+                checar(u"árabe em tela estreita respeita a direção da leitura e os limites da janela",
+                       ar.locator(".rt-tour").evaluate("e=>getComputedStyle(e).direction==='rtl' && e.getBoundingClientRect().width<=innerWidth"))
+                if telas:
+                    ar.screenshot(path=os.path.join(telas,"guia-arabe-mobile.png"),animations="disabled")
+                rtl.close()
                 g = _com_atualizar(
                     e_instalacao=lambda p: True,
                     **{"radai_version.ultima_consulta": lambda hoje=None: {

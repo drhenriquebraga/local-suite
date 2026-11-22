@@ -2,8 +2,8 @@
  "version": "8.30.5",
  "baseline_version": "8.30.4",
  "baseline_sha256": "47c0c8ea1676e249da43a652437a00e943ed224b62b3186d96ce742490e9adb8",
- "setup_sha256": "16bb2f3b287be291ea10ded573b468dae199a6f6610f4ee0e158431219ad60d3",
- "bytes": 14834301,
+ "setup_sha256": "962a5e4d4283f1f67d6feec54d57ff8b4704992eaf4246e26943e1dfc6ee62fb",
+ "bytes": 14834823,
  "python": "3.14.6",
  "zlib": "1.3.1.zlib-ng",
  "members": [
@@ -7030,7 +7030,7 @@
   {
    "name": "programa/tools/test_inicio.py",
    "source": "delta",
-   "sha256": "9cbd744212f81ad66db40855ccfd42d1c476cc1f2ff43ce16563ce13013685ee",
+   "sha256": "d63e81249f1f55606ab56afa73d4d04f3cb4d784fa080e99f184e81ca9500282",
    "time": [
     2026,
     11,
@@ -8270,7 +8270,7 @@
   {
    "name": "programa/tools/test_roteiro_dicas.py",
    "source": "delta",
-   "sha256": "af7abb27692e44739c56baf8b45c66deb48a608327926a8326742ed145559ad2",
+   "sha256": "804a06370f593262cfd8d0a411c8781c8985b10d4c306f69293cf0b4a0787576",
    "time": [
     2026,
     11,

@@ -78,6 +78,25 @@ class TestDicas(unittest.TestCase):
         self.assertEqual(reinicio, ids[0])
         self.assertEqual(s.lidos(), [reinicio])
 
+    def test_transferencia_so_da_preferencia(self):
+        import radai_config_transferencia as transferencia
+        s = guia.Sessao(self.cfg)
+        s.agir("preferencia", None, False)
+        guia.gravar_marca(self.cfg)
+        s.historico.write_text('["fast"]', encoding="utf8")
+        chaves = ["DICAS_AO_INICIAR", "GUIA_VISTO"]
+        pacote = transferencia.exportar(self.cfg, chaves, "", ["configuracao"], {})
+        self.assertEqual(pacote["secoes"]["configuracao"], {"DICAS_AO_INICIAR":"0"})
+        outra = self.cfg.parent / "segunda" / "config"
+        outra.parent.mkdir()
+        nova = guia.Sessao(outra)
+        pedido = {"dados": pacote, "secoes": ["configuracao"]}
+        previa = transferencia.transferir(pedido, outra, chaves, {}, "")
+        transferencia.transferir(dict(pedido, revisao=previa["revisao"]), outra, chaves, {}, "", aplicar=True)
+        self.assertEqual(nova.agir("estado", None), {"visto":False,"mostrar":False})
+        self.assertEqual(nova.lidos(), [])
+        self.assertEqual(s.lidos(), ["fast"])
+
     def test_abas_simultaneas(self):
         guia.gravar_marca(self.cfg)
         s = guia.Sessao(self.cfg)
