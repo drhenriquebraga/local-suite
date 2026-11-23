@@ -1,0 +1,96 @@
+{
+  "upper": {
+    "kind": "reference_ct",
+    "source": "Jakob Wasserthal · University Hospital Basel · TotalSegmentator v2.0.1 · s0102",
+    "url": "https://doi.org/10.5281/zenodo.10047292",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "paper": "https://doi.org/10.1148/ryai.230024",
+    "source_labels": [
+      "liver",
+      "stomach",
+      "duodenum",
+      "spleen",
+      "pancreas"
+    ],
+    "derived_label": {
+      "abdominal_cavity": "TotalSegmentator trunk_cavities, Dataset343, 1.5 mm"
+    },
+    "adaptation": "The five original finishing previews use windowed CT and five organ masks adapted from this dataset. The cavity was inferred separately.",
+    "ct_profiles": {
+      "ct_source": "TotalSegmentator CT dataset v2.0.1, s0102",
+      "inference": "Three independent TotalSegmentator 2.18.0 total_v3 inferences on this CT at 1.5, 3 and 6 mm. Native trunk_cavities supplies the cavity operand for the bowel OAR.",
+      "rendering": "Windowed axial CT with contours reread from each exported RTSTRUCT. All three profiles refer to the same source planes."
+    }
+  },
+  "study_public": {
+    "case_id": "s0102",
+    "dataset_doi": "10.5281/zenodo.10047292",
+    "license": "CC BY 4.0",
+    "source_url": "https://doi.org/10.5281/zenodo.10047292",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "sha256": {
+      "study-ct-stack-001.webp": "1bfb9608cba15322dd7fca6c497a8f233280718a750d455f71297ac635a42049",
+      "study-leve-stack-001.webp": "5952a91465abfb026af253abeea0bed9521f88e25ca45b963784f9e767fe0984",
+      "study-medio-stack-001.webp": "4a9447ea33e2cb75b1ceb7575c5c191d1de63e88b622c0b43ff253372f78d92a",
+      "study-alto-stack-001.webp": "08ad71d8ef05948eb88b6afff534519d3d33ffd725358869b2e781b6c89a0530",
+      "study-extra-stack-001.webp": "54ea2699602fb6ceb38efa0e93824ead0af3891dafa1611edc19cab95d9edb61",
+      "study-maximo-stack-001.webp": "9cf505c954d8958c0f955a44771df04abbe2db4495184148deb421f378e03d5a",
+      "study-ultra-stack-001.webp": "7caecce409a164aef6e1d04d2b2f3919e683fffc36986d578e94a2403887cf06",
+      "study-ct-stack-002.webp": "71b443a619660b65461f5204d6f2c20277a2cbcf1602057919e732702251aa32",
+      "study-leve-stack-002.webp": "feba7a9057b6b0ba7fc01270c7f6a0052b62c1e46d97ef5f020283c901556c35",
+      "study-medio-stack-002.webp": "f9b23747757021f1779d70fd82ba016e91ee28a7ed4efa0a4967d5220f73da34",
+      "study-alto-stack-002.webp": "1e8a11b702ca170f1cb7879b6771eb4ce0cf2fa865c3222fdad1ec368dfca250",
+      "study-extra-stack-002.webp": "4dbbaf10a08daf2c3c3a272aa814c6a9dce00d7afa131323042155e0852d38bc",
+      "study-maximo-stack-002.webp": "749f18013be06e36b052f43b1b595bff458ecc00cc4db7ab41273183dcf7e8a7",
+      "study-ultra-stack-002.webp": "e3e3e81209b5a2fa9e7c2db239300bfdf74ae5d58a065bb52402d3c926653e07",
+      "study-ct-stack-003.webp": "b46f3eb16a4f690daee7dd203b239e00f2b6271d8a192de359857c9778285301",
+      "study-leve-stack-003.webp": "c2e555385d93b573a0f78ce0fe5199d9ddcb194e48d7170707ae379abb0f768e",
+      "study-medio-stack-003.webp": "cf24f781eaa73d800ef1f51402dc7f17d6be665462d451caaf997e7da6236d71",
+      "study-alto-stack-003.webp": "c7159671aba3206343111a41d1a590f40c8a6d4dc6feb3430274c11d5f077886",
+      "study-extra-stack-003.webp": "511922e1647f57d62849ce6022f69f6767f635ec694b4e072cbe2c373bfdc115",
+      "study-maximo-stack-003.webp": "250effdca77abf14acfaec95aa7c6e5490b5a76d7044602df3d7bcfe0a7eb017",
+      "study-ultra-stack-003.webp": "cc7f50aa0bb112ade83bf11d26f0c87bf4c5de07d34c46779d90beffbcf31095",
+      "study-ct-stack-004.webp": "ea8be983c685ce893c2f33cbbb9a7931d1cca692f702f1fec312c7cbe7fd70bd",
+      "study-leve-stack-004.webp": "450527130b8ca74d569ee5f767f8361f05a17b7b0df230db8776c099e90c2023",
+      "study-medio-stack-004.webp": "acfdf8fc89b1853d7283506e550b02af12935c43e7ddff29d08cc67073e0cc63",
+      "study-alto-stack-004.webp": "e722d05ea6ac21277a44fb3b87786ccd1934c5e96871ff1f0f2ea51bb65dfaf0",
+      "study-extra-stack-004.webp": "867b88cc76205a6f68ce9f262c44c556e5c0cfb3f9c1aefb0b5343b6697636d6",
+      "study-maximo-stack-004.webp": "2e445f82ffae47106fcd64ef5bee5fcdd1d89848db8116463f47a38c0938640a",
+      "study-ultra-stack-004.webp": "1c2f21f37543cfd7d47fa0df37a12eb1c1290f718c86fd00427ce7657479b16f",
+      "tc-study.json": "ae99d416e8a6331e76db7e34f482dfe687999e4a05a6091ee07aa1c5936be872"
+    },
+    "rtstruct_sha256": {
+      "leve": "2734d20590dc9ea21141c84ecf8ea8f91cf76b47309ad65823c1380f78a7e0f1",
+      "medio": "78ad3d0a7968a5c77226913a09a94b2d64b5652a69c58c61b298fe413ad80123",
+      "alto": "c9baf79b79aee42d52e9837ad040858736ebb54915e7c93faf8623f7f183a497",
+      "extra": "290eb45f122a484cc5cefa5f769f6bd49b5cfd812ed264cc69343992b40b03c7",
+      "maximo": "8370d1ab05e9c1e92cb0c6a8d728a85854c4544134dfeb71b812ceab956b0f6b",
+      "ultra": "e770507798fa61f647e1b80671ded89b4087fbbfc140077bb49925887f1afcd3"
+    },
+    "rendering": "One shared lossless axial CT stack, with six sparse lossless contour overlays from the verified public RTSTRUCT exports. Cropped at the axial midpoints of Liver_ai and Lungs_ai in the Maximo study.",
+    "version": 4,
+    "source_record_url": "https://zenodo.org/records/10047292",
+    "source_archive_url": "https://zenodo.org/records/10047292/files/Totalsegmentator_dataset_v201.zip",
+    "source_archive_member": "s0102/ct.nii.gz",
+    "source_version": "2.0.1",
+    "source_ct_sha256": "2faf3bbef8ea3a8fb33e51997524029aeadf3983ad062eb367050c3039988d97",
+    "source_member_crc32": "df86b2b0",
+    "source_member_size_bytes": 15717424,
+    "source_paper_doi": "10.1148/ryai.230024",
+    "timing_reference_rtstruct_sha256": {
+      "leve": "2734d20590dc9ea21141c84ecf8ea8f91cf76b47309ad65823c1380f78a7e0f1",
+      "medio": "f0010ad307f77a97a3620a81b000063cb3cd709515ad455d40df04a5cff376be",
+      "alto": "c9baf79b79aee42d52e9837ad040858736ebb54915e7c93faf8623f7f183a497",
+      "extra": "290eb45f122a484cc5cefa5f769f6bd49b5cfd812ed264cc69343992b40b03c7",
+      "maximo": "5372be17cb84e49c572168450d2952702bfced2b3604e7a41aa3319d1dd9c9d2",
+      "ultra": "098dea258ae4672bc0a149f6dc9ad675b09c31c651ce0fd41d76e85d82821a0d"
+    },
+    "resource": {
+      "filename": "galeria-esforcos-s0102-v1.zip",
+      "url": "https://drhenriquebraga.com.br/_distribuicao/radioterapia-ai/local-suite/recursos/galeria-esforcos-s0102-v1.zip",
+      "sha256": "0a0815ab6fae8db9a8e42c7a8b559ac911628c7daad0342a12e5997825afb82d",
+      "bytes": 11074663
+    }
+  }
+}
