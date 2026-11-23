@@ -1,0 +1,1076 @@
+# -*- coding: utf-8 -*-
+import numpy as np
+from scipy import ndimage
+
+VERSAO_LIB = "1.0"
+
+LADOS = ("ant", "post", "esq", "dir", "sup", "inf")
+_OPOSTO = {"ant": "post", "post": "ant", "esq": "dir", "dir": "esq",
+           "sup": "inf", "inf": "sup"}
+_ATALHOS = {"lat": ("esq", "dir"), "ap": ("ant", "post"), "si": ("sup", "inf"),
+            "cc": ("sup", "inf")}
+
+
+class Grade(object):
+
+    def __init__(self, spacing_zyx, sentido=("sup", "post", "esq")):
+        sp = tuple(float(v) for v in spacing_zyx)
+        if len(sp) != 3 or min(sp) <= 0:
+            raise ValueError("spacing_zyx invalido: %r" % (spacing_zyx,))
+        st = tuple(str(s).lower() for s in sentido)
+        if len(st) != 3 or any(s not in LADOS for s in st):
+            raise ValueError("sentido invalido: %r" % (sentido,))
+        self.spacing = sp
+        self.sentido = st
+
+    def eixo_sinal(self, lado):
+        lado = str(lado).lower()
+        if lado not in LADOS:
+            raise ValueError("direcao desconhecida: %r (use %s)" % (lado, ", ".join(LADOS)))
+        for eixo, s in enumerate(self.sentido):
+            if s == lado:
+                return eixo, 1
+            if _OPOSTO[s] == lado:
+                return eixo, -1
+        raise ValueError("direcao %r nao mapeada pelo sentido %r" % (lado, self.sentido))
+
+    def mm_para_voxels(self, mm, eixo):
+        return int(round(float(mm) / self.spacing[eixo]))
+
+    @property
+    def volume_voxel_mm3(self):
+        return self.spacing[0] * self.spacing[1] * self.spacing[2]
+
+    @classmethod
+    def de_sitk(cls, imagem):
+        sp = imagem.GetSpacing()
+        d = list(imagem.GetDirection())
+        eixo_lps = ({1: "esq", -1: "dir"}, {1: "post", -1: "ant"}, {1: "sup", -1: "inf"})
+        sentido_xyz = []
+        for j in range(3):
+            coluna = [d[0 * 3 + j], d[1 * 3 + j], d[2 * 3 + j]]
+            i_dom = int(np.argmax(np.abs(coluna)))
+            sentido_xyz.append(eixo_lps[i_dom][1 if coluna[i_dom] >= 0 else -1])
+        return cls((sp[2], sp[1], sp[0]), tuple(reversed(sentido_xyz)))
+
+    def __repr__(self):
+        return "Grade(spacing_zyx=%r, sentido=%r)" % (self.spacing, self.sentido)
+
+
+def _bool(mask):
+    a = np.asarray(mask)
+    if a.ndim != 3:
+        raise ValueError("mascara deve ser 3D (z,y,x); recebi ndim=%d" % a.ndim)
+    return a.astype(bool, copy=False)
+
+
+def _normalizar_margem(mm, permitir_zero=True):
+    lados = dict((l, 0.0) for l in LADOS)
+    if isinstance(mm, (int, float)):
+        for l in LADOS:
+            lados[l] = float(mm)
+    elif isinstance(mm, dict):
+        for chave, valor in mm.items():
+            k = str(chave).lower()
+            if k in ("iso", "todos"):
+                alvos = LADOS
+            elif k in _ATALHOS:
+                alvos = _ATALHOS[k]
+            elif k in ("lat_esq", "lateral_esq"):
+                alvos = ("esq",)
+            elif k in ("lat_dir", "lateral_dir"):
+                alvos = ("dir",)
+            elif k in LADOS:
+                alvos = (k,)
+            else:
+                raise ValueError("chave de margem desconhecida: %r" % (chave,))
+            for a in alvos:
+                lados[a] = float(valor)
+    else:
+        raise TypeError("margem deve ser numero ou dict; recebi %s" % type(mm).__name__)
+    for l, v in lados.items():
+        if v < 0:
+            raise ValueError("margem negativa em %r (use contrair)" % l)
+    if not permitir_zero and max(lados.values()) <= 0:
+        raise ValueError("margem toda zero")
+    return lados
+
+
+def _espelhar_margem(lados):
+    return dict((_OPOSTO[l], v) for l, v in lados.items())
+
+
+def _limites(mask):
+    if hasattr(type(mask), "limites_ativos"):
+        return mask.limites_ativos()
+    m = np.asarray(mask)
+    if m.ndim != 3:
+        achou = np.where(m)
+        if len(achou[0]) == 0:
+            return None
+        return tuple((int(a.min()), int(a.max())) for a in achou)
+    zs = np.flatnonzero(m.any(axis=(1, 2)))
+    if not len(zs):
+        return None
+    plano = m[int(zs[0]):int(zs[-1]) + 1].any(axis=0)
+    ys = np.flatnonzero(plano.any(axis=1))
+    xs = np.flatnonzero(plano.any(axis=0))
+    return ((int(zs[0]), int(zs[-1])), (int(ys[0]), int(ys[-1])),
+            (int(xs[0]), int(xs[-1])))
+
+
+def _bbox_folgado(mask, folga_voxels):
+    lim = _limites(mask)
+    if lim is None:
+        return None
+    cortes = []
+    for eixo in range(3):
+        lo = lim[eixo][0] - int(folga_voxels[eixo])
+        hi = lim[eixo][1] + int(folga_voxels[eixo]) + 1
+        cortes.append(slice(max(0, lo), min(mask.shape[eixo], hi)))
+    return tuple(cortes)
+
+
+FOLGA_DA_CONFERENCIA = 1
+
+
+def volume_de_voxels(n, grade):
+    return float(n) * grade.volume_voxel_mm3 / 1000.0
+
+
+class Caixas(object):
+
+    def __init__(self, masks, folga=FOLGA_DA_CONFERENCIA):
+        self._masks = masks
+        self.folga = folga
+        self._memo = {}
+
+    def _calcular(self, nome):
+        orig = self._masks[nome]
+        m = orig if hasattr(type(orig), "recorte") else _bool(orig)
+        lim = _limites(m)
+        if lim is None:
+            cx = None
+            n = 0
+        elif self.folga is None:
+            cx = (slice(None),) * m.ndim
+            n = int(m.sum())
+        else:
+            f = int(self.folga)
+            cx = tuple(slice(max(0, lim[e][0] - f),
+                             min(m.shape[e], lim[e][1] + f + 1))
+                       for e in range(3))
+            n = int(m.sum()) if hasattr(type(m), "recorte") else int(m[cx].sum())
+        self._memo[nome] = (orig, m, cx, n, lim)
+        return self._memo[nome]
+
+    def _item(self, nome):
+        memo = self._memo.get(nome)
+        if memo is not None and memo[0] is self._masks[nome]:
+            return memo
+        return self._calcular(nome)
+
+    def de(self, nome):
+        _o, m, cx, n, _l = self._item(nome)
+        return m, cx, n
+
+    def justa(self, nome):
+        lim = self._item(nome)[4]
+        if lim is None:
+            return None
+        return [(a, b + 1) for a, b in lim]
+
+    def cru(self, nome):
+        orig, _m, cx, _n, _l = self._item(nome)
+        if cx is None:
+            return None
+        return orig[cx] if hasattr(type(orig), "recorte") else np.asarray(orig)[cx]
+
+
+def _caixa_comum(mascaras, folga_voxels):
+    limites = None
+    for m in mascaras:
+        caixa = _bbox_folgado(m, folga_voxels)
+        if caixa is None:
+            continue
+        if limites is None:
+            limites = [[c.start, c.stop] for c in caixa]
+        else:
+            for eixo in range(3):
+                limites[eixo][0] = min(limites[eixo][0], caixa[eixo].start)
+                limites[eixo][1] = max(limites[eixo][1], caixa[eixo].stop)
+    if limites is None:
+        return None
+    return tuple(slice(lo, hi) for lo, hi in limites)
+
+
+_VOXELS_EDT_DIRETA = 512 * 1024
+_BYTES_CAMPO_EM_RAM = 32 * 1024 ** 2
+
+
+def _exigir_reserva(nbytes, acao):
+    import radai_cleaner
+    mem = radai_cleaner.memoria_da_estacao()
+    disponivel = min(mem.get("livre_mb") or 0, mem.get("commit_livre_mb") or 0) * 1024**2
+    if disponivel < nbytes + 256 * 1024**2:
+        raise MemoryError("reserva insuficiente para " + acao)
+
+
+def _campo(forma, dtype, limite_em_ram=None):
+    nbytes = int(np.prod(forma, dtype=np.int64)) * np.dtype(dtype).itemsize
+    if nbytes <= (_BYTES_CAMPO_EM_RAM if limite_em_ram is None else limite_em_ram):
+        return np.zeros(forma, dtype=dtype)
+    import tempfile
+    import shutil
+    import os
+    import radai_archive
+    pasta = os.path.realpath(radai_archive.pasta_temporaria_local(marcar_ambiente=False))
+    if radai_archive.em_pasta_sincronizada(pasta)[0] or radai_archive._e_rede(pasta):
+        raise MemoryError("o calculo precisa de uma pasta temporaria local sem sincronizacao")
+    # GUARDA: arquivos temporários de cálculo clínico ficam no disco local e
+    # são excluídos pelo sistema quando o último mapeamento é fechado.
+    if os.name == "nt":
+        import ctypes
+        if ctypes.windll.kernel32.GetDriveTypeW(os.path.splitdrive(pasta)[0] + "\\") != 3:
+            raise MemoryError("o calculo precisa de uma pasta temporaria em disco local")
+    if shutil.disk_usage(pasta).free < nbytes + 128 * 1024 ** 2:
+        raise MemoryError("espaco temporario local insuficiente para o campo (%d MiB)"
+                          % ((nbytes + 1048575) // 1048576))
+    try:
+        with tempfile.TemporaryFile(dir=pasta) as f:
+            return np.memmap(f, dtype=dtype, mode="w+", shape=forma)
+    except OSError as exc:
+        raise MemoryError("nao foi possivel reservar o campo em disco local") from exc
+
+
+def distancia_edt(mask, spacing):
+    m = np.asarray(mask, dtype=bool)
+    if m.size <= _VOXELS_EDT_DIRETA:
+        return ndimage.distance_transform_edt(m, sampling=spacing)
+    # GUARDA: o núcleo da SciPy instalada é o mesmo da função pública. A
+    # entrada binária já está pronta. A função pública expande até essa entrada
+    # para int64 e monta três grades float64 inteiras para obter as distâncias.
+    try:
+        from scipy.ndimage._nd_image import euclidean_feature_transform
+    except ImportError:
+        euclidean_feature_transform = None
+    esp = np.ascontiguousarray(spacing, dtype=np.float64)
+    indices = _campo((m.ndim,) + m.shape, np.int32)
+    if euclidean_feature_transform is None:
+        # GUARDA: a API pública de outras versões pode materializar um
+        # int64 por voxel para a entrada. Só a use com reserva para essa cópia.
+        _exigir_reserva(m.size * 12, "a EDT publica da SciPy instalada")
+        ndimage.distance_transform_edt(m, sampling=esp, return_distances=False,
+                                       return_indices=True, indices=indices)
+    else:
+        euclidean_feature_transform(m.view(np.int8), esp, indices)
+    dist = _campo(m.shape, np.float64)
+    passo = max(1, _VOXELS_EDT_DIRETA // max(1, int(np.prod(m.shape[1:]))))
+    for z in range(0, len(m), passo):
+        fim = min(z + passo, len(m))
+        out = dist[z:fim]
+        for eixo in range(m.ndim):
+            forma = [1] * m.ndim
+            forma[eixo] = -1
+            coord = (np.arange(z, fim) if eixo == 0 else np.arange(m.shape[eixo]))
+            delta = np.subtract(indices[eixo, z:fim], coord.reshape(forma), dtype=np.float64)
+            np.multiply(delta, esp[eixo], out=delta)
+            np.square(delta, out=delta)
+            if eixo == 0:
+                out[...] = delta
+            else:
+                np.add(out, delta, out=out)
+            del delta
+        np.sqrt(out, out=out)
+    return dist
+
+
+def _dilatar_elipsoide(sub, raios_mm, spacing):
+    if max(raios_mm) <= 0:
+        return sub
+    amostragem = []
+    for eixo in range(3):
+        r = raios_mm[eixo]
+        amostragem.append(spacing[eixo] / r if r > 0 else 1.0e9)
+    if sub.size <= _VOXELS_EDT_DIRETA:
+        return ndimage.distance_transform_edt(~sub, sampling=amostragem) <= 1.0
+    # GUARDA: somente vizinhos no raio físico podem alterar o limiar. A
+    # sobreposição inclui esses vizinhos também na costura de dois blocos.
+    halo = int(np.ceil(raios_mm[0] / spacing[0]))
+    passo = max(1, _VOXELS_EDT_DIRETA // max(1, int(np.prod(sub.shape[1:]))))
+    saida = np.zeros_like(sub)
+    for z in range(0, len(sub), passo):
+        fim = min(len(sub), z + passo)
+        lo, hi = max(0, z - halo), min(len(sub), fim + halo)
+        bloco = sub[lo:hi]
+        if bloco.any():
+            dist = distancia_edt(~bloco, amostragem)
+            saida[z:fim] = dist[z-lo:fim-lo] <= 1.0
+            del dist
+    return saida
+
+
+def _estender_unidirecional(sub, eixo, sinal, mm, spacing):
+    n = int(round(float(mm) / spacing[eixo]))
+    if n <= 0:
+        return sub
+    tam = n + 1
+    origem = n - tam // 2 if sinal > 0 else -(tam // 2)
+    saida = ndimage.maximum_filter1d(sub.astype(np.uint8), size=tam, axis=eixo,
+                                     origin=origem, mode="constant", cval=0)
+    return saida.astype(bool)
+
+
+def _aplicar_margem(mask, lados, grade):
+    mask = _bool(mask)
+    if not mask.any() or max(lados.values()) <= 0:
+        return mask.copy()
+
+    raios = [0.0, 0.0, 0.0]
+    extras = []
+    for lado in LADOS:
+        eixo, sinal = grade.eixo_sinal(lado)
+        oposto = lados[_OPOSTO[lado]]
+        raios[eixo] = min(lados[lado], oposto)
+        if lados[lado] > oposto:
+            extras.append((eixo, sinal, lados[lado] - oposto))
+
+    folga = [int(np.ceil(max(lados.values()) / grade.spacing[e])) + 2 for e in range(3)]
+    caixa = _bbox_folgado(mask, folga)
+    sub = mask[caixa]
+
+    sub = _dilatar_elipsoide(sub, raios, grade.spacing)
+    for eixo, sinal, mm in extras:
+        sub = _estender_unidirecional(sub, eixo, sinal, mm, grade.spacing)
+
+    saida = np.zeros_like(mask)
+    saida[caixa] = sub
+    return saida
+
+
+def expandir(mask, mm, grade):
+    return _aplicar_margem(mask, _normalizar_margem(mm), grade)
+
+
+def contrair(mask, mm, grade):
+    mask = _bool(mask)
+    lados = _normalizar_margem(mm)
+    if max(lados.values()) <= 0 or not mask.any():
+        return mask.copy()
+    folga = [int(np.ceil(max(lados.values()) / grade.spacing[e])) + 2 for e in range(3)]
+    caixa = _bbox_folgado(mask, folga)
+    sub = mask[caixa]
+    fora = _aplicar_margem(~sub, _espelhar_margem(lados), grade)
+    saida = np.zeros_like(mask)
+    saida[caixa] = ~fora
+    return saida
+
+
+def abrir_pontes(mask, tamanho=2):
+    mask = _bool(mask)
+    n = max(1, int(tamanho))
+    if not mask.any():
+        return mask.copy()
+    saida = mask
+    for eixo in (0, 1, 2):
+        forma = [1, 1, 1]
+        forma[eixo] = n
+        el = np.ones(tuple(forma), dtype=bool)
+        saida = ndimage.binary_opening(saida, structure=el)
+    return saida
+
+
+_VIZINHANCA_CC3D = {
+    ndimage.generate_binary_structure(3, ordem).tobytes(): vizinhos
+    for ordem, vizinhos in ((1, 6), (2, 18), (3, 26))
+}
+
+
+def rotular(mask, estrutura=None):
+    # O cc3d numera componentes pela ordem da memória. A ordem C reproduz
+    # o primeiro voxel do SciPy, inclusive nos empates de maior_componente.
+    # Grades grandes continuam usando a saída int32 mapeada pelo _campo.
+    if (isinstance(mask, np.ndarray) and mask.dtype == np.bool_
+            and mask.ndim == 3 and 0 < mask.size <= _BYTES_CAMPO_EM_RAM // 4):
+        vizinhos = 6
+        if estrutura is not None:
+            e = np.asarray(estrutura, dtype=bool)
+            vizinhos = _VIZINHANCA_CC3D.get(e.tobytes()) if e.shape == (3, 3, 3) else None
+        if vizinhos is not None:
+            try:
+                from cc3d import connected_components
+            except (ImportError, OSError):
+                pass
+            else:
+                rotulos, n = connected_components(
+                    np.ascontiguousarray(mask), connectivity=vizinhos,
+                    out_dtype=np.uint32, return_N=True)
+                return rotulos.view(np.int32), int(n)
+    rotulos = _campo(mask.shape, np.int32)
+    n = ndimage.label(mask, structure=estrutura, output=rotulos)
+    return rotulos, n
+
+
+def rotulos_em(rotulos, indices):
+    maximo = int(rotulos.max()) if rotulos.size else 0
+    tabela = np.zeros(maximo + 1, dtype=bool)
+    ids = np.asarray(list(indices), dtype=np.intp)
+    tabela[ids[(ids >= 0) & (ids <= maximo)]] = True
+    retorno = _campo(rotulos.shape, np.bool_)
+    passo = max(1, 524288 // max(1, int(np.prod(rotulos.shape[1:]))))
+    for z in range(0, len(rotulos), passo):
+        retorno[z:z + passo] = tabela[rotulos[z:z + passo]]
+    return retorno
+
+
+def contagens_dos_rotulos(rotulos, n, selecionar=None):
+    contagens = np.zeros(int(n) + 1, dtype=np.int64)
+    passo = max(1, 524288 // max(1, int(np.prod(rotulos.shape[1:]))))
+    for z in range(0, rotulos.shape[0], passo):
+        bloco = rotulos[z:z + passo]
+        if selecionar is not None:
+            bloco = bloco[selecionar[z:z + passo]]
+        hist = np.bincount(bloco.ravel())
+        contagens[:len(hist)] += hist
+    return contagens
+
+
+def maior_componente(mask, conectividade=1, abrir=0):
+    mask = _bool(mask)
+    if int(abrir or 0) > 0:
+        if not mask.any():
+            return mask.copy()
+        aberta = abrir_pontes(mask, int(abrir))
+        if aberta.any():
+            mask = aberta
+    return maior_componente_e_contagem(mask, conectividade)[0]
+
+
+def maior_componente_e_contagem(mask, conectividade=1):
+    """Retorna a maior componente e o número original de componentes."""
+    mask = _bool(mask)
+    caixa = _bbox_folgado(mask, (0, 0, 0))
+    if caixa is None:
+        return mask.copy(), 0
+    estrutura = ndimage.generate_binary_structure(3, int(conectividade))
+    local = mask[caixa]
+    rotulos, n = rotular(local, estrutura)
+    if n <= 1:
+        return mask.copy(), n
+    contagens = contagens_dos_rotulos(rotulos, n)
+    contagens[0] = 0
+    saida = np.zeros_like(mask)
+    saida[caixa] = rotulos == int(np.argmax(contagens))
+    return saida, n
+
+
+def preencher_buracos(mask, por_fatia=True, triplanar=False):
+    mask = _bool(mask)
+    if not mask.any():
+        return mask.copy()
+    if triplanar:
+        saida = mask.copy()
+        for eixo in (0, 1, 2):
+            v = np.moveaxis(saida, eixo, 0)
+            cheio = np.zeros_like(v)
+            for i in range(v.shape[0]):
+                if v[i].any():
+                    cheio[i] = ndimage.binary_fill_holes(v[i])
+            saida = np.moveaxis(cheio, 0, eixo)
+        return saida
+    if not por_fatia:
+        return ndimage.binary_fill_holes(mask)
+    saida = np.zeros_like(mask)
+    for z in range(mask.shape[0]):
+        if mask[z].any():
+            saida[z] = ndimage.binary_fill_holes(mask[z])
+    return saida
+
+
+def espessura_mm(mask, grade):
+    caixa = _bbox_folgado(mask, (1, 1, 1))
+    if caixa is None:
+        return 0.0
+    d = distancia_edt(mask[caixa], grade.spacing)
+    return float(d.max())
+
+
+def _n_maiores(campo, alvo_voxels):
+    n = int(alvo_voxels)
+    plano = campo.ravel()
+    if n <= 0:
+        return np.zeros(campo.shape, dtype=bool)
+    if n >= plano.size:
+        return np.ones(campo.shape, dtype=bool)
+    if plano.nbytes > _BYTES_CAMPO_EM_RAM:
+        copia = _campo(plano.shape, plano.dtype)
+        copia[:] = plano
+        copia.partition(plano.size - n)
+        corte = copia[plano.size - n].item()
+        del copia
+        fora = plano >= corte
+        if np.count_nonzero(fora) == n:
+            return fora.reshape(campo.shape)
+        # GUARDA: no empate que atravessa o corte, a ordem exata do
+        # argpartition original define quais pixels entram no contorno.
+        del fora
+        indices_bytes = plano.size * np.dtype(np.intp).itemsize
+        if indices_bytes > 32 * 1024**2:
+            _exigir_reserva(indices_bytes + plano.size, "o desempate do contorno")
+    idx = np.argpartition(plano, plano.size - n)[plano.size - n:]
+    fora = np.zeros(plano.size, dtype=bool)
+    fora[idx] = True
+    return fora.reshape(campo.shape)
+
+
+from typing import NamedTuple
+
+class Fina(NamedTuple):
+    raio: float
+
+
+def distancia_com_sinal(mask, grade, raio_inscrito=None, parar_se_fina_mm=None):
+    m = _bool(mask)
+    dentro = distancia_edt(m, grade.spacing)
+    if raio_inscrito is not None or parar_se_fina_mm is not None:
+        raio = float(dentro.max()) if dentro.size else 0.0
+        if raio_inscrito is not None:
+            raio_inscrito.append(raio)
+        if parar_se_fina_mm is not None and 0 < raio < parar_se_fina_mm:
+            return Fina(raio)
+    fora = distancia_edt(~m, grade.spacing)
+    np.subtract(fora, dentro, out=fora)
+    return fora
+
+
+def suavizar(mask, mm, grade, limiar=None, preservar_volume=True,
+             ancora="centro", mediana=False, compactar=None,
+             raio_inscrito=None, parar_se_fina_mm=None):
+    if not hasattr(type(mask), "recorte"):
+        mask = _bool(mask)
+    if not mask.any() or float(mm) <= 0:
+        return compactar.de(mask) if compactar else mask.copy()
+
+    efetivo = float(mm)
+    anc = str(ancora or "centro").lower()
+    desloca_mm = 0.0
+    if anc == "externo":
+        desloca_mm = efetivo / 2.0
+    elif anc == "interno":
+        desloca_mm = -efetivo / 2.0
+
+    folga = [int(np.ceil(3 * efetivo / grade.spacing[e])) + 2 for e in range(3)]
+    caixa = _bbox_folgado(mask, folga)
+    recorte = mask[caixa]
+    alvo = int(recorte.sum())
+    if desloca_mm:
+        sup = int(_superficie(recorte).sum())
+        alvo = max(1, int(round(alvo + sup * desloca_mm /
+                                float(min(grade.spacing)))))
+
+    campo = distancia_com_sinal(recorte, grade, raio_inscrito, parar_se_fina_mm)
+    if isinstance(campo, Fina):
+        return campo
+    if mediana:
+        k = [max(1, int(round(efetivo / grade.spacing[e]))) for e in range(3)]
+        k = [v + 1 if v % 2 == 0 else v for v in k]
+        if max(k) > 1:
+            campo = ndimage.median_filter(campo, size=k, mode="nearest")
+    sigma = [efetivo / grade.spacing[e] for e in range(3)]
+    ndimage.gaussian_filter(campo, sigma=sigma, output=campo)
+
+    if preservar_volume:
+        np.negative(campo, out=campo)
+        saida_caixa = _n_maiores(campo, alvo)
+    else:
+        saida_caixa = campo < 0.0
+
+    if not saida_caixa.any():
+        return compactar.de(mask) if compactar else mask.copy()
+
+    if compactar is not None:
+        roi = _limites(saida_caixa)
+        sub = tuple(slice(lo, hi + 1) for lo, hi in roi)
+        global_roi = tuple(slice(c.start + s.start, c.start + s.stop)
+                           for c, s in zip(caixa, sub))
+        return compactar(mask.shape, global_roi, saida_caixa[sub].copy())
+    saida = np.zeros(mask.shape, dtype=bool)
+    saida[caixa] = saida_caixa
+    return saida
+
+
+TAUBIN_LAMBDA = 0.60
+TAUBIN_MU = -0.64
+TAUBIN_PASSOS = 8
+MIN_PONTOS_SUAVIZAR = 8
+
+
+# O contorno fechado usa o mesmo filtro linear em cada amostra. A convolução
+# fusionada evita 16 matrizes temporárias e conserva a vizinhança do Taubin.
+def _nucleo_taubin(passos=TAUBIN_PASSOS):
+    nucleo = np.ones(1, dtype=np.float64)
+    for _ in range(passos):
+        for fator in (TAUBIN_LAMBDA, TAUBIN_MU):
+            nucleo = np.convolve(nucleo, (fator / 2, 1 - fator, fator / 2))
+    return nucleo
+
+
+_NUCLEO_TAUBIN = _nucleo_taubin()
+_NUCLEO_LEVE = _nucleo_taubin(2)
+
+
+def suavizar_anel_de_entrega(xy, leve=False):
+    from scipy.ndimage import convolve1d
+    nucleo = _NUCLEO_LEVE if leve else _NUCLEO_TAUBIN
+    return convolve1d(np.asarray(xy, dtype=np.float64), nucleo, axis=0, mode="wrap")
+
+
+def suavizar_poligono(pontos, passos=TAUBIN_PASSOS, lam=TAUBIN_LAMBDA,
+                      mu=TAUBIN_MU, fechado=True):
+    p = np.asarray(pontos, dtype=np.float64)
+    if p.ndim != 2 or p.shape[0] < MIN_PONTOS_SUAVIZAR:
+        return np.asarray(pontos, dtype=np.float64)
+    ordem = np.arange(p.shape[0])
+    ant, prox = np.roll(ordem, 1), np.roll(ordem, -1)
+    for _ in range(int(passos)):
+        for fator in (lam, mu):
+            if fechado:
+                viz = (p[ant] + p[prox]) / 2.0
+                p = p + fator * (viz - p)
+            else:
+                viz = p.copy()
+                viz[1:-1] = (p[:-2] + p[2:]) / 2.0
+                d = fator * (viz - p)
+                d[0] = d[-1] = 0.0
+                p = p + d
+    return p
+
+
+MITER_MAX = 2.0
+
+
+def expandir_meio_pixel(pontos, dx, dy, fechado=True, furo=False):
+    p = np.asarray(pontos, dtype=np.float64)
+    if p.ndim != 2 or p.shape[1] != 2 or p.shape[0] < 3:
+        return np.asarray(pontos, dtype=np.float64)
+    dx, dy = abs(float(dx)) / 2.0, abs(float(dy)) / 2.0
+    if dx <= 0 and dy <= 0:
+        return p.copy()
+
+    esc = np.array([dx if dx > 0 else 1.0, dy if dy > 0 else 1.0])
+    q = p / esc
+
+    giro = sentido_poligono(q)
+    if not giro:
+        return p.copy()
+    fora = float(giro)
+    # GUARDA: o contorno de um furo passa pelos centros do material; o fora
+    # dele e para dentro do proprio poligono, senao o anel perde uma volta.
+    if furo:
+        fora = -fora
+
+    d = np.roll(q, -1, axis=0) - q if fechado else np.vstack(
+        [q[1:] - q[:-1], (q[-1] - q[-2])[None, :]])
+    comp = np.hypot(d[:, 0], d[:, 1])
+    bom = comp > 1e-12
+    if not bom.any():
+        return p.copy()
+    n = np.zeros_like(d)
+    n[bom, 0] = fora * d[bom, 1] / comp[bom]
+    n[bom, 1] = -fora * d[bom, 0] / comp[bom]
+    if not bom.all():
+        for i in range(len(n)):
+            if not bom[i]:
+                n[i] = n[i - 1]
+
+    ant = np.roll(n, 1, axis=0)
+    soma = ant + n
+    denom = 1.0 + (ant * n).sum(axis=1)
+    desl = np.zeros_like(soma)
+    seguro = denom > 1e-6
+    desl[seguro] = soma[seguro] / denom[seguro][:, None]
+    desl[~seguro] = ant[~seguro]
+    comp_d = np.hypot(desl[:, 0], desl[:, 1])
+    corta = comp_d > MITER_MAX
+    if corta.any():
+        desl[corta] = desl[corta] / comp_d[corta][:, None] * MITER_MAX
+    return (q + desl) * esc
+
+
+def reduzir_vertices_do_anel(pontos, tolerancia_mm=0.12, passes=1):
+    """Retira amostras intercaladas se o erro da corda e a área permitem."""
+    original = np.asarray(pontos, dtype=np.float64)
+    atual = original
+    if len(atual) < 12 or not np.isfinite(atual).all():
+        return original
+    area = area_poligono(original)
+    if area <= 0:
+        return original
+    for _ in range(passes):
+        if len(atual) < 12:
+            break
+        indices = np.arange(1, len(atual) - 1, 2)
+        a = atual[indices - 1, :2]
+        b = atual[indices + 1, :2] - a
+        v = atual[indices, :2] - a
+        vv = (b * b).sum(axis=1)
+        # Vértices de retorno e fendas estreitas permanecem representados.
+        t = (v * b).sum(axis=1) / np.maximum(vv, 1e-20)
+        erro2 = ((v - t[:, None] * b) ** 2).sum(axis=1)
+        tirar = (t > 0) & (t < 1) & (erro2 <= (tolerancia_mm / passes) ** 2)
+        manter = np.ones(len(atual), dtype=bool)
+        manter[indices[tirar]] = False
+        novo = atual[manter]
+        if len(novo) == len(atual) or abs(area_poligono(novo) - area) > 0.005 * area:
+            break
+        atual = novo
+    return atual
+
+
+def area_poligono(pontos):
+    p = np.asarray(pontos, dtype=np.float64)[:, :2]
+    if p.shape[0] < 3:
+        return 0.0
+    x, y = p[:, 0], p[:, 1]
+    return float(0.5 * np.abs(np.dot(x, np.roll(y, -1)) -
+                              np.dot(y, np.roll(x, -1))))
+
+def sentido_poligono(pontos):
+    p = np.asarray(pontos, dtype=np.float64)[:, :2]
+    if p.shape[0] < 3:
+        return 0
+    x, y = p[:, 0], p[:, 1]
+    s = float(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
+    return 0 if s == 0.0 else (1 if s > 0 else -1)
+
+
+def douglas_peucker_fechado(pontos, tol, minimo=3):
+    p = np.asarray(pontos, dtype=np.float64)
+    n = int(p.shape[0]) if p.ndim == 2 else 0
+    if n == 0:
+        return np.zeros(0, dtype=np.int64)
+    if tol is None or float(tol) <= 0 or n <= max(int(minimo), 3):
+        return np.arange(n, dtype=np.int64)
+    xy = p[:, :2]
+    tol = float(tol)
+    d0 = np.hypot(xy[:, 0] - xy[0, 0], xy[:, 1] - xy[0, 1])
+    b = int(np.argmax(d0))
+    if b == 0:
+        return np.arange(min(n, max(int(minimo), 3)), dtype=np.int64)
+    manter = np.zeros(n + 1, dtype=bool)
+    manter[0] = manter[b] = manter[n] = True
+    ext = np.vstack([xy, xy[:1]])
+    pilha = [(0, b), (b, n)]
+    while pilha:
+        i, j = pilha.pop()
+        if j - i < 2:
+            continue
+        a, c = ext[i], ext[j]
+        seg = ext[i + 1:j]
+        dx, dy = c[0] - a[0], c[1] - a[1]
+        comp = np.hypot(dx, dy)
+        if comp == 0.0:
+            dist = np.hypot(seg[:, 0] - a[0], seg[:, 1] - a[1])
+        else:
+            dist = np.abs(dy * (seg[:, 0] - a[0]) - dx * (seg[:, 1] - a[1])) \
+                / comp
+        k = int(np.argmax(dist))
+        if dist[k] > tol:
+            m = i + 1 + k
+            manter[m] = True
+            pilha.append((i, m))
+            pilha.append((m, j))
+    idx = np.nonzero(manter[:n])[0]
+    if idx.size < int(minimo):
+        a, c = xy[0], xy[b]
+        dx, dy = c[0] - a[0], c[1] - a[1]
+        comp = np.hypot(dx, dy) or 1.0
+        dist = np.abs(dy * (xy[:, 0] - a[0]) - dx * (xy[:, 1] - a[1])) / comp
+        dist[idx] = -1.0
+        faltam = int(minimo) - idx.size
+        extra = np.argsort(-dist)[:faltam]
+        idx = np.unique(np.concatenate([idx, extra]))
+    return idx.astype(np.int64)
+
+
+def indice_do_extremo(mask, direcao, grade, offset_mm=0.0):
+    m = _bool(mask)
+    if not m.any():
+        raise ValueError("mascara vazia em indice_do_extremo")
+    eixo, sinal = grade.eixo_sinal(direcao)
+    onde = np.where(m)[eixo]
+    limite = int(onde.max()) if sinal > 0 else int(onde.min())
+    return limite + sinal * grade.mm_para_voxels(offset_mm, eixo)
+
+SENTIDO_CANONICO = ("sup", "post", "esq")
+
+
+def eixos_invertidos(grade):
+    fora = []
+    for eixo, alvo in enumerate(SENTIDO_CANONICO):
+        s = grade.sentido[eixo]
+        if s == alvo:
+            continue
+        if _OPOSTO[s] == alvo:
+            fora.append(eixo)
+            continue
+        raise ValueError("a serie nao e axial (sentido %r): os eixos nao se "
+                         "levam a %r so por inversao" % (grade.sentido,
+                                                         SENTIDO_CANONICO))
+    return tuple(fora)
+
+
+def grade_canonica(grade):
+    eixos_invertidos(grade)
+    return Grade(grade.spacing, SENTIDO_CANONICO)
+
+
+def para_canonico(arr, grade):
+    eixos = eixos_invertidos(grade)
+    a = np.asarray(arr)
+    return np.ascontiguousarray(np.flip(a, eixos)) if eixos else a
+
+
+def do_canonico(arr, grade):
+    return para_canonico(arr, grade)
+
+
+def _conferir_disjuncao(partes, nomes, lim_de):
+    for i, a in enumerate(nomes):
+        la = lim_de[a]
+        for b in nomes[i + 1:]:
+            lb = lim_de[b]
+            ib = tuple(slice(max(la[e][0], lb[e][0]),
+                             min(la[e][1], lb[e][1]) + 1) for e in range(3))
+            if any(s.start >= s.stop for s in ib):
+                continue
+            if (_bool(partes[a][ib]) & _bool(partes[b][ib])).any():
+                raise ValueError(
+                    "suavizar_conjunto exige mascaras disjuntas: %r e %r se "
+                    "sobrepoem" % (a, b))
+
+
+def suavizar_conjunto(partes, mm, grade, limiar=0.5, so_no_plano=False,
+                       compactar=None):
+    partes = {k: (v if hasattr(type(v), "recorte") else _bool(v))
+              for k, v in partes.items()}
+    lim_de = {k: _limites(v) for k, v in partes.items()}
+    nomes = [k for k in partes if lim_de[k] is not None]
+    def copiar(v):
+        return compactar.de(v) if compactar is not None else _bool(v).copy()
+    if not nomes:
+        return {k: copiar(v) for k, v in partes.items()}
+    mm_de = ((lambda k: float(mm.get(k, 0.0))) if isinstance(mm, dict)
+             else (lambda k: float(mm)))
+    if max([mm_de(k) for k in nomes]) <= 0:
+        return {k: copiar(v) for k, v in partes.items()}
+
+    sig_de = dict((k, [0.0 if (so_no_plano and e == 0)
+                       else mm_de(k) / grade.spacing[e] for e in range(3)])
+                  for k in nomes)
+    folga = [int(np.ceil(3 * max(sig_de[k][e] for k in nomes))) + 2
+             for e in range(3)]
+    forma = partes[nomes[0]].shape
+    caixa = tuple(slice(max(0, min(lim_de[k][e][0] for k in nomes) - folga[e]),
+                        min(forma[e], max(lim_de[k][e][1] for k in nomes) + folga[e] + 1))
+                  for e in range(3))
+    uniao = np.zeros(tuple(c.stop - c.start for c in caixa), dtype=bool)
+
+    # Num conjunto clínico as partes são disjuntas. Teste na caixa justa;
+    # a busca por par, que identifica o erro original, só roda em colisão.
+    for k in nomes:
+        justa = tuple(slice(a, b + 1) for a, b in lim_de[k])
+        sub = tuple(slice(j.start - c.start, j.stop - c.start) for j, c in zip(justa, caixa))
+        local = _bool(partes[k][justa])
+        if (uniao[sub] & local).any():
+            _conferir_disjuncao(partes, nomes, lim_de)
+        uniao[sub] |= local
+    melhor = _campo(uniao.shape, np.float32)
+    quem = _campo(uniao.shape, np.int16)
+    for i, k in enumerate(nomes):
+        # Duas vezes o raio real do núcleo para não refletir sinal na borda artificial.
+        folga_local = [2 * max(0, int(4 * v + 0.5)) for v in sig_de[k]]
+        glob = tuple(slice(max(c.start, lo - f), min(c.stop, hi + 1 + f))
+                     for c, (lo, hi), f in zip(caixa, lim_de[k], folga_local))
+        sub = tuple(slice(g.start - c.start, g.stop - c.start) for g, c in zip(glob, caixa))
+        local = _bool(partes[k][glob])
+        b = _campo(local.shape, np.float32)
+        ndimage.gaussian_filter(local, sigma=sig_de[k], output=b)
+        melhor_local, quem_local = melhor[sub], quem[sub]
+        troca = b > melhor_local
+        np.copyto(melhor_local, b, where=troca)
+        quem_local[troca] = i
+        del local, b, troca, melhor_local, quem_local
+
+    crus = ~uniao
+    fundo = _campo(melhor.shape, np.float32)
+    por_sigma = {}
+    for i, k in enumerate(nomes):
+        chave = tuple(sig_de[k])
+        por_sigma.setdefault(chave, []).append(i)
+    for sigma, indices in por_sigma.items():
+        campo = _campo(crus.shape, np.float32)
+        ndimage.gaussian_filter(crus, sigma=sigma, output=campo)
+        for i in indices:
+            np.copyto(fundo, campo, where=(quem == i))
+        del campo
+    del crus
+    np.subtract(melhor, fundo, out=melhor)
+    del fundo
+    vence = _n_maiores(melhor, int(uniao.sum()))
+    del melhor
+    fora = {}
+    for i, k in enumerate(nomes):
+        sub = vence & (quem == i)
+        if compactar is not None:
+            # Recorte cada estrutura, em vez de reter a caixa de todo o grupo.
+            limites = ndimage.find_objects(sub.view(np.uint8))
+            if limites:
+                local = limites[0]
+                caixa_roi = tuple(slice(c.start + s.start, c.start + s.stop)
+                                  for c, s in zip(caixa, local))
+                fora[k] = compactar(forma, caixa_roi, sub[local].copy())
+            else:
+                fora[k] = compactar(forma, None, None)
+        else:
+            m = np.zeros(forma, dtype=bool)
+            m[caixa] = sub
+            fora[k] = m
+    for k in partes:
+        if k not in fora:
+            fora[k] = copiar(partes[k])
+    return fora
+
+def limitar_por_plano(mask, direcao, referencia, offset_mm=0.0, grade=None):
+    if grade is None:
+        raise ValueError("limitar_por_plano exige grade")
+    mask = _bool(mask)
+    eixo, sinal = grade.eixo_sinal(direcao)
+    if isinstance(referencia, np.ndarray):
+        ref = _bool(referencia)
+        if not ref.any():
+            raise ValueError("referencia vazia em limitar_por_plano")
+        onde = np.where(ref)[eixo]
+        limite = int(onde.max()) if sinal > 0 else int(onde.min())
+    else:
+        limite = int(referencia)
+    limite += sinal * grade.mm_para_voxels(offset_mm, eixo)
+
+    saida = mask.copy()
+    fatia = [slice(None)] * 3
+    if sinal > 0:
+        fatia[eixo] = slice(limite + 1, None)
+    else:
+        fatia[eixo] = slice(None, limite)
+    saida[tuple(fatia)] = False
+    return saida
+
+
+def partir_no_plano(mask, direcao, indice, grade):
+    m = _bool(mask)
+    eixo, sinal = grade.eixo_sinal(direcao)
+    limite = int(indice)
+    a = np.zeros_like(m)
+    b = np.zeros_like(m)
+    fatia_a = [slice(None)] * 3
+    fatia_b = [slice(None)] * 3
+    if sinal > 0:
+        fatia_a[eixo] = slice(limite, None)
+        fatia_b[eixo] = slice(None, limite)
+    else:
+        fatia_a[eixo] = slice(None, limite + 1)
+        fatia_b[eixo] = slice(limite + 1, None)
+    a[tuple(fatia_a)] = m[tuple(fatia_a)]
+    b[tuple(fatia_b)] = m[tuple(fatia_b)]
+    return a, b
+
+
+def volume_cm3(mask, grade):
+    return volume_de_voxels(_bool(mask).sum(), grade)
+
+
+def delta_volume_pct(candidato, referencia, grade):
+    v_ref = volume_cm3(referencia, grade)
+    if v_ref <= 0:
+        return float("nan")
+    return (volume_cm3(candidato, grade) - v_ref) / v_ref * 100.0
+
+
+def dsc(a, b):
+    a, b = _bool(a), _bool(b)
+    soma = int(a.sum()) + int(b.sum())
+    if soma == 0:
+        return 1.0
+    return 2.0 * float(np.logical_and(a, b).sum()) / float(soma)
+
+
+def _superficie(mask):
+    mask = _bool(mask)
+    if not mask.any():
+        return mask.copy()
+    est = ndimage.generate_binary_structure(3, 1)
+    return mask & ~ndimage.binary_erosion(mask, structure=est, border_value=0)
+
+
+_VAZIO = np.array([], dtype=np.float64)
+
+
+def par_distancias(a, b, grade):
+    a, b = _bool(a), _bool(b)
+    if not a.any() or not b.any():
+        return _VAZIO, _VAZIO
+    caixa = _caixa_comum([a, b], (2, 2, 2))
+    sup_a, sup_b = _superficie(a[caixa]), _superficie(b[caixa])
+    if not sup_a.any() or not sup_b.any():
+        return _VAZIO, _VAZIO
+    ate_b = distancia_edt(~sup_b, grade.spacing)
+    ate_a = distancia_edt(~sup_a, grade.spacing)
+    return ate_b[sup_a], ate_a[sup_b]
+
+
+def _hd95_de(d1, d2):
+    if d1.size == 0 or d2.size == 0:
+        return float("nan")
+    return float(np.percentile(np.concatenate([d1, d2]), 95))
+
+
+def _hd100_de(d1, d2):
+    if d1.size == 0 or d2.size == 0:
+        return float("nan")
+    return float(max(d1.max(), d2.max()))
+
+
+def _msd_de(d1, d2):
+    if d1.size == 0 or d2.size == 0:
+        return float("nan")
+    return float((d1.sum() + d2.sum()) / (d1.size + d2.size))
+
+
+def _nsd_de(d1, d2, tolerancia_mm):
+    if d1.size == 0 or d2.size == 0:
+        return float("nan")
+    dentro = float((d1 <= tolerancia_mm).sum() + (d2 <= tolerancia_mm).sum())
+    return dentro / float(d1.size + d2.size)
+
+
+def _apl_de(d2, grade, tolerancia_mm):
+    if d2.size == 0:
+        return float("nan")
+    fora = int((d2 > float(tolerancia_mm)).sum())
+    passo = float(min(grade.spacing))
+    return fora * passo
+
+def metricas(candidato, referencia, grade, tolerancia_mm=2.0):
+    d1, d2 = par_distancias(candidato, referencia, grade)
+    return {"dsc": round(dsc(candidato, referencia), 4),
+            "dsc_sup": round(_nsd_de(d1, d2, tolerancia_mm), 4),
+            "dsc_sup_1mm": round(_nsd_de(d1, d2, 1.0), 4),
+            "dsc_sup_3mm": round(_nsd_de(d1, d2, 3.0), 4),
+            "hd95_mm": round(_hd95_de(d1, d2), 2),
+            "hd100_mm": round(_hd100_de(d1, d2), 2),
+            "msd_mm": round(_msd_de(d1, d2), 2),
+            "apl_mm": round(_apl_de(d2, grade, tolerancia_mm), 1),
+            "delta_vol_pct": round(delta_volume_pct(candidato, referencia, grade), 2),
+            "vol_candidato_cm3": round(volume_cm3(candidato, grade), 2),
+            "vol_referencia_cm3": round(volume_cm3(referencia, grade), 2),
+            "tolerancia_sup_mm": tolerancia_mm}

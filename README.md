@@ -2,9 +2,9 @@
 
 **Part of the Radioterapia.AI local ecosystem. A study bench for AI segmentation in radiation oncology — teaching and research material, not a medical device.**
 
-`Suite code: Apache-2.0` · `Version: 8.30.4` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
+`Suite code: Apache-2.0` · `Version: 8.30.5` · `Platform: Windows 10 and 11, 64-bit` · `Interface: twelve languages`
 
-Version 8.30.4 corrects RTSTRUCT placement on images with rectangular pixels. In AUTO for CT, `Bag_Bowel` and `Bag_Bowel_OAR` use FAST finishing. All other structures in AUTO use standard finishing. Custom runs follow the operator's finishing selection. ROCardS coronary segmentation can be activated separately in Settings for a research workstation. The installer can also build a portable package of the selected components. [Local Suite 8.30.4 release notes](build/releases/v8_30_4/README.md)
+Version 8.30.5 adds five saved FAST finishing levels with offline chest and bowel-bag previews, a first-launch guide and rotating workstation tips in twelve languages. [Local Suite 8.30.5 release notes](build/releases/v8_30_5/README.md)
 
 > **Teaching and research material. This is not a medical device.**
 > It is **not** validated for clinical use, it has no ANVISA registration, no

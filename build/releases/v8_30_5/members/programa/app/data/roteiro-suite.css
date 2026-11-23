@@ -1,0 +1,29 @@
+.rt-tour {
+  position:fixed; inset:auto auto 1rem 1rem; margin:0; padding:0;
+  width:min(26rem,calc(100vw - 2rem)); max-height:calc(100dvh - 2rem);
+  overflow:auto; color:var(--text,#dfe9ef); background:var(--panel,#18252c);
+  border:1px solid var(--line-strong,#48616a); border-radius:16px;
+  box-shadow:0 18px 65px #0007; font-family:inherit;
+}
+.rt-tour[open]{animation:suite-tour-in .18s ease-out}
+.rt-tour::backdrop{background:#0a121a66}
+:dir(rtl) .rt-tour{inset-inline-start:1rem;inset-inline-end:auto}
+.rt-tour[data-type="tip"],.rt-tour[data-step="0"]{inset:0;margin:auto;height:fit-content}
+.rt-tour article{padding:1.35rem;display:grid;gap:.85rem}
+.rt-tour .rt-top,.rt-tour .rt-actions{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.rt-tour .rt-top{justify-content:space-between;color:var(--text-muted,#9fb5bc);font-size:.83rem}
+.rt-tour h2{margin:0;font:650 1.32rem/1.25 var(--font-display,system-ui);text-wrap:balance}
+.rt-tour p{margin:0;font-size:.98rem;line-height:1.5;color:var(--text-muted,inherit)}
+.rt-tour .rt-actions{justify-content:flex-end;padding-top:.25rem}
+.rt-tour label{display:flex;align-items:center;gap:.55rem;font-size:.9rem;cursor:pointer}
+.rt-tour button{font:inherit;color:inherit;cursor:pointer;border-radius:8px;padding:.45rem .75rem;border:1px solid var(--line-strong,#59727b);background:transparent}
+.rt-tour .rt-next{background:var(--accent,#88d6b5);border-color:transparent;color:var(--on-accent,#10241d);font-weight:650}
+.rt-tour .rt-skip{margin-inline-end:auto;border:0;padding-inline:0}
+.rt-tour :focus-visible{outline:2px solid var(--accent,#88d6b5);outline-offset:3px}
+.rt-tour img{display:block;width:100%;max-height:12rem;object-fit:contain;background:#0b1014;border-radius:10px}
+.rt-tour [hidden]{display:none!important}
+.rt-tour [role="status"]:empty{display:none}
+.rt-tour-target{outline:3px solid var(--accent,#88d6b5)!important;outline-offset:3px}
+@keyframes suite-tour-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media(max-width:600px){.rt-tour{inset:auto .45rem .45rem;margin:0 auto;width:calc(100% - .9rem)}.rt-tour article{padding:1rem}}
+@media(prefers-reduced-motion:reduce){.rt-tour[open]{animation:none}}
