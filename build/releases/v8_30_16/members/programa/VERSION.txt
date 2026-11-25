@@ -1,0 +1,8 @@
+# Generated at packaging time. Do not edit.
+# This is the same stamp the installer reads from entrega.txt.
+
+PRODUCT   RADIOTERAPIA_AI_LOCAL_SUITE
+PROJECT   LOCAL_SUITE
+VERSION   8.30.16
+BUILT     2026-11-25
+BUILD     2026-11-25.estudio.8316
