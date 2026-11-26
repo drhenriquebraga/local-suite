@@ -344,10 +344,10 @@ def teste_um_pedido_por_serie():
     contador = {"n": 0, "por_bilhete": {}}
     original = radai_thumbnail.png_central
 
-    def contando(b, lado=radai_thumbnail.LADO):
+    def contando(b, lado=radai_thumbnail.LADO, parar=None):
         contador["n"] += 1
         contador["por_bilhete"][b] = contador["por_bilhete"].get(b, 0) + 1
-        return original(b, lado)
+        return original(b, lado, parar=parar)
 
     radai_thumbnail.png_central = contando
     try:
@@ -1396,6 +1396,39 @@ def teste_varias_entregas_e_a_volta_a_tela():
            str((isca3 or {}).get("a_estado")))
 
 
+def teste_cancelar_as_leituras_do_visor_e_grade():
+    script = r"""
+DC.fonte = 'exemplo';
+DC.conversao = 'ja-confirmada';
+DC.series = [{bilhete:'b1',modalidade:'CT',cortes:10},{bilhete:'b2',modalidade:'CT',cortes:10}];
+var popup, sinal;
+window.uiVisor = function(op){popup=op;return {}};
+bgPost = function(url,b,op){sinal=op.signal;return new Promise(function(resolve,reject){
+ sinal.addEventListener('abort',function(){reject(new Error('abort'))},{once:true})
+})};
+dcVisorModal(0); popup.aoFechar();
+var modalParou = sinal.aborted;
+var pendente;
+fetch = function(url,op){pendente=op.signal;return new Promise(function(){})};
+El.prototype.removeAttribute = function(key){delete this._a[key]};
+document.hidden = false;
+DC_CONCORRENCIA = 1;
+dcEnfileirarMini(0,DC.series[0]); dcEnfileirarMini(1,DC.series[1]);
+var img = bgEl('dci0'); img.onerror();
+document.hidden = true; dcSuspenderMini(true);
+var semAtivas = DC.rodando===0 && DC.minisAtivas.size===0 && DC.filaMini.length===2;
+var semNovas = bgEl('dci1').src==='';
+document.hidden = false; dcRetomarMini();
+console.log('JSON:'+JSON.stringify({modal:modalParou,head:pendente.aborted,parou:semAtivas,
+ semNovas:semNovas,retomou:DC.rodando===1,conversao:DC.conversao}));
+"""
+    d, erro = _rodar_tela(script)
+    checar("fechar o visor cancela seu laudo e preserva a conversão confirmada",
+           d and d["modal"] and d["conversao"] == "ja-confirmada", erro)
+    checar("a grade oculta interrompe HEAD e miniaturas e retoma só ao reaparecer",
+           d and all(d[k] for k in ("head","parou","semNovas","retomou")), erro)
+
+
 def teste_o_diagnostico_le_todas_as_series():
     secao(u"o diagnostico mostra os alertas de TODAS as series antes de converter")
     import radai_bridge as B
@@ -1894,9 +1927,9 @@ def teste_medida_da_grade():
     contador = {"n": 0}
     original = radai_thumbnail.png_central
 
-    def contando(b, lado=radai_thumbnail.LADO):
+    def contando(b, lado=radai_thumbnail.LADO, parar=None):
         contador["n"] += 1
-        return original(b, lado)
+        return original(b, lado, parar=parar)
 
     radai_thumbnail.png_central = contando
     try:
@@ -2171,14 +2204,14 @@ def teste_indice_deslocado_nao_converte_outra_serie():
 
     fonte = io.open(_componentes.fonte("app/radai_bridge.py"),
                     encoding="utf-8", errors="replace").read()
-    checar(u"`_serie` acha a serie SO pelo bilhete", u"def _serie(pasta, b):" in fonte)
+    checar(u"`_serie` acha a serie SO pelo bilhete", u"def _serie(pasta, b, parar=None):" in fonte)
     import radai_bridge as B
     checar(u"e nenhum pedido da tela manda indice", u"indice" not in B.JS)
     checar(u"o laudo manda o bilhete",
            u"{pasta: fonte, b: b}" in _corpo_js(B.JS, u"dcLerLaudo"))
     checar(u"e o visor do modal tambem",
-           u"dcLerLaudo(s.bilhete || '')" in _corpo_js(B.JS, u"dcVisorModal"))
-    corpo = fonte[fonte.index(u"def _serie(pasta, b):"):]
+           u"dcLerLaudo(s.bilhete || '', modal)" in _corpo_js(B.JS, u"dcVisorModal"))
+    corpo = fonte[fonte.index(u"def _serie(pasta, b, parar=None):"):]
     corpo = corpo[:corpo.index(u"\n    def ", 10)]
     checar(u"bilhete que nao resolve NAO cai em outra serie",
            corpo.rstrip().endswith(u"return None"), corpo[-60:])
@@ -2316,6 +2349,7 @@ def main():
               teste_nenhuma_tela_pergunta_sobre_o_texto_no_pixel,
               teste_o_contrato_da_fila,
               teste_varias_entregas_e_a_volta_a_tela,
+              teste_cancelar_as_leituras_do_visor_e_grade,
               teste_o_diagnostico_le_todas_as_series,
               teste_o_brilho_do_visor_para_no_erro,
               teste_o_pipeline_abre_etapa_por_etapa,

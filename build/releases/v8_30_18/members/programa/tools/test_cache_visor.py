@@ -79,6 +79,78 @@ class Caches(unittest.TestCase):
                 cli.post(url,json={'dono':b,'ativo':False})
                 self.assertIsNone(obj.get(key))
 
+    def test_cancelar_laudo_interrompe_amostra_e_preserva_conversao_confirmada(self):
+        from fastapi import FastAPI
+        from PIL import Image
+        import radai_image
+        app = FastAPI()
+        imagem.montar(app)
+        rota = next(r.endpoint for r in app.routes if r.path == "/api/imagem/laudo")
+        geometria = {"espacamento_mm": (0.8, 0.8), "espessura_mm": 3,
+                     "orientacao": "axial", "posicao_paciente": "HFS"}
+        fechar = threading.Event()
+        amostrando = threading.Event()
+        convertendo = threading.Event()
+        seguir = threading.Event()
+        laudo_concluido = threading.Event()
+        chamadas = []
+        ctx = threading.local()
+        decodificar = radai_image.ler_cinza
+        original_conferir = radai_image.conferir
+
+        class Pedido:
+            async def json(self):
+                return {"b": "fantoma", "geometria": geometria}
+
+            async def is_disconnected(self):
+                return fechar.is_set()
+
+        def ficha(_bilhete, _parar):
+            ctx.previa = True
+            return serie, temp
+
+        def ler(caminho):
+            if getattr(ctx, "previa", False):
+                chamadas.append(caminho)
+                amostrando.set()
+                time.sleep(.25)
+            else:
+                convertendo.set()
+                self.assertTrue(seguir.wait(3))
+            return decodificar(caminho)
+
+        def conferir(*args, **kwargs):
+            try:
+                return original_conferir(*args, **kwargs)
+            finally:
+                if getattr(ctx, "previa", False):
+                    laudo_concluido.set()
+
+        with tempfile.TemporaryDirectory() as temp:
+            raiz = Path(temp)
+            for i in range(12):
+                Image.new('L', (48, 64), i).save(raiz / ('image_s0001_i%04d.png' % i))
+            serie = radai_image.varrer(temp)['series'][0]
+            with patch.object(imagem, "_ficha_visual", side_effect=ficha), \
+                 patch.object(radai_image, "ler_cinza", side_effect=ler), \
+                 patch.object(radai_image, "conferir", side_effect=conferir), \
+                 concurrent.futures.ThreadPoolExecutor(2) as pool:
+                laudo = pool.submit(asyncio.run, rota(Pedido()))
+                try:
+                    self.assertTrue(amostrando.wait(2))
+                    conv = pool.submit(radai_image.converter, serie, str(raiz / 'saida'),
+                                       geometria, modalidade='MR', como='sc')
+                    self.assertTrue(convertendo.wait(2))
+                    fechar.set()
+                    self.assertIn("interrompida", laudo.result(3)["erro"].lower())
+                    self.assertTrue(laudo_concluido.wait(2))
+                    self.assertEqual(len(chamadas), 1)
+                finally:
+                    fechar.set()
+                    seguir.set()
+                self.assertEqual(conv.result(3)["gravados"], 12)
+                self.assertEqual(len(list((raiz / 'saida').glob("*.dcm"))), 12)
+
     def test_mpr_dois_planos_compartilham_varredura_e_decode(self):
         from PIL import Image
         import radai_thumbnail

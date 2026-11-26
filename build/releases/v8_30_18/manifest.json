@@ -2,8 +2,8 @@
   "version": "8.30.18",
   "baseline_version": "8.30.17",
   "baseline_sha256": "2463f4b1046ac1c60bbf7f8ddf17433d53aafe37cfe794023dbf9298c588b617",
-  "setup_sha256": "ae1abc7aa66e7bebe1d884da0e6ffcd0a915ed8727119ea79fe1caeac9c5393c",
-  "bytes": 15173731,
+  "setup_sha256": "5304229e0c8d46504cbfc9deb1f32c5108e4b65d1a9d52fc5485e3eb8efc7195",
+  "bytes": 15177935,
   "python": "3.12.10",
   "zlib": "1.3.1",
   "members": [
@@ -1350,7 +1350,7 @@
     {
       "name": "programa/app/radai_batch.py",
       "source": "delta",
-      "sha256": "5f28a3c9cd37c7acc9ee1eca88488a30e2e055cd3cca0cb98edd0ba14272d9ea",
+      "sha256": "1aa2e897e9bdd9ab969c096710f72fc7ba1a862ba7385651cd8739e91fc8f7d8",
       "time": [
         2026,
         11,
@@ -1530,7 +1530,7 @@
     {
       "name": "programa/app/radai_bridge.py",
       "source": "delta",
-      "sha256": "1d99b72b4cd737585bc67e8c4bc1b2ffd120705bd9d5655445e4ece45327b4d2",
+      "sha256": "f08e6d27bd8a679851b67104f45a4a5994cf54cdee760e65c6ca0440a42a63f9",
       "time": [
         2026,
         11,
@@ -1750,7 +1750,7 @@
     {
       "name": "programa/app/radai_config.py",
       "source": "delta",
-      "sha256": "f428d69845ab13f91748abae098a06e3dbbdd88e953f457b3ee7d3c42ec16d60",
+      "sha256": "ef76190c8e293d3df256fd861f29cec29293e5d8fb7d51801e9dcef59560b822",
       "time": [
         2026,
         11,
@@ -2230,7 +2230,7 @@
     {
       "name": "programa/app/radai_dicom.py",
       "source": "delta",
-      "sha256": "316a779a83718f2101e93f3428d7cc09735572e7250effb55b3436de5d7b3d98",
+      "sha256": "3a4055e3ffe4d02a3ed4f4d0efee1eddbc10a6b2d58721d68ade188d24bcc3ca",
       "time": [
         2026,
         11,
@@ -2530,7 +2530,7 @@
     {
       "name": "programa/app/radai_image.py",
       "source": "delta",
-      "sha256": "ae9c74d8f7321099187a4939f0d8e8b1c4770fb68a959c9c887615ba2b0cacd8",
+      "sha256": "a69c0a0b7fe70bb18d4ab856c85e753c623af36ede1492dc73347b3c7e2ca612",
       "time": [
         2026,
         11,
@@ -2550,7 +2550,7 @@
     {
       "name": "programa/app/radai_image_screen.py",
       "source": "delta",
-      "sha256": "c6b26fd93d98fafa84ebdc1f6fcf784a1c347c8c1a963b965145b2e71bb01670",
+      "sha256": "29ce698315f398d61df6f8aa7302b4d8d072b188b8132285a8bee26014104cdf",
       "time": [
         2026,
         11,
@@ -3029,8 +3029,8 @@
     },
     {
       "name": "programa/app/radai_overnight.py",
-      "source": "baseline",
-      "sha256": "13d648d2728dba7a7f2bac500bc1ded9ca0dd0ff00a6342935ce9ea9e9e34887",
+      "source": "delta",
+      "sha256": "aa9655f91c444d142f64b0ec7b88efb73a6ef7b7e8b572ab1b9a69286cd2aab0",
       "time": [
         2026,
         11,
@@ -4289,8 +4289,8 @@
     },
     {
       "name": "programa/app/radai_thumbnail.py",
-      "source": "baseline",
-      "sha256": "23619cdd47c0d716a98ee87b9432db68aacef2d702a2723b4394983534ee537d",
+      "source": "delta",
+      "sha256": "c6529de701a0ab6549852ee5500724cacf1a0b3e4befe89892e894152f089af5",
       "time": [
         2026,
         11,
@@ -4590,7 +4590,7 @@
     {
       "name": "programa/app/radai_watcher.py",
       "source": "delta",
-      "sha256": "97a23f2c8cf6a56af1e0ab260c363c2ac4b32253dec2e81bd5f7a93c8ff2ccdf",
+      "sha256": "b038d560facfaccf0bd44b486d517d77a9c35c0ed9b2fa592f6fb0984c58c943",
       "time": [
         2026,
         11,
@@ -6270,7 +6270,7 @@
     {
       "name": "programa/tools/test_bridge.py",
       "source": "delta",
-      "sha256": "51c23f83f6dd85b3129e250fdf6db0d1a87e69b4bba1630c4a2de76ea6bbcec5",
+      "sha256": "363d5c8a36df7e7302f9e487d462f0dd2e5cc86a0c7f9806319c209e661862da",
       "time": [
         2026,
         11,
@@ -6290,7 +6290,7 @@
     {
       "name": "programa/tools/test_bridge_motor.py",
       "source": "delta",
-      "sha256": "3f812cae19204f21efe65378ddd76092ee7cc1eb45f93f5d63f8fad07cd44eaa",
+      "sha256": "161227393c9f783d58f5b3ed727293c70ece0835f7a6139d49755fe651b948e0",
       "time": [
         2026,
         11,
@@ -7010,7 +7010,7 @@
     {
       "name": "programa/tools/test_image.py",
       "source": "delta",
-      "sha256": "0bffd471ba274a276a47779c5b4b9424ff06b459895f038d90624957cab786d1",
+      "sha256": "05d146b2feee815a3f5e904d683e808c2c930d7ee4d95a9ac3adbc4208e3810e",
       "time": [
         2026,
         11,
@@ -8549,8 +8549,8 @@
     },
     {
       "name": "programa/tools/test_thumbnail.py",
-      "source": "baseline",
-      "sha256": "81d76f36088360f44e317b78d36a00a3efc9a963cb3f876051ff6e7140dc002d",
+      "source": "delta",
+      "sha256": "83c9d7e1cdce1ca2389fa29d883d45b0fd10d4057296ea7ad54b802e39eb9cb9",
       "time": [
         2026,
         11,
@@ -9710,7 +9710,7 @@
     {
       "name": "programa/app/radai_consulta_isolada.py",
       "source": "delta",
-      "sha256": "0f039b4d5ac4d2073d4a471dc4923bc152289bb7afa9c23858103c48af5ff62d",
+      "sha256": "423075088bb5d6dc40e23f5c2a5e1ff53d7df510354e1c828f58d8e1bb6a4f80",
       "time": [
         2026,
         11,
@@ -9750,7 +9750,7 @@
     {
       "name": "programa/app/radai_leitura_ativa.py",
       "source": "delta",
-      "sha256": "ae9defb03368c46af243ca4e5176a24c31687cb90abd83ef39f3e2fef40932bc",
+      "sha256": "5437912d38abfce58d6cd9c2fa749adc88498fd0e2ca7e591d82064895b3a861",
       "time": [
         2026,
         11,
@@ -9910,7 +9910,7 @@
     {
       "name": "programa/tools/test_cache_visor.py",
       "source": "delta",
-      "sha256": "6fb1c0c406630e6d9c4c4dc891188523081e5158e1f0a2471c2a27e147f55fcd",
+      "sha256": "e294341afe23398fdcd4764148c3abd1a4fd8ee958e1ceb2edcd1808ca48fce0",
       "time": [
         2026,
         11,
@@ -9930,7 +9930,7 @@
     {
       "name": "programa/tools/test_consultas_isoladas.py",
       "source": "delta",
-      "sha256": "66cad911718440864a1e7fc07b7fd7bfaa6308789f4e841863ca31c23ce7e1a3",
+      "sha256": "8976b5d73c60ee5a43dd78e1303d4588f8950f8db130723d2a9b6ffb09017e33",
       "time": [
         2026,
         11,
@@ -9970,7 +9970,7 @@
     {
       "name": "programa/tools/test_interrupcao_buscas.py",
       "source": "delta",
-      "sha256": "25097f9abac64239dbd54e1136eb8954adc81f3e316663d2c0b61433fdb8ef85",
+      "sha256": "1659bad26aeeb38423875c9e18ec88896c7ed75362e1ab6130aecc8b0e34adbb",
       "time": [
         2026,
         11,

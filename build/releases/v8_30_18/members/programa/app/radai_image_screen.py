@@ -277,6 +277,8 @@ function imEstado(s){
 }
 function imFecharVisor(){
  imCacheVisor.fechar();
+ IM.atual = null;
+ imPararLaudo();
  if(IM.controlador) IM.controlador.abort();
  IM.controlador = null;
  ['linha','coluna'].forEach(function(corte){
@@ -590,24 +592,36 @@ function imPintarConfirmacoes(){
  if(e) e.setAttribute('aria-pressed', st.escala ? 'true' : 'false');
  if(iv) iv.setAttribute('aria-pressed', st.invertida ? 'true' : 'false');
 }
-function imLerLaudo(s){
+function imLerLaudo(s, signal){
  var e = imEstado(s); if(!e) return Promise.resolve(null);
- return bgPost('/api/imagem/laudo', {b: s.bilhete, geometria: imGeometriaDe(e), aceitar: imAceitosDe(e)})
+ return bgPost('/api/imagem/laudo', {b: s.bilhete, geometria: imGeometriaDe(e), aceitar: imAceitosDe(e)}, {signal:signal})
   .then(function(d){
+   if(signal && signal.aborted) return null;
    if(d && !d.erro) e.decidiveis = d.decidiveis || [];
    return d;
   });
 }
+function imPararLaudo(){
+ if(IM.laudoTimer) clearTimeout(IM.laudoTimer);
+ if(IM.laudoCtl) IM.laudoCtl.abort();
+ IM.laudoCtl = null;
+ IM.laudoTimer = null;
+}
 function imLaudo(){
- var s = IM.atual; if(!s) return;
- imLerLaudo(s).then(function(d){
-  if(!d) return;
-  if(typeof dcImagemLaudo === 'function') dcImagemLaudo(s, d);
-  if(IM.atual !== s) return;
-  if(d.erro){ bgHTML(bgEl('im_laudo'), '<p class="bg-nao">' + bgEsc(d.erro) + '</p>'); return }
-  imPintarConfirmacoes();
-  imPintarLaudo(d);
- }).catch(function(){});
+ imPararLaudo();
+ var s = IM.atual; if(!s || document.hidden) return;
+ IM.laudoTimer = setTimeout(function(){
+  IM.laudoTimer = null;
+  var ctl = new AbortController();
+  IM.laudoCtl = ctl;
+  imLerLaudo(s, ctl.signal).then(function(d){
+   if(!d || ctl.signal.aborted || IM.atual !== s) return;
+   if(typeof dcImagemLaudo === 'function') dcImagemLaudo(s, d);
+   if(d.erro){ bgHTML(bgEl('im_laudo'), '<p class="bg-nao">' + bgEsc(d.erro) + '</p>'); return }
+   imPintarConfirmacoes();
+   imPintarLaudo(d);
+  }).catch(function(){}).finally(function(){ if(IM.laudoCtl === ctl) IM.laudoCtl = null });
+ }, IM_INTERVALO);
 }
 function imPintarLaudo(d){
  var st = imEstado(IM.atual) || {};
@@ -815,19 +829,19 @@ def montar(app):
     from fastapi import Request
     from fastapi.responses import Response
 
+    def _conferir_imagem(c, parar):
+        s, _pasta = _ficha_visual(str(c.get("b") or ""), parar)
+        if s is None:
+            return {"erro": u"série não encontrada — carregue a pasta de novo"}
+        laudo = radai_image.conferir(s, geometria_do_pedido(c), parar=parar)
+        return {"achados": laudo["achados"],
+                "pode_converter": laudo["pode_converter"],
+                "decidiveis": sorted(radai_image.decidiveis(s))}
+
     @app.post("/api/imagem/laudo")
     async def _laudo(request: Request):
         try:
-            c = await request.json() or {}
-            b = str(c.get("b") or "")
-            s, _pasta = await executar(request, _ficha_visual, b)
-            if s is None:
-                return {"erro": u"série não encontrada — carregue a pasta de novo"}
-            laudo = await radai_web.no_threadpool(
-                radai_image.conferir, s, geometria_do_pedido(c))
-            return {"achados": laudo["achados"],
-                    "pode_converter": laudo["pode_converter"],
-                    "decidiveis": sorted(radai_image.decidiveis(s))}
+            return await executar(request, _conferir_imagem, await request.json() or {})
         except Exception as e:
             return {"erro": u"%s: %s" % (type(e).__name__, str(e)[:200])}
 

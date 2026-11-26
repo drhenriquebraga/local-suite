@@ -186,11 +186,18 @@ def _pixel_incompleto(ds):
     return u""
 
 
-def ler_cabecalho(caminho):
+def verificar_leitura(parar):
+    if parar and parar():
+        raise InterruptedError("Leitura interrompida.")
+
+
+def ler_cabecalho(caminho, parar=None):
     import pydicom
+    verificar_leitura(parar)
     ds = pydicom.dcmread(caminho, stop_before_pixels=True, force=True)
     fora = []
     for elem in ds:
+        verificar_leitura(parar)
         try:
             valor = elem.value
             if elem.VR == "SQ":
@@ -212,6 +219,7 @@ def ler_cabecalho(caminho):
         })
     meta = []
     for elem in getattr(ds, "file_meta", []) or []:
+        verificar_leitura(parar)
         meta.append({
             "grupo": "%04X" % elem.tag.group,
             "elemento": "%04X" % elem.tag.element,
@@ -239,17 +247,21 @@ def _posicao(ds):
 TOLERANCIA_TILT_GRAUS = 0.5
 
 
-def inclinacao_de_gantry(arquivos):
+def inclinacao_de_gantry(arquivos, parar=None):
     import math
     arqs = [a for a in (arquivos or ()) if a.get("caminho")]
     if len(arqs) < 3:
         return 0.0, 0.0, None
     try:
         import pydicom
+        verificar_leitura(parar)
         primeiro = pydicom.dcmread(arqs[0]["caminho"], stop_before_pixels=True,
                                    force=True)
+        verificar_leitura(parar)
         ultimo = pydicom.dcmread(arqs[-1]["caminho"], stop_before_pixels=True,
                                  force=True)
+    except InterruptedError:
+        raise
     except Exception:
         return 0.0, 0.0, None
 
@@ -739,12 +751,12 @@ def _tem_decodificador(uid):
         return True
 
 
-def _laudo_inclinacao(arqs, enc, achados):
+def _laudo_inclinacao(arqs, enc, achados, parar=None):
     if arqs and not _iop_valida(arqs[0].get("iop")):
         enc[u"Inclinação de gantry"] = (u"não dá para medir sem a orientação "
                                         u"dos cortes")
         return
-    graus, desvio, declarado = inclinacao_de_gantry(arqs)
+    graus, desvio, declarado = inclinacao_de_gantry(arqs, parar)
     if graus <= TOLERANCIA_TILT_GRAUS:
         enc[u"Inclinação de gantry"] = (
             u"nenhuma" if declarado in (None, 0) else
@@ -776,7 +788,8 @@ def _laudo_inclinacao(arqs, enc, achados):
 
 
 
-def conferir(serie):
+def conferir(serie, parar=None):
+    verificar_leitura(parar)
     arqs = serie.get("arquivos") or []
     achados, enc = [], {}
     if not arqs:
@@ -859,7 +872,8 @@ def conferir(serie):
                       u"que é o padrão de PS3.5 §10 — é SUPOSIÇÃO, e segue "
                       u"como alerta gravado no DICOM"))
 
-    _laudo_inclinacao(arqs, enc, achados)
+    verificar_leitura(parar)
+    _laudo_inclinacao(arqs, enc, achados, parar)
 
     esp = [a["espessura"] for a in arqs if a["espessura"]]
     if esp:
@@ -945,6 +959,7 @@ def conferir(serie):
                       u"e transladar na fusão; a série sai com UID novo, para "
                       u"nunca se misturar com a original" % _geo["criterio"]))
 
+    verificar_leitura(parar)
     enc[u"Orientação do paciente"] = primeiro.get("orientacao") or u"—"
     slope, inter = primeiro.get("slope"), primeiro.get("intercept")
     if slope is None and inter is None:

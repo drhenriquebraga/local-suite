@@ -6375,7 +6375,7 @@ function noiteIniciar(){
   aoSim:function(){
  fetch('/api/overnight/iniciar',{method:'POST'}).then(r=>r.json()).then(d=>{
   if(d && d.ok===false && d.erro) alert(d.erro);
-  upd(); noiteFrota();
+  upd();
  }).catch(function(){ if(window.uiConexao) uiConexao(false) });
   }});
 }
@@ -6385,6 +6385,7 @@ function noiteEncerrar(){
   ok:'Encerrar o turno',
   html:'<p>A serie em curso <b>termina</b>; nenhuma nova comeca.</p>',
   aoSim:function(){
+ suspenderFrota();
  fetch('/api/overnight/encerrar',{method:'POST'}).then(r=>r.json()).then(d=>{
   upd();
  }).catch(function(){ if(window.uiConexao) uiConexao(false) });
@@ -6393,17 +6394,30 @@ function noiteEncerrar(){
 
 var OV_PULSO = ['⠋','⠙','⠹','⠸','⠼','⠴',
                 '⠦','⠧','⠇','⠏'];
-var _ovI = 0;
-setInterval(function(){
- var e = document.getElementById('ovPulso');
- if(e && e.offsetParent !== null){ _ovI = (_ovI+1) % OV_PULSO.length;
-  e.textContent = OV_PULSO[_ovI]; }
-}, 120);
-
+var _ovI = 0, frotaCtl = null, frotaTimer = null, pulsoTimer = null;
+function frotaVisivel(){
+ var faixa=document.getElementById('ovFaixa');
+ return !document.hidden && faixa && faixa.offsetParent!==null;
+}
+function suspenderFrota(){
+ if(frotaCtl){frotaCtl.abort(); frotaCtl=null;}
+ clearTimeout(frotaTimer); frotaTimer=null;
+ clearInterval(pulsoTimer); pulsoTimer=null;
+}
+function ativarFrota(){
+ if(!frotaVisivel()){suspenderFrota();return;}
+ if(pulsoTimer===null) pulsoTimer=setInterval(function(){
+  var e=document.getElementById('ovPulso');
+  if(e){_ovI=(_ovI+1)%OV_PULSO.length;e.textContent=OV_PULSO[_ovI];}
+ },120);
+ if(!frotaCtl && frotaTimer===null) noiteFrota();
+}
 function noiteFrota(){
  var box = document.getElementById('ovFrota');
- if(!box) return;
- fetch('/api/overnight/frota').then(r=>r.json()).then(d=>{
+ if(!box || !frotaVisivel() || frotaCtl) return;
+ var ctl=frotaCtl=new AbortController();
+ fetch('/api/overnight/frota',{signal:ctl.signal}).then(r=>r.json()).then(d=>{
+  if(ctl.signal.aborted || !frotaVisivel()) return;
   if(d.configurado===false){ uiHTML(box,
    '<span style="opacity:.7" data-radai-frase>' + (d.aviso||'') + '</span>');
    return; }
@@ -6431,12 +6445,14 @@ function noiteFrota(){
      + ' · ' + (m.concluidas||0) + '✓</span>';
   });
   uiHTML(box, h);
- }).catch(function(){});
+  }).catch(function(){}).finally(function(){
+   if(frotaCtl!==ctl)return;
+   frotaCtl=null;
+   if(frotaVisivel())frotaTimer=setTimeout(function(){frotaTimer=null;noiteFrota();},30000);
+  });
 }
-setInterval(function(){
- var f = document.getElementById('ovFaixa');
- if(!document.hidden && f && f.offsetParent !== null) noiteFrota();
-}, 30000);
+document.addEventListener('visibilitychange',function(){if(document.hidden)suspenderFrota();else ativarFrota();});
+window.addEventListener('pagehide',suspenderFrota);
 function liberar(){
  if(!confirm('Apagar o marcador de falha de '+PULADAS+' serie(s) e tentar de novo?\\n\\n'
   +'Faca isto DEPOIS de corrigir a causa (Python errado, permissao no share, GPU fora),'
@@ -6707,8 +6723,7 @@ function upd(){if(document.hidden||estadoVigiaCtl)return;var ctl=estadoVigiaCtl=
  if(bd && d.overnight) bd.style.display='none';
  if(ovf){
   ovf.style.display = d.overnight ? '' : 'none';
-  if(d.overnight && !window._ovFrotaJa){ window._ovFrotaJa=1; noiteFrota(); }
-  if(!d.overnight) window._ovFrotaJa=0;
+  if(d.overnight) ativarFrota(); else suspenderFrota();
   if(d.overnight){
    var oh=document.getElementById('ovH');
    if(oh) uiHTML(oh,
@@ -7402,27 +7417,9 @@ def overnight_interromper():
     return resposta
 
 
-@app.get("/api/overnight/frota")
-def overnight_frota():
+def _origem_da_frota():
     if STATE.get("overnight"):
-        import radai_overnight
-
-        por_estacao = {}
-        pastas = _pastas_de_status()
-        for pasta in pastas:
-            try:
-                for maq in radai_overnight.frota(pasta, eu=MACHINE):
-                    nome = maq.get("maquina")
-                    if not nome:
-                        continue
-                    antiga = por_estacao.get(nome)
-                    if antiga is None or (maq["legivel"], -maq["muda_min"]) > (antiga["legivel"], -antiga["muda_min"]):
-                        por_estacao[nome] = maq
-            except OSError:
-                continue
-        maqs = list(por_estacao.values())
-        return {"ok": True, "configurado": bool(pastas), "maquinas": maqs,
-                "resumo": radai_overnight.resumo_da_frota(maqs), "aviso": ""}
+        return {"raizes": raizes_do_turno(), "maquina": MACHINE}
     if not (STATUS_DIR or "").strip():
         return {"ok": True, "configurado": False, "maquinas": [],
                 "resumo": {"n": 0, "trabalhando": 0, "paradas": 0,
@@ -7445,11 +7442,25 @@ def overnight_frota():
                          "em curso — este programa não grava dado de paciente "
                          "em pasta espelhada. Escolha com o TI uma pasta de "
                          "rede que não sincronize."}
+    return {"pasta": STATUS_DIR, "maquina": MACHINE}
+
+
+def overnight_frota():
+    origem = _origem_da_frota()
+    if "resumo" in origem:
+        return origem
+    from radai_overnight import consultar_frota
+    return consultar_frota(origem)
+
+
+@app.get("/api/overnight/frota")
+async def _api_overnight_frota(request: Request):
+    origem = _origem_da_frota()
+    if "resumo" in origem:
+        return origem
+    from radai_consulta_isolada import ler
     try:
-        import radai_overnight
-        maqs = radai_overnight.frota(STATUS_DIR, eu=MACHINE)
-        return {"ok": True, "configurado": True, "maquinas": maqs,
-                "resumo": radai_overnight.resumo_da_frota(maqs), "aviso": ""}
+        return await ler(request, "frota", origem, prazo=25)
     except Exception as e:
         return {"ok": False, "configurado": True, "maquinas": [],
                 "resumo": {"n": 0, "trabalhando": 0, "paradas": 0,

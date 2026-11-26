@@ -7538,6 +7538,7 @@ function _ovLigar(){
  OV.escuta = {v: v, tecla: tecla, clique: clique, digito: digito};
 }
 function _ovSoltar(){
+ _ovPararFrota();
  var e = OV.escuta; if(!e) return;
  e.v.removeEventListener('keydown', e.tecla, true);
  e.v.removeEventListener('click', e.clique);
@@ -7576,10 +7577,28 @@ function folhaOvernight(){
  _ovPrepararLung();
  if(window.uiRevelar) window.uiRevelar(_ovQ('.ov-form'), true);
  try{ if(window.radaiRetraduzir) window.radaiRetraduzir() }catch(x){}
- fetch('/api/overnight/frota').then(function(r){return r.json()})
+ _ovConsultarFrota();
+}
+var consultaFrotaFolha=null;
+function _ovPararFrota(){
+ if(consultaFrotaFolha)consultaFrotaFolha.ctl.abort();
+ consultaFrotaFolha=null;
+}
+document.addEventListener('ui-fechar-leituras',function(ev){
+ if(consultaFrotaFolha && ev.target.contains(consultaFrotaFolha.alvo))_ovPararFrota();
+});
+document.addEventListener('visibilitychange',function(){
+ if(document.hidden)_ovPararFrota();else if(OV.escuta)_ovConsultarFrota();
+});
+window.addEventListener('pagehide',_ovPararFrota);
+function _ovConsultarFrota(){
+ var alvo=_ovQ('#ov_frota');
+ if(!alvo || alvo.offsetParent===null || document.hidden || consultaFrotaFolha)return;
+ var ctl=new AbortController();
+ consultaFrotaFolha={alvo:alvo,ctl:ctl};
+ fetch('/api/overnight/frota',{signal:ctl.signal}).then(function(r){return r.json()})
   .then(function(d){
-   var alvo = _ovQ('#ov_frota');
-   if(!alvo) return;
+   if(ctl.signal.aborted || !alvo.isConnected)return;
    var r = (d && d.resumo) || {};
    var av = _ovQ('#ov_frota_aviso');
    if(d && d.configurado === false){
@@ -7600,7 +7619,7 @@ function folhaOvernight(){
     c.appendChild(n); c.appendChild(t); alvo.appendChild(c);
    });
    if(typeof window.radaiRetraduzir === 'function') window.radaiRetraduzir();
-  }).catch(function(){});
+  }).catch(function(){}).finally(function(){if(consultaFrotaFolha && consultaFrotaFolha.ctl===ctl)consultaFrotaFolha=null;});
 }
 function _ovCard(txt){ var tx = document.getElementById('cd_night_tx'); if(tx && txt) uiTexto(tx, txt) }
 function _ovErro(msg){
@@ -7804,65 +7823,77 @@ def listar_pastas_do_explorador(caminho="", busca="", ordem="nome",
     bruto = str(caminho or "").strip().strip('"')
     if not bruto:
         return r
-    resultado = {}
+    import heapq
+    termo = _sem_acento(busca).strip()
+    limite = max(0, int(teto))
+    total = 0
 
-    def _listar():
+    def data(entrada):
         try:
-            if not os.path.isdir(bruto):
-                resultado["erro"] = u"não é uma pasta acessível desta máquina"
-                return
-            itens = []
-            for e in os.scandir(bruto):
-                try:
-                    if not e.is_dir():
-                        continue
-                    if e.name.lower() in _OCULTAS:
-                        continue
-                    try:
-                        mt = float(e.stat().st_mtime)
-                    except Exception:
-                        mt = None
-                    itens.append((e.name, mt))
-                except Exception:
-                    continue
-            resultado["itens"] = itens
-        except PermissionError:
-            resultado["erro"] = u"sem permissão para listar esta pasta"
-        except Exception as e:
-            resultado["erro"] = u"a pasta não pôde ser listada"
-            resultado["tipo"] = type(e).__name__
+            return float(entrada.stat().st_mtime)
+        except OSError:
+            return None
 
-    # A rota executa esta consulta em processo independente, com prazo e cancelamento.
-    _listar()
-    if resultado.get("erro"):
-        r["erro"] = resultado["erro"]
-        if resultado.get("tipo"):
-            r["tipo"] = resultado["tipo"]
+    def correspondentes(entradas):
+        nonlocal total
+        for entrada in entradas:
+            if entrada.name.lower() in _OCULTAS or (termo and termo not in _sem_acento(entrada.name)):
+                continue
+            try:
+                if not entrada.is_dir():
+                    continue
+            except OSError:
+                continue
+            total += 1
+            yield entrada, data(entrada) if ordem == "data" else None
+
+    def chave_data(item):
+        entrada, mt = item
+        if mt is None:
+            return True, 0, entrada.name.lower()
+        return False, -mt if sentido == "desc" else mt, ""
+
+    try:
+        if not os.path.isdir(bruto):
+            r["erro"] = u"não é uma pasta acessível desta máquina"
+            return r
+        with os.scandir(bruto) as entradas:
+            registros = correspondentes(entradas)
+            if not limite:
+                for _ in registros:
+                    pass
+                itens = []
+            elif ordem == "data":
+                itens = heapq.nsmallest(limite, registros, key=chave_data)
+            else:
+                selecionar = heapq.nlargest if sentido == "desc" else heapq.nsmallest
+                itens = selecionar(limite, registros, key=lambda item: item[0].name.lower())
+            r["caminho"] = os.path.abspath(bruto)
+            for entrada, mt in itens:
+                if ordem == "nome":
+                    mt = data(entrada)
+                try:
+                    data_texto = datetime.fromtimestamp(mt).strftime("%Y-%m-%d %H:%M") if mt is not None else ""
+                except (OverflowError, OSError, ValueError):
+                    data_texto = ""
+                r["pastas"].append({
+                    "nome": entrada.name, "caminho": os.path.join(r["caminho"], entrada.name),
+                    "data": data_texto})
+    except PermissionError:
+        r["erro"] = u"sem permissão para listar esta pasta"
         return r
-    r["caminho"] = os.path.abspath(bruto)
+    except OSError as e:
+        r["erro"] = u"a pasta não pôde ser listada"
+        r["tipo"] = type(e).__name__
+        return r
     pai = os.path.dirname(r["caminho"])
     if pai and os.path.abspath(pai) != r["caminho"]:
         r["pai"] = pai
-    itens = list(resultado.get("itens") or [])
-    termo = _sem_acento(busca).strip()
     if termo:
-        itens = [x for x in itens if termo in _sem_acento(x[0])]
         r["busca"] = str(busca or "").strip()
-        r["achados"] = len(itens)
-    if ordem == "data":
-        com = sorted([x for x in itens if x[1] is not None],
-                     key=lambda x: x[1], reverse=(sentido == "desc"))
-        itens = com + sorted([x for x in itens if x[1] is None],
-                             key=lambda x: x[0].lower())
-    else:
-        itens.sort(key=lambda x: x[0].lower(), reverse=(sentido == "desc"))
-    r["total"] = len(itens)
-    for nome, mt in itens[:int(teto)]:
-        r["pastas"].append({
-            "nome": nome, "caminho": os.path.join(r["caminho"], nome),
-            "data": (datetime.fromtimestamp(mt).strftime("%Y-%m-%d %H:%M")
-                     if mt is not None else u"")})
-    if len(itens) > int(teto):
+        r["achados"] = total
+    r["total"] = total
+    if total > limite:
         r["mostrando"] = int(teto)
         r["dica"] = (u"refine a busca" if termo else
                      u"use a busca ou a ordem por data")

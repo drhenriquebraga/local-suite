@@ -9,10 +9,13 @@ import sys
 import threading
 
 _VAGAS = threading.BoundedSemaphore(3)
-_OPERACOES = {"pastas", "pastas_reserva", "lung_series", "historico_neuro", "mapear_unidade"}
+_OPERACOES = {"pastas", "pastas_reserva", "lung_series", "historico_neuro", "mapear_unidade", "frota"}
 
 
 def _consultar(operacao, dados):
+    if operacao == "frota":
+        from radai_overnight import consultar_frota
+        return consultar_frota(dados)
     if operacao == "pastas":
         import radai_batch
         return radai_batch.consultar_explorador(dados)
@@ -47,22 +50,23 @@ async def ler(request, operacao, dados, prazo=120):
     processo = None
     conversa = None
     try:
-        if await request.is_disconnected():
-            raise ConnectionAbortedError("Leitura cancelada.")
-        ambiente = dict(os.environ, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1", MKL_NUM_THREADS="1")
-        processo = subprocess.Popen(
-            [sys.executable, "-B", str(Path(__file__).resolve())],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), env=ambiente)
-        loop = asyncio.get_running_loop()
-        conversa = loop.run_in_executor(None, processo.communicate, entrada)
-        limite = loop.time() + prazo
-        while not conversa.done():
-            if await request.is_disconnected():
+        from radai_leitura_ativa import desconexao_do_pedido
+        async with desconexao_do_pedido(request) as desconexao:
+            await asyncio.sleep(0)
+            if desconexao.done():
                 raise ConnectionAbortedError("Leitura cancelada.")
-            if loop.time() >= limite:
+            ambiente = dict(os.environ, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1", MKL_NUM_THREADS="1")
+            processo = subprocess.Popen(
+                [sys.executable, "-B", str(Path(__file__).resolve())],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), env=ambiente)
+            loop = asyncio.get_running_loop()
+            conversa = loop.run_in_executor(None, processo.communicate, entrada)
+            await asyncio.wait([conversa, desconexao], timeout=prazo, return_when=asyncio.FIRST_COMPLETED)
+            if not conversa.done():
+                if desconexao.done():
+                    raise ConnectionAbortedError("Leitura cancelada.")
                 raise TimeoutError("O tempo de leitura da pasta se esgotou.")
-            await asyncio.wait([conversa], timeout=0.15)
         saida, _ = conversa.result()
         if processo.returncode:
             raise ValueError("O processo de leitura foi interrompido.")

@@ -168,6 +168,9 @@ class PedidoFalso(object):
     async def json(self):
         return self._corpo
 
+    async def is_disconnected(self):
+        return False
+
 
 def _app():
     from fastapi import FastAPI

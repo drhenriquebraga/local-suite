@@ -239,31 +239,41 @@ def listar_pastas(caminho="", arquivos="", busca=""):
         pai = p.parent
         r["pai"] = "" if str(pai) == str(p) else str(pai)
         nomes, arqs = [], []
+        termo = _sem_acento(busca)
+        qtd_pastas = 0
         try:
-            for entrada in os.scandir(str(p)):
-                try:
-                    if entrada.is_dir():
-                        nomes.append(entrada.name)
-                    elif pedidas and entrada.name.lower().endswith(pedidas):
-                        arqs.append(entrada.name)
-                except Exception:
-                    pass
+            with os.scandir(str(p)) as entradas:
+                for entrada in entradas:
+                    nome = entrada.name
+                    if termo and termo not in _sem_acento(nome):
+                        continue
+                    try:
+                        if entrada.is_dir():
+                            alvo = nomes
+                            qtd_pastas += 1
+                        elif pedidas and nome.lower().endswith(pedidas):
+                            alvo = arqs
+                        else:
+                            continue
+                    except OSError:
+                        continue
+                    alvo.append(nome)
+                    if len(alvo) == 3000:
+                        alvo.sort(key=str.lower)
+                        del alvo[1500:]
         except PermissionError as e:
             r["erro"] = u"sem permissao para listar (%s)" % e
             return r
-        termo = _sem_acento(busca)
         if termo:
-            nomes = [n for n in nomes if termo in _sem_acento(n)]
-            arqs = [n for n in arqs if termo in _sem_acento(n)]
             r["busca"] = str(busca or "").strip()
-            r["achados"] = len(nomes)
+            r["achados"] = qtd_pastas
         nomes.sort(key=lambda s: s.lower())
         r["pastas"] = [{"nome": n, "caminho": str(p / n)} for n in nomes[:1500]]
         arqs.sort(key=lambda s: s.lower())
         r["arquivos"] = [{"nome": n, "caminho": str(p / n)} for n in arqs[:1500]]
-        if len(nomes) > 1500:
+        if qtd_pastas > 1500:
             r["erro"] = (u"mostrando 1500 de %d pastas — %s"
-                         % (len(nomes),
+                         % (qtd_pastas,
                             u"refine a busca" if termo else
                             u"use a busca, ou digite o caminho para ir direto"))
     except Exception as e:

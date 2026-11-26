@@ -493,6 +493,7 @@ function dcEtapa(n, rolar){
 }
 function dcVoltarA(n){
  if(DC.etapa <= n) return;
+ if(n < 3){ dcPararLaudos(); dcVisorFechar(); DC.visorPausa = null; imFecharVisor() }
  if(DC.conversao){ bgPost('/api/bridge/etapa/descartar', {conversao: DC.conversao}).catch(function(){}) }
  DC.conversao = ''; DC.exportadas = []; DC.entregue = null;
  if(n < 4) bgHTML(bgEl('dc_conv'), '');
@@ -689,15 +690,30 @@ function dcCdEsquecer(){
  dcCdFim();
 }
 function dcSuspenderLeituras(){
- dcCdEsquecer(); dcCancelarConsulta();
+ if(DC.visor){
+  DC.visorPausa = {serie:DC.visorSerie, corte:DC.visor.atual};
+  dcVisorFechar();
+ }
+ dcSuspenderMini(true);
+ dcCdEsquecer(); dcCancelarConsulta(); dcPararLaudos(); dcPararLaudoModal(); imPararLaudo();
 }
 window.addEventListener('pagehide',dcSuspenderLeituras);
-document.addEventListener('visibilitychange',function(){ if(document.hidden) dcSuspenderLeituras() });
+document.addEventListener('visibilitychange',function(){
+ if(document.hidden){ dcSuspenderLeituras(); return }
+ dcRetomarMini();
+ var pausa = DC.visorPausa; DC.visorPausa = null;
+ if(pausa && DC.etapa >= 3 && pausa.serie === DC.series[DC.sel]){
+  dcVisorLigar(pausa.serie, pausa.corte);
+ }
+ if(DC.etapa >= 3 && dcLaudosPendentes()){ dcLerLaudos(DC.nav); if(IM.atual) imLaudo() }
+});
+window.addEventListener('pageshow', dcRetomarMini);
 function dcZerar(){
+ DC.visorPausa = null;
  dcVoltarA(1);
  DC.marcadas = {}; DC.seg = {}; DC.laudos = {}; DC.lendo = {}; DC.laudoErro = {};
  DC.sel = null; DC.nav = [];
- DC.filaMini = [];
+ dcSuspenderMini(false);
  dcVisorFechar();
  imEsquecer();
  dcPintarMarcadas();
@@ -741,7 +757,8 @@ window.bgAoMudarDestinos = dcPintarBarra;
 
 function dcPintarGrade(){
  var alvo = bgEl('dc_grade');
- DC.filaMini = [];
+ dcSuspenderMini(false);
+ DC.miniPausada = document.hidden;
  if(!alvo) return;
  if(!DC.series.length){
   alvo.innerHTML = '<p class="pp-vazio">' + bgF(DC.fonte ? 'nenhuma série DICOM nesta pasta'
@@ -1064,9 +1081,18 @@ function dcPedeSegmentacao(){
  });
 }
 
+function dcSuspenderMini(retomar){
+ DC.miniPausada = true;
+ if(!retomar) DC.filaMini = [];
+ if(DC.minisAtivas) Array.from(DC.minisAtivas).forEach(function(parar){ parar(retomar) });
+}
+function dcRetomarMini(){
+ if(document.hidden) return;
+ DC.miniPausada = false; dcTocarMini();
+}
 function dcEnfileirarMini(i, s){ DC.filaMini.push({i: i, b: s.bilhete}); dcTocarMini() }
 function dcTocarMini(){
- while(DC.rodando < DC_CONCORRENCIA && DC.filaMini.length){
+ while(!DC.miniPausada && !document.hidden && DC.rodando < DC_CONCORRENCIA && DC.filaMini.length){
   var t = DC.filaMini.shift();
   DC.rodando++;
   dcCarregarMini(t.i, t.b);
@@ -1078,13 +1104,26 @@ function dcCarregarMini(i, b){
  bgBrilho(cx, true, '');
  var s = DC.series[i] || {};
  var url = dcMiniUrl(s) || ('/api/bridge/miniatura?b=' + encodeURIComponent(b));
- var pronto = function(){ bgBrilho(cx, false); DC.rodando--; dcTocarMini() };
+ var ctl = new AbortController();
+ if(!DC.minisAtivas) DC.minisAtivas = new Set();
+ function liberar(){
+  if(!DC.minisAtivas.delete(parar)) return false;
+  img.onload = null; img.onerror = null; bgBrilho(cx, false);
+  return true;
+ }
+ function parar(retomar){
+  if(!liberar()) return;
+  ctl.abort(); img.removeAttribute('src'); DC.rodando--;
+  if(retomar && DC.series[i] === s) DC.filaMini.unshift({i:i,b:b});
+ }
+ DC.minisAtivas.add(parar);
+ var pronto = function(){ if(liberar()){ DC.rodando--; dcTocarMini() } };
  img.onload = pronto;
  img.onerror = function(){
   if(s.imagem){ dcSemPrevia(i, s.modalidade); pronto(); return }
-  fetch(url, {method:'HEAD'})
-   .then(function(r){ dcSemPrevia(i, r.headers.get('X-RadAI-Modalidade') || '', r.status) })
-   .catch(function(){ dcSemPrevia(i, '') })
+  fetch(url, {method:'HEAD',signal:ctl.signal})
+   .then(function(r){ if(!ctl.signal.aborted) dcSemPrevia(i, r.headers.get('X-RadAI-Modalidade') || '', r.status) })
+   .catch(function(){ if(!ctl.signal.aborted) dcSemPrevia(i, '') })
    .then(pronto);
  };
  img.src = url;
@@ -1105,33 +1144,50 @@ function dcAvancar(){
  dcAbrir(m[0]);
  dcLerLaudos(m);
 }
-function dcLerLaudo(b){
+function dcPararLaudos(){
+ if(DC.laudosCtl) DC.laudosCtl.abort();
+ DC.laudosCtl = null;
+ DC.lendo = {};
+}
+function dcDonoLaudos(){
+ return DC.laudosCtl || (DC.laudosCtl = new AbortController());
+}
+function dcLerLaudo(b, modal){
+ if(document.hidden) return Promise.resolve(null);
  if(DC.laudos[b]) return Promise.resolve(DC.laudos[b]);
  if(DC.lendo[b]) return DC.lendo[b];
  var fonte = DC.fonte, si = DC.series[dcPorBilhete(b)];
- var pedido = (si && si.imagem) ? imLerLaudo(si) : bgPost('/api/bridge/laudo', {pasta: fonte, b: b});
+ var ctl = modal || dcDonoLaudos();
+ var pedido = (si && si.imagem) ? imLerLaudo(si, ctl.signal)
+  : bgPost('/api/bridge/laudo', {pasta: fonte, b: b}, {signal:ctl.signal});
  var p = pedido.then(function(d){
-  delete DC.lendo[b];
+  if(ctl.signal.aborted) return null;
+  if(!modal) delete DC.lendo[b];
   if(fonte !== DC.fonte) return null;
   if(!d || d.erro){ DC.laudoErro[b] = (d && d.erro) || '?'; return d || null }
   DC.laudos[b] = d;
   delete DC.laudoErro[b];
   return d;
  }, function(e){
-  delete DC.lendo[b];
+  if(ctl.signal.aborted) return null;
+  if(!modal) delete DC.lendo[b];
   if(fonte === DC.fonte) DC.laudoErro[b] = String((e && e.message) || e || '?');
   throw e;
  });
- DC.lendo[b] = p;
+ if(!modal) DC.lendo[b] = p;
  return p;
 }
 function dcLerLaudos(m){
- var cadeia = Promise.resolve();
+ var ctl = dcDonoLaudos(), cadeia = Promise.resolve();
  m.forEach(function(i){
   var s = DC.series[i];
   if(!s || !s.bilhete) return;
-  cadeia = cadeia.then(function(){ return dcLerLaudo(s.bilhete).catch(function(){}) })
-   .then(function(){ dcPintarDiagLista(); dcPintarOutras(); dcPintarBarra() });
+  cadeia = cadeia.then(function(){
+   if(ctl.signal.aborted || (s.imagem && IM.atual === s)) return;
+   return dcLerLaudo(s.bilhete).catch(function(){})
+  }).then(function(){
+   if(!ctl.signal.aborted){ dcPintarDiagLista(); dcPintarOutras(); dcPintarBarra() }
+  });
  });
  return cadeia;
 }
@@ -1306,7 +1362,11 @@ function dcJanela(j){
  if(!s || !v || !s.bilhete) return;
  dcVisorLigar(s, v.atual);
 }
+function dcPararLaudoModal(){
+ if(DC.laudoModalCtl){ DC.laudoModalCtl.abort(); DC.laudoModalCtl = null }
+}
 function dcVisorModal(i){
+ dcPararLaudoModal();
  var s = DC.series[i]; if(!s || !window.uiVisor) return;
  if(s.imagem){
   var n = Math.max(1, s.n | 0);
@@ -1322,7 +1382,7 @@ function dcVisorModal(i){
              {chave:'osso', rotulo:'osso'}];
  if(!tc) jans.unshift({chave:'auto', rotulo:'automática'});
  var cab = [['Modalidade', s.modalidade], ['Descrição', dcNome(s)], ['Imagens', String(s.cortes || 0)]];
- DC.cabModal = cab;
+ var modal = new AbortController(); DC.laudoModalCtl = modal;
  var v = window.uiVisor({titulo: dcNome(s), total: s.cortes || 1, inicial: s.central,
   cranial: s.cranial, janelas: jans, janela: s.janela || jans[0].chave, origem: bgEl('dcs' + i),
   carregando: 'abrindo a série',
@@ -1330,9 +1390,12 @@ function dcVisorModal(i){
    return '/api/bridge/corte?b=' + encodeURIComponent(s.bilhete || '') + '&corte=' + k
         + '&janela=' + encodeURIComponent(j);
   },
-  cabecalho: function(){ return DC.cabModal || cab }});
- dcLerLaudo(s.bilhete || '').then(function(d){
-  if(!d || d.erro) return;
+  aoFechar: function(){
+   modal.abort(); if(DC.laudoModalCtl === modal) DC.laudoModalCtl = null
+  },
+  cabecalho: function(){ return cab }});
+ dcLerLaudo(s.bilhete || '', modal).then(function(d){
+  if(modal.signal.aborted || !d || d.erro) return;
   var enc = d.encontrado || {};
   var pares = cab.filter(function(p){
    return !(p[0] in enc) && !(p[0] === 'Imagens' && ('Cortes' in enc));
@@ -1340,7 +1403,7 @@ function dcVisorModal(i){
   Object.keys(enc).forEach(function(k){ pares.push([k, enc[k]]) });
   ((d.cabecalho && d.cabecalho.meta) || []).concat((d.cabecalho && d.cabecalho.tags) || [])
    .forEach(function(t){ pares.push([t.nome || (t.grupo + ',' + t.elemento), t.valor]) });
-  DC.cabModal = pares;
+  cab = pares;
   if(v && v.cabecalho) v.cabecalho();
   bgTrad();
  }).catch(function(){});
@@ -2065,13 +2128,19 @@ def _anotacao_queimada(caminho):
         return u""
 
 
-def texto_no_pixel(serie):
+def texto_no_pixel(serie, parar=None):
+    from radai_dicom import verificar_leitura
     arqs = serie.get("arquivos") or []
     if not arqs:
         return []
     # GUARDA: a varredura lê o BurnedInAnnotation de todo corte; só arquivo de fora dela é aberto aqui.
-    valores = set(a["anotacao"] if "anotacao" in a
-                  else _anotacao_queimada(a.get("caminho")) for a in arqs)
+    valores = set()
+    for a in arqs:
+        verificar_leitura(parar)
+        valor = a["anotacao"] if "anotacao" in a else _anotacao_queimada(a.get("caminho"))
+        valores.add(valor)
+        if valor == "YES":
+            break
     if "YES" in valores:
         titulo = TITULO_DO_TEXTO_DECLARADO
     elif serie.get("captura") and "NO" not in valores:
@@ -2083,10 +2152,10 @@ def texto_no_pixel(serie):
              "o_que_faz": u"", "alerta": True, "impede": False}]
 
 
-def laudo_da_serie(serie):
+def laudo_da_serie(serie, parar=None):
     import radai_dicom
-    laudo = radai_dicom.conferir(serie)
-    extra = texto_no_pixel(serie)
+    laudo = radai_dicom.conferir(serie, parar)
+    extra = texto_no_pixel(serie, parar)
     if extra:
         laudo["achados"] = list(laudo.get("achados") or []) + extra
         laudo["alertas"] = [a["titulo"] for a in laudo["achados"]
@@ -2358,10 +2427,10 @@ def montar(app):
         import radai_bridge_entrada as E
         return E.pasta_real(pasta, parar=parar)
 
-    def _serie(pasta, b):
+    def _serie(pasta, b, parar=None):
         import radai_dicom
         import radai_thumbnail
-        r = radai_dicom.varrer(_pasta_real(pasta))
+        r = radai_dicom.varrer(_pasta_real(pasta, parar), parar=parar)
         try:
             _p, uid = radai_thumbnail.resolver(b)
         except Exception:
@@ -2510,12 +2579,13 @@ def montar(app):
             return {"erro": str(e)[:200]}
 
     @app.api_route("/api/bridge/miniatura", methods=["GET", "HEAD"])
-    def _miniatura(b: str = "", request: Request = None):
+    async def _miniatura(b: str = "", request: Request = None):
         from fastapi.responses import Response
         import radai_thumbnail
 
         try:
-            dados, info = radai_thumbnail.png_central(b)
+            from radai_leitura_ativa import executar
+            dados, info = await executar(request, radai_thumbnail.png_central, b)
         except Exception as e:
             return Response(status_code=500,
                             headers={"X-RadAI-Erro": _cab(type(e).__name__)})
@@ -2540,12 +2610,14 @@ def montar(app):
         return Response(content=dados, media_type="image/png", headers=cabs)
 
     @app.get("/api/bridge/corte")
-    def _corte(b: str = "", corte: int = 0, janela: str = "mediastino"):
+    async def _corte(request: Request, b: str = "", corte: int = 0, janela: str = "mediastino"):
         from fastapi.responses import Response
         import radai_thumbnail
         try:
-            dados, info = radai_thumbnail.png(
-                b, corte, janela, lado=radai_thumbnail.LADO_VISOR)
+            from radai_leitura_ativa import executar
+            dados, info = await executar(request, radai_thumbnail.png, b, corte, janela, radai_thumbnail.LADO_VISOR)
+        except InterruptedError:
+            return Response(status_code=499)
         except Exception as e:
             radai_thumbnail.registrar_falha(u"DicomBridge, corte do visor", e,
                                             bilhete=b)
@@ -2567,19 +2639,24 @@ def montar(app):
             "X-RadAI-Cortes": str(info.get("cortes", 0)),
             "Cache-Control": "no-store"})
 
+    def _laudo_dicom(c, parar):
+        import radai_dicom
+        s = _serie(str(c.get("pasta") or ""), str(c.get("b") or ""), parar)
+        if s is None:
+            return {"erro": u"série não encontrada — recarregue a pasta"}
+        if parar():
+            raise InterruptedError("Leitura interrompida.")
+        laudo = laudo_da_serie(s, parar)
+        if parar():
+            raise InterruptedError("Leitura interrompida.")
+        laudo["cabecalho"] = radai_dicom.ler_cabecalho(s["arquivos"][0]["caminho"], parar)
+        return laudo
+
     @app.post("/api/bridge/laudo")
     async def _laudo(request: Request):
+        from radai_leitura_ativa import executar
         try:
-            c = await request.json() or {}
-            import radai_dicom
-            s = await radai_web.no_threadpool(
-                _serie, str(c.get("pasta") or ""), str(c.get("b") or ""))
-            if s is None:
-                return {"erro": u"série não encontrada — recarregue a pasta"}
-            laudo = await radai_web.no_threadpool(laudo_da_serie, s)
-            laudo["cabecalho"] = radai_dicom.ler_cabecalho(
-                s["arquivos"][0]["caminho"])
-            return laudo
+            return await executar(request, _laudo_dicom, await request.json() or {})
         except Exception as e:
             return {"erro": u"%s: %s" % (type(e).__name__, str(e)[:200])}
 

@@ -1,6 +1,6 @@
 """I/O solicitado pela interface. Somente requisições ativas ocupam uma vaga."""
 import asyncio
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 import os
 import threading
 import time
@@ -57,7 +57,31 @@ _VAGAS = threading.BoundedSemaphore(4)
 _ESPERAS = threading.BoundedSemaphore(8)
 
 
+@asynccontextmanager
+async def desconexao_do_pedido(request):
+    """Depois de ler o corpo, escuta o canal ASGI até o socket fechar."""
+    async def escutar():
+        receber = getattr(request, "receive", None)
+        if callable(receber):
+            while (await receber())["type"] != "http.disconnect":
+                pass
+        else:
+            while not await request.is_disconnected():
+                await asyncio.sleep(0.1)
+    escuta = asyncio.create_task(escutar())
+    try:
+        yield escuta
+    finally:
+        escuta.cancel()
+        await asyncio.gather(escuta, return_exceptions=True)
+
+
 async def executar(request, funcao, *args, prazo=None):
+    async with desconexao_do_pedido(request) as desconexao:
+        return await _executar(desconexao, funcao, args, prazo)
+
+
+async def _executar(desconexao, funcao, args, prazo):
     # A vaga pertence ao worker até sair, inclusive se a requisição já terminou.
     inicio = time.monotonic()
     limite = inicio + prazo if prazo is not None else None
@@ -66,7 +90,7 @@ async def executar(request, funcao, *args, prazo=None):
             raise RuntimeError("Há outras leituras em andamento. Tente novamente.")
         try:
             while True:
-                if await request.is_disconnected():
+                if desconexao.done():
                     raise LeituraCancelada("Leitura interrompida.")
                 agora = time.monotonic()
                 if agora >= inicio + 8 or (limite is not None and agora >= limite):
@@ -89,12 +113,10 @@ async def executar(request, funcao, *args, prazo=None):
         _VAGAS.release()
         raise
     try:
-        while not futuro.done():
-            await asyncio.wait([futuro], timeout=0.15)
-            if futuro.done():
-                break
-            if await request.is_disconnected() or (limite is not None and time.monotonic() >= limite):
-                raise LeituraCancelada("Leitura interrompida.")
+        espera = max(0, limite - time.monotonic()) if limite is not None else None
+        await asyncio.wait([futuro, desconexao], timeout=espera, return_when=asyncio.FIRST_COMPLETED)
+        if not futuro.done():
+            raise LeituraCancelada("Leitura interrompida.")
         return futuro.result()
     finally:
         leitura.parar()

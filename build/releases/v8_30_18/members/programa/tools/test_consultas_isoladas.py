@@ -28,6 +28,41 @@ class Consultas(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(resultado["erro"])
             self.assertIn("Cortes", str(resultado["pastas"]))
 
+    def test_explorador_amplo_so_pede_datas_das_pastas_visiveis(self):
+        from contextlib import nullcontext
+        from types import SimpleNamespace
+        import radai_batch
+        import radai_config
+
+        total = 10000
+        consultas = []
+        class Entrada:
+            def __init__(self, i):
+                self.name = f"Pasta-{i:05d}"
+                self.i = i
+
+            def stat(self):
+                consultas.append(self.i)
+                return SimpleNamespace(st_mtime=self.i * 86400 + 86400)
+
+            def is_dir(self):
+                return True
+
+        def dados(_):
+            return nullcontext(Entrada(i) for i in reversed(range(total)))
+
+        with tempfile.TemporaryDirectory() as pasta, patch.object(os, "scandir", side_effect=dados):
+            resultado = radai_batch.listar_pastas_do_explorador(pasta, teto=60)
+            self.assertEqual(resultado["total"], total)
+            self.assertEqual([x["nome"] for x in resultado["pastas"]], [f"Pasta-{i:05d}" for i in range(60)])
+            self.assertEqual(consultas, list(range(60)))
+            por_data = radai_batch.listar_pastas_do_explorador(pasta, busca="099", ordem="data", sentido="desc", teto=2)
+            self.assertEqual([x["nome"] for x in por_data["pastas"]], ["Pasta-09999", "Pasta-09998"])
+            reserva = radai_config.listar_pastas(pasta, busca="pasta")
+            self.assertEqual(reserva["achados"], total)
+            self.assertEqual(len(reserva["pastas"]), 1500)
+            self.assertEqual(reserva["pastas"][-1]["nome"], "Pasta-01499")
+
     async def test_tc_do_lung_no_processo_descartavel(self):
         from datetime import datetime
         import make_test_series

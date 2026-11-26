@@ -409,7 +409,7 @@ def varrer(pasta, nomes=None, parar=None):
     return {"series": series, "ignorados": ignorados}
 
 
-def carimbo_estatico(serie, amostra=6, tolerancia=0.5):
+def carimbo_estatico(serie, amostra=6, tolerancia=0.5, parar=None):
     import numpy as np
     arqs = serie.get("arquivos") or []
     if len(arqs) < MINIMO_PARA_O_CARIMBO:
@@ -417,7 +417,13 @@ def carimbo_estatico(serie, amostra=6, tolerancia=0.5):
     passo = max(1, len(arqs) // max(2, amostra))
     escolhidos = arqs[::passo][:amostra]
     try:
-        imgs = [ler_cinza(a["caminho"]).astype(np.int16) for a in escolhidos]
+        imgs = []
+        for arquivo in escolhidos:
+            if parar and parar():
+                raise InterruptedError("Leitura interrompida.")
+            imgs.append(ler_cinza(arquivo["caminho"]).astype(np.int16))
+    except InterruptedError:
+        raise
     except Exception:
         return {"linhas": 0, "fracao": 0.0, "faixas": [], "amostrados": 0,
                 "erro": u"não consegui decodificar a amostra"}
@@ -428,6 +434,8 @@ def carimbo_estatico(serie, amostra=6, tolerancia=0.5):
     ref = imgs[0]
     dif = np.zeros(forma[0], dtype=float)
     for g in imgs[1:]:
+        if parar and parar():
+            raise InterruptedError("Leitura interrompida.")
         dif = np.maximum(dif, np.abs(g - ref).mean(axis=1))
     estaticas = np.where(dif < tolerancia)[0]
     faixas = []
@@ -445,7 +453,7 @@ def carimbo_estatico(serie, amostra=6, tolerancia=0.5):
             "faixas": faixas, "amostrados": len(imgs)}
 
 
-def conferir(serie, geometria=None, com_carimbo=True):
+def conferir(serie, geometria=None, com_carimbo=True, parar=None):
     achados = []
     n = int(serie.get("n") or 0)
 
@@ -500,7 +508,7 @@ def conferir(serie, geometria=None, com_carimbo=True):
         u"nada, e o desenho sairia sobre uma fusão que nunca aconteceu."))
 
     if com_carimbo and n >= MINIMO_PARA_O_CARIMBO:
-        c = carimbo_estatico(serie)
+        c = carimbo_estatico(serie, parar=parar)
         if c.get("linhas"):
             # GUARDA: só alerta; recortar mudaria a geometria da fusão.
             achados.append(_achado(False, TITULO_DO_CARIMBO, alerta=True))

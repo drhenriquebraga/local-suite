@@ -1207,8 +1207,8 @@ def teste_o_texto_declarado_no_dicom():
         sem_campo = dict(s_lg, arquivos=[dict((k, v) for k, v in a.items()
                                               if k != "anotacao")
                                          for a in s_lg["arquivos"]])
-        checar(u"  e serie de fora da varredura e lida corte a corte",
-               B.texto_no_pixel(sem_campo) and len(abertos) == 30,
+        checar(u"  e a leitura dos cabeçalhos externos para no corte 26, onde encontrou YES",
+               B.texto_no_pixel(sem_campo) and len(abertos) == 26 and abertos[-1] == c26,
                u"%d aberto(s)" % len(abertos))
     finally:
         B._anotacao_queimada = original

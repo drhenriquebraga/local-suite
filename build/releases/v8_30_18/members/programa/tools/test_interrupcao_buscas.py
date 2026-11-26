@@ -150,6 +150,27 @@ class Buscas(unittest.TestCase):
             self.assertTrue(entrada._LEITURAS_DE_CD[v]["concluida"].wait(2))
             self.assertTrue(entrada.estado_do_cd(v)["parado"])
 
+    def test_laudo_interrompido_apos_2_de_100_cortes_nao_abre_os_outros(self):
+        import radai_bridge
+        vistos = []
+        casos = {"arquivos": [{"caminho": i} for i in range(100)]}
+        def ler(caminho):
+            vistos.append(caminho)
+            return ""
+        with patch.object(radai_bridge, "_anotacao_queimada", ler):
+            with self.assertRaises(InterruptedError):
+                radai_bridge.texto_no_pixel(casos, parar=lambda: len(vistos) >= 2)
+        self.assertEqual(vistos, [0, 1])
+
+    def test_inclinacao_nao_abre_ultimo_corte_apos_cancelar(self):
+        import pydicom
+        import radai_dicom
+        with patch.object(pydicom, "dcmread", return_value={}) as abrir:
+            with self.assertRaises(InterruptedError):
+                radai_dicom.inclinacao_de_gantry(
+                    [{"caminho": i} for i in range(1, 5)], parar=lambda: abrir.call_count > 0)
+        self.assertEqual(abrir.call_count, 1)
+
     def test_http_desconectado_libera_vaga_e_para_trabalho(self):
         fim = threading.Event()
         class Desconectado:
