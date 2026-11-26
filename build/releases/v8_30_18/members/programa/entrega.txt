@@ -1,0 +1,10 @@
+# Identidade deste build. GERADO no empacotamento.
+# Nao editar a mao: o que estiver aqui e o que a tela mostra
+# e o que o campo vai relatar quando algo sair diferente.
+
+PRODUTO=RADIOTERAPIA_AI_LOCAL_SUITE
+PROJETO=LOCAL_SUITE
+VERSAO=8.30.18
+DATA=2026-11-26
+BUILD=2026-11-26.estudio.8318
+BUNDLE_MINIMO=8.30.6
